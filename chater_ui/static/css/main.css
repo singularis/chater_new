@@ -1,0 +1,72 @@
+/* Main CSS styles */
+body {
+    background-color: #121212; /* Dark theme background */
+    color: #ffffff; /* Light text */
+}
+.script-code {
+    white-space: pre-wrap; /* Preserves whitespace and formatting */
+    font-family: monospace;
+    background-color: #333; /* Darker background for code */
+    color: #ffffff; /* Light text for readability */
+    padding: 10px;
+    border-radius: 5px;
+}
+.card-panel {
+    background-color: #000000; /* Black background */
+    color: #ffffff; /* Light text for readability */
+    padding: 10px;
+    border-radius: 5px;
+    font-family: monospace;
+}
+
+.btn-clear {
+    margin-right: 10px; /* Space between clear and logout buttons */
+}
+
+.page-footer {
+    background-color: #121212 !important; /* Dark background */
+    color: #ffffff !important; /* Light text */
+}
+
+.page-footer a {
+    color: #ffffff !important; /* Ensures links within the footer are also light for visibility */
+}
+
+input[type="text"],
+textarea {
+    color: #ffffff; /* Light text color for readability */
+    background-color: #424242; /* Darker background for input fields and textarea */
+    border-bottom: 1px solid #ffffff; /* Light border for visibility */
+}
+
+/* Placeholder color */
+::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+    color: #ddd;
+    opacity: 1; /* Firefox */
+}
+
+:-ms-input-placeholder { /* Internet Explorer 10-11 */
+    color: #ddd;
+}
+
+::-ms-input-placeholder { /* Microsoft Edge */
+    color: #ddd;
+}
+
+.btn.blue:hover {
+    background-color: #29b6f6 !important; /* Lighter blue for hover */
+    color: #000 !important; /* Change text color on hover */
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2); /* Add a shadow for depth */
+}
+
+.btn.green:hover {
+    background-color: #2e7d32 !important; /* Lighter blue for hover */
+    color: #000 !important; /* Change text color on hover */
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2); /* Add a shadow for depth */
+}
+
+.btn.clicked {
+    /* Example: change color and scale */
+    background-color: #1976d2 !important;
+    transform: scale(0.95);
+}

@@ -1,0 +1,7 @@
+---
+- name: "Main file workload configuration"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+- name: Setup chater_ui
+  import_playbook: ./chater_ui/chater_ui.yaml
