@@ -1,0 +1,55 @@
+- name: Deploy Kubernetes objects for chater application
+  hosts: localhost
+  gather_facts: no
+
+  vars_files:
+    - ../vars.yaml
+
+  tasks:
+    - name: Create chater Namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: chater-dlp
+    - name: Deploy chater Deployment
+      kubernetes.core.k8s:
+        state: present
+        namespace: chater-dlp
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: chater-dlp
+            namespace: chater-dlp
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: chater-dlp
+            template:
+              metadata:
+                labels:
+                  app: chater-dlp
+              spec:
+                containers:
+                  - name: chater-dlp
+                    image: singularis314/chater-dlp:0.1
+                    imagePullPolicy: Always
+                    env:
+                      - name: GOOGLE_APPLICATION_CREDENTIALS
+                        value: /var/secrets/google/service-account.json
+                      - name: GCP_PROJECT_ID
+                        value: "{{ vars.GCP_PROJECT_ID }}"
+                      - name: BOOTSTRAP_SERVER
+                        value: "{{ vars.BOOTSTRAP_SERVER }}"
+                    volumeMounts:
+                      - name: gcp-dlp-creds
+                        mountPath: /var/secrets/google
+                        readOnly: true
+                volumes:
+                  - name: gcp-dlp-creds
+                    secret:
+                      secretName: gcp-dlp-service-account

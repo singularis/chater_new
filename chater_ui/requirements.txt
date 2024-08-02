@@ -7,3 +7,4 @@ openai==1.6.1
 Flask-Dance[google]==7.0.0
 oauthlib==3.2.2
 flask_cors
+confluent_kafka
