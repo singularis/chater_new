@@ -3,7 +3,7 @@
   gather_facts: no
 
   vars_files:
-    - vars.yaml
+    - ../vars.yaml
 
   tasks:
     - name: Create chater Namespace
@@ -23,67 +23,58 @@
           kind: Deployment
           metadata:
             name: chater-deployment
-            namespace: chater
+            namespace: chater-ui
           spec:
             replicas: 1
             selector:
               matchLabels:
-                app: chater
+                app: chater-ui
             template:
               metadata:
                 labels:
-                  app: chater
+                  app: chater-ui
               spec:
                 containers:
-                  - name: chater
-                    image: singularis314/chater:0.3
+                  - name: chater-ui
+                    image: singularis314/chater-ui:0.1
                     imagePullPolicy: Always
                     ports:
                       - containerPort: 5000
-                        name: chater
+                        name: chater-ui
                     volumeMounts:
-                      - name: chater-pvc
+                      - name: chater-ui-pvc
                         mountPath: /app/data
-                      - name: gcp-dlp-creds
-                        mountPath: /var/secrets/google
-                        readOnly: true
+                      - name: gphoto-chater-ui-pvc
+                        mountPath: /app/static/
                     env:
                       - name: USERNAME
                         valueFrom:
                           secretKeyRef:
-                            name: chater
+                            name: chater-ui
                             key: USERNAME
                       - name: PASSWORD_HASH
                         valueFrom:
                           secretKeyRef:
-                            name: chater
+                            name: chater-ui
                             key: PASSWORD_HASH
-                      - name: OPENAI_API_KEY
-                        valueFrom:
-                          secretKeyRef:
-                            name: chater
-                            key: OPENAI_API_KEY
                       - name: SECRET_KEY
                         valueFrom:
                           secretKeyRef:
-                            name: chater
+                            name: chater-ui
                             key: SECRET_KEY
                       - name: GOOGLE_APPLICATION_CREDENTIALS
                         value: /var/secrets/google/service-account.json
                       - name: SESSION_LIFETIME
-                        value: "8"
-                      - name: MODEL
-                        value: "{{ vars.all.vars.chater.MODEL }}"
+                        value: "800"
                       - name: GCP_PROJECT_ID
-                        value: "{{ vars.all.vars.chater.GCP_PROJECT_ID }}"
+                        value: "{{ vars.GCP_PROJECT_ID }}"
                 volumes:
-                  - name: chater-pvc
+                  - name: chater-ui-pvc
                     persistentVolumeClaim:
-                      claimName: chater-pvc
-                  - name: gcp-dlp-creds
-                    secret:
-                      secretName: gcp-dlp-service-account
-
+                      claimName: chater-ui-pvc
+                  - name: gphoto-chater-ui-pvc
+                    persistentVolumeClaim:
+                      claimName: gphoto-chater-ui-pvc
     - name: Create chater Service
       kubernetes.core.k8s:
         state: present
@@ -91,26 +82,27 @@
           apiVersion: v1
           kind: Service
           metadata:
-            name: chater-metal-lb
-            namespace: chater
+            name: chater-ui
+            namespace: chater-ui
           spec:
             ports:
-              - port: 448
+              - port: 5000
                 targetPort: 5000
+                nodePort: 30600
             selector:
-              app: chater
-            type: LoadBalancer
+              app: chater-ui
+            type: NodePort
 
     - name: Create chater PersistentVolume
       kubernetes.core.k8s:
         state: present
-        namespace: chater
+        namespace: chater-ui
         definition:
           apiVersion: v1
           kind: PersistentVolume
           metadata:
-            name: chater-pv
-            namespace: chater
+            name: chater-ui-pv
+            namespace: chater-ui
           spec:
             capacity:
               storage: 5Gi
@@ -120,7 +112,7 @@
             persistentVolumeReclaimPolicy: Recycle
             storageClassName: local-storage
             local:
-              path: /other_hdd/chater
+              path: /other_hdd/chater-ui
             nodeAffinity:
               required:
                 nodeSelectorTerms:
@@ -133,13 +125,13 @@
     - name: Create chater PersistentVolumeClaim
       kubernetes.core.k8s:
         state: present
-        namespace: chater
+        namespace: chater-ui
         definition:
           apiVersion: v1
           kind: PersistentVolumeClaim
           metadata:
-            name: chater-pvc
-            namespace: chater
+            name: chater-ui-pvc
+            namespace: chater-ui
           spec:
             storageClassName: local-storage
             accessModes:
@@ -149,23 +141,67 @@
                 storage: 5Gi
     - name: Create local directory for chater
       ansible.builtin.file:
-        path: /other_hdd/chater
+        path: /other_hdd/chater-ui
         state: directory
         mode: '0755'
     - name: Create secret for environment variables
       kubernetes.core.k8s:
         state: present
-        namespace: chater
+        namespace: chater-ui
         kind: Secret
-        name: chater
+        name: chater-ui
         resource_definition:
           apiVersion: v1
           kind: Secret
           metadata:
-            name: chater
-            namespace: chater
+            name: chater-ui
+            namespace: chater-ui
           data:
-            USERNAME: "{{ vars.all.vars.chater.USER | b64encode }}"
-            PASSWORD_HASH: "{{ vars.all.vars.chater.PASSWORD | b64encode }}"
-            OPENAI_API_KEY: "{{ vars.all.vars.chater.CAPI | b64encode }}"
-            SECRET_KEY: "{{ vars.all.vars.chater.SECRET_KEY | b64encode }}"
+            USERNAME: "{{ vars.USER | b64encode }}"
+            PASSWORD_HASH: "{{ vars.PASSWORD | b64encode }}"
+            SECRET_KEY: "{{ vars.SECRET_KEY | b64encode }}"
+    - name: Create gphoto PersistentVolume
+      kubernetes.core.k8s:
+        state: present
+        namespace: chater-ui
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: gphoto-chater-ui-pvc
+            namespace: chater-ui
+          spec:
+            capacity:
+              storage: 10Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteMany
+            persistentVolumeReclaimPolicy: Recycle
+            storageClassName: local-storage
+            local:
+              path: /other_hdd/gphoto
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+    - name: Create chater PersistentVolumeClaim
+      kubernetes.core.k8s:
+        state: present
+        namespace: chater-ui
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: gphoto-chater-ui-pvc
+            namespace: chater-ui
+          spec:
+            storageClassName: local-storage
+            accessModes:
+              - ReadWriteMany
+            resources:
+              requests:
+                storage: 10Gi

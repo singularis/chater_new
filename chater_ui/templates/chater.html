@@ -4,6 +4,14 @@
     <title>Chater</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+        .google-icon {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
 <div class="container">
@@ -34,6 +42,9 @@
     </div>
     {% endif %}
 </div>
+<a href="/gphoto" class="google-icon">
+    <img src="{{ url_for('static', filename='images/google-photos.png') }}" style="width: 20px; height: 20px;">
+</a>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 <script src="{{ url_for('static', filename='js/chater.js') }}"></script>
 <footer class="page-footer">
@@ -41,9 +52,9 @@
         <div class="row">
             <div class="col s12 center-align">
                 <!-- Clear Responses Button -->
-                <a href="{{ url_for('clear_responses') }}" class="btn waves-effect waves-light green btn-clear">Clear</a>
+                <a href="{{ url_for('chater_clear_responses') }}" class="btn waves-effect waves-light green btn-clear">Clear</a>
                 <!-- Logout Button -->
-                <a href="{{ url_for('logout') }}" class="btn waves-effect waves-light green">Logout</a>
+                <a href="{{ url_for('chater_logout') }}" class="btn waves-effect waves-light green">Logout</a>
             </div>
         </div>
     </div>

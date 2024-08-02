@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="EN">
 <head>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <title>Login</title>
@@ -14,15 +14,18 @@
             {{ form.username.label(class="active") }} {{ form.username() }}
         </div>
         <div class="input-field">
-            {{ form.password.label(class="active") }} {{ form.password() }}
+            {{ form.password.label(class="active") }}
+            {{ form.password(autocomplete="current-password") }}
         </div>
-        <button class="btn waves-effect waves-light" type="submit">Login</button>
+        <div class="button-container">
+            <button class="btn waves-effect waves-light" type="submit">Login</button>
+            <a class="btn waves-effect waves-light" href="{{ url_for('google_login') }}">Google</a>
+        </div>
     </form>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 <script>
-    // Initialize Materialize components
     document.addEventListener('DOMContentLoaded', function() {
         M.updateTextFields();
     });

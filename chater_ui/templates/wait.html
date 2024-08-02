@@ -2,14 +2,12 @@
 <html>
 <head>
     <title>Login Wait</title>
-    <!-- Materialize CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
     <script>
-        // JavaScript to redirect after a specified time
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(function() {
-                window.location.href = "{{ url_for('login') }}";
+                window.location.href = "{{ url_for('chater_login') }}";
             }, 30000); // 30 seconds
         });
     </script>

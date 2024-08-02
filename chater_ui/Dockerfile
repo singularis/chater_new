@@ -16,4 +16,4 @@ COPY . .
 
 EXPOSE 5000
 
-CMD ["python3", "/app/chater.py"]
+CMD ["python3", "/app/app.py"]

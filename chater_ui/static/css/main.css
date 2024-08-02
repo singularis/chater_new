@@ -70,3 +70,18 @@ textarea {
     background-color: #1976d2 !important;
     transform: scale(0.95);
 }
+.nav-wrapper {
+    background-color: #121212; /* Matching the dark theme */
+}
+
+.material-icons {
+    color: #ffffff; /* Light color for visibility */
+}
+
+.button-container {
+    display: flex;
+    gap: 0.5rem;
+}
+.button-container .btn {
+    flex: 1;
+}
