@@ -2,7 +2,7 @@ vars.yaml
 .idea
 __pycache__
 .uuid
-dlp.py
 dlp-secret-auth
+dlp_types.py
 certs
 depricated_chater
