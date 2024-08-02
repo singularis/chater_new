@@ -12,17 +12,14 @@ from kafka_producer import produce_message
 import uuid
 
 
-log = logging.getLogger('main')
+log = logging.getLogger("main")
 
 
 def chater(session):
     if "logged_in" in session:
         if request.method == "POST":
             question = request.form["question"]
-            message = {
-                'key': str(uuid.uuid4()),
-                'value': question
-            }
+            message = {"key": str(uuid.uuid4()), "value": question}
             produce_message(topic="dlp-source", message=message)
             if "responses" not in session:
                 session["responses"] = []

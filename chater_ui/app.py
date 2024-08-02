@@ -77,7 +77,7 @@ def before_request():
 def chater_login():
     global LAST_FAILED_ATTEMPT_TIME
     if LAST_FAILED_ATTEMPT_TIME and (
-            datetime.now() - LAST_FAILED_ATTEMPT_TIME
+        datetime.now() - LAST_FAILED_ATTEMPT_TIME
     ) < timedelta(seconds=30):
         logging.warning("Too many failed attempts")
         flash("Too many failed attempts. Please try again later.")
@@ -86,7 +86,7 @@ def chater_login():
         form = ChaterLoginForm()
         if form.validate_on_submit():
             if form.username.data == USERNAME and check_password_hash(
-                    PASSWORD_HASH, form.password.data
+                PASSWORD_HASH, form.password.data
             ):
                 logging.info("Successful chater_login by user: %s", form.username.data)
                 session.permanent = True

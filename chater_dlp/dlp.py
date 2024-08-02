@@ -13,6 +13,7 @@ from google.cloud.dlp_v2.types import (
 from kafka_consumer import consume_messages
 from kafka_producer import produce_message
 
+
 def inspect_and_redact(text: str) -> str:
     dlp = dlp_v2.DlpServiceClient()
     project_id = os.getenv("GCP_PROJECT_ID")
@@ -48,14 +49,15 @@ def inspect_and_redact(text: str) -> str:
     logging.info(f"Response from DLP {response.item.value}")
     return response.item.value
 
+
 def process_messages():
     topics = ["dlp-source"]
     logging.info(f"Starting message processing with topics: {topics}")
     while True:
         for message, consumer in consume_messages(topics):
             try:
-                key = message.key().decode('utf-8') if message.key() else None
-                value = message.value().decode('utf-8')
+                key = message.key().decode("utf-8") if message.key() else None
+                value = message.value().decode("utf-8")
 
                 value_dict = json.loads(value)
                 actual_value = value_dict["value"]
@@ -77,6 +79,7 @@ def process_messages():
                 consumer.commit(message)
             except Exception as e:
                 logging.error(f"Failed to process message: {e}")
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

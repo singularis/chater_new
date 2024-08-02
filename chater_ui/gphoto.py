@@ -11,7 +11,7 @@ from flask import (
 import logging
 
 
-log = logging.getLogger('main')
+log = logging.getLogger("main")
 
 
 def gphoto(session, pic_folder):
@@ -26,7 +26,7 @@ def gphoto(session, pic_folder):
                 year_media = {"images": [], "videos": []}
                 for file in file_list:
                     if file.lower().endswith(
-                            (".png", ".jpg", ".jpeg", ".gif", ".heic")
+                        (".png", ".jpg", ".jpeg", ".gif", ".heic")
                     ):
                         year_media["images"].append(
                             os.path.join("pics", str(year), file)
