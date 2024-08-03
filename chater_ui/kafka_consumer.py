@@ -10,12 +10,14 @@ def create_consumer(topics):
         logger.error("Expected list of topic unicode strings")
         raise TypeError("Expected list of topic unicode strings")
 
-    consumer = Consumer({
-        'bootstrap.servers': os.getenv("BOOTSTRAP_SERVER"),
-        'group.id': 'chater',
-        'auto.offset.reset': 'latest',
-        'enable.auto.commit': False
-    })
+    consumer = Consumer(
+        {
+            "bootstrap.servers": os.getenv("BOOTSTRAP_SERVER"),
+            "group.id": "chater",
+            "auto.offset.reset": "latest",
+            "enable.auto.commit": False,
+        }
+    )
 
     consumer.subscribe(topics)
     return consumer
