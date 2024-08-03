@@ -9,3 +9,5 @@
   import_playbook: ./chater_dlp/chater_dlp.yaml
 - name: Setup creds for DLP
   import_playbook: ./dlp-secret-auth/gcp-dlp-service-account.yaml
+- name: Setup chater_gpt
+  import_playbook: ./chater_gpt/chater_gpt.yaml
