@@ -14,7 +14,7 @@ def consume_messages(topics):
     consumer = Consumer(
         {
             "bootstrap.servers": os.getenv("BOOTSTRAP_SERVER"),
-            "group.id": "gpt",
+            "group.id": "chater",
             "auto.offset.reset": "latest",
             "enable.auto.commit": False,
         }
