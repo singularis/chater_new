@@ -9,7 +9,7 @@ from flask import (
 import logging
 import sys
 from kafka_producer import produce_message
-from kafka_consumer import consume_messages
+from kafka_consumer import create_consumer, consume_messages
 import uuid
 import json
 
@@ -91,18 +91,19 @@ def chater(session):
 
 def get_messages(message_uuid):
     topics = ["gpt-response"]
-    logging.info(f"Starting message processing with topics: {topics}")
+    log.info(f"Starting message processing with topics: {topics}")
+    consumer = create_consumer(topics)
     while True:
-        for message, consumer in consume_messages(topics):
+        for message in consume_messages(consumer):
             try:
                 value = message.value().decode("utf-8")
                 value_dict = json.loads(value)
                 actual_uuid = value_dict["key"]
-                logging.info(f"value_dict {value_dict}")
+                log.info(f"value_dict {value_dict}")
                 if actual_uuid == message_uuid:
-                    logging.info(f"Found send message for requested uuid {message_uuid}")
+                    log.info(f"Found send message for requested uuid {message_uuid}")
                     actual_value = value_dict["value"]
                     consumer.commit(message)
                     return actual_value
             except Exception as e:
-                logging.error(f"Failed to process message: {e}")
+                log.error(f"Failed to process message: {e}")
