@@ -17,7 +17,8 @@ def gpt_request(question) -> dict[str, str]:
         messages=[
             {
                 "role": "system",
-                "content": "You are a helpful assistant designed to output JSON.",
+                "content": "You are a helpful assistant designed to output JSON. "
+                           "Oriented on software development,python,java,AWS, SRE",
             },
             {"role": "user", "content": question},
         ],

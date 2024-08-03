@@ -17,7 +17,7 @@ def chater(session):
     if "logged_in" in session:
         if request.method == "POST":
             question = request.form["question"]
-            # chater_response = chater_request(question)
+            chater_response = chater_request(question)
             chater_response = {"response_content":"test", "safe_question":"test"}
             json_response = chater_response["response_content"]
             try:
