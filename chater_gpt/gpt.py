@@ -18,7 +18,7 @@ def gpt_request(question) -> dict[str, str]:
             {
                 "role": "system",
                 "content": "You are a helpful assistant designed to output JSON. "
-                           "Oriented on software development,python,java,AWS, SRE",
+                "Oriented on software development,python,java,AWS, SRE",
             },
             {"role": "user", "content": question},
         ],
@@ -44,7 +44,9 @@ def process_messages():
                 kafka_message = {"key": key, "value": response_value}
 
                 produce_message("gpt-response", kafka_message)
-                logging.info(f"Processed and redacted message send to kafka: {kafka_message}")
+                logging.info(
+                    f"Processed and redacted message send to kafka: {kafka_message}"
+                )
 
                 consumer.commit(message)
             except Exception as e:
