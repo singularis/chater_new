@@ -85,3 +85,16 @@ textarea {
 .button-container .btn {
     flex: 1;
 }
+.icon-column {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.icon-column img {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}

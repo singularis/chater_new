@@ -56,7 +56,15 @@ def google_login():
 
 @app.route("/chater", methods=["GET", "POST"])
 def chater():
-    return chater_ui(session)
+    return chater_ui(session, target='chater')
+
+@app.route("/chamini", methods=["GET", "POST"])
+def chamini():
+    return chater_ui(session, target='chamini')
+
+@app.route("/gempt", methods=["GET", "POST"])
+def gempt():
+    return chater_ui(session, target='gempt')
 
 
 @app.route("/chater_clear_responses", methods=["GET"])

@@ -29,7 +29,7 @@ def gpt_request(question) -> dict[str, str]:
 
 
 def process_messages():
-    topics = ["dlp-response"]
+    topics = ["gpt-send"]
     logging.info(f"Starting message processing with topics: {topics}")
     while True:
         for message, consumer in consume_messages(topics):

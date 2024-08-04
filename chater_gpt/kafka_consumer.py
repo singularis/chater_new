@@ -33,5 +33,5 @@ def consume_messages(topics):
                 logger.error(f"Consumer error: {msg.error()}")
                 continue
 
-        logger.info(f"Consumed message: {msg.key()}")
+        logger.info(f"Consumed message: {msg}")
         yield msg, consumer

@@ -61,8 +61,10 @@ def process_messages():
 
                 value_dict = json.loads(value)
                 actual_value = value_dict["value"]
+                question = actual_value["question"]
+                send_topic = actual_value["send_topic"]
 
-                redacted_value = inspect_and_redact(actual_value)
+                redacted_value = inspect_and_redact(question)
                 redacted_value = re.sub(
                     r"\bai\b|\bml\b|\bchatgpt\b|\bopenai\b",
                     lambda match: "vault"
@@ -73,8 +75,8 @@ def process_messages():
                 )
                 redacted_message = {"key": key, "value": redacted_value}
 
-                produce_message("dlp-response", redacted_message)
-                logging.info(f"Processed and redacted message: {redacted_message}")
+                produce_message(send_topic, redacted_message)
+                logging.info(f"Processed and redacted message: {redacted_message}, send to topic {send_topic}")
 
                 consumer.commit(message)
             except Exception as e:

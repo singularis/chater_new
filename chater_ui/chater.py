@@ -15,16 +15,25 @@ import json
 
 log = logging.getLogger("main")
 
+def targets(target):
+    if target == "chater":
+        return {"target": "chater", "send_topic": "gpt-send", "receive_topic": ["gpt-response"]}
+    elif target == "chamini":
+        return {"target": "chamini", "send_topic": "gemini-send", "receive_topic": ["gemini-response"]}
+    elif target == "gempt":
+        return
 
-def chater(session):
+def chater(session, target):
     if "logged_in" in session:
         if request.method == "POST":
+            target = targets(target)
             question = request.form["question"]
             logging.info(f"Asked question in UI: {question}")
             question_uuid = str(uuid.uuid4())
-            message = {"key": question_uuid, "value": question}
+            message = {"key": question_uuid, "value": {"question": question, "send_topic": target["send_topic"]}}
             produce_message(topic="dlp-source", message=message)
-            json_response = get_messages(question_uuid)
+            json_response = get_messages(question_uuid, topics=target["receive_topic"])
+            logging.info(f"Gemini message {json_response}")
             try:
                 response_data = json.loads(json_response)
                 possible_keys = [
@@ -89,8 +98,7 @@ def chater(session):
         return redirect(url_for("chater_login"))
 
 
-def get_messages(message_uuid):
-    topics = ["gpt-response"]
+def get_messages(message_uuid, topics):
     log.info(f"Starting message processing with topics: {topics}")
     consumer = create_consumer(topics)
     while True:
@@ -99,7 +107,6 @@ def get_messages(message_uuid):
                 value = message.value().decode("utf-8")
                 value_dict = json.loads(value)
                 actual_uuid = value_dict["key"]
-                log.info(f"value_dict {value_dict}")
                 if actual_uuid == message_uuid:
                     log.info(f"Found send message for requested uuid {message_uuid}")
                     actual_value = value_dict["value"]

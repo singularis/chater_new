@@ -4,14 +4,6 @@
     <title>Chater</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <style>
-        .google-icon {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            cursor: pointer;
-        }
-    </style>
 </head>
 <body>
 <div class="container">
@@ -42,9 +34,20 @@
     </div>
     {% endif %}
 </div>
-<a href="/gphoto" class="google-icon">
-    <img src="{{ url_for('static', filename='images/google-photos.png') }}" style="width: 20px; height: 20px;">
-</a>
+<div class="icon-column">
+    <a href="/gphoto">
+        <img src="{{ url_for('static', filename='images/google-photos.png') }}" alt="gphoto">
+    </a>
+    <a href="/chamini">
+        <img src="{{ url_for('static', filename='images/chamini.png') }}" alt="chamini">
+    </a>
+    <a href="/chater">
+        <img src="{{ url_for('static', filename='images/chater.png') }}" alt="chater">
+    </a>
+    <a href="/gempt">
+        <img src="{{ url_for('static', filename='images/gempt.webp') }}" alt="gempt">
+    </a>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 <script src="{{ url_for('static', filename='js/chater.js') }}"></script>
 <footer class="page-footer">
