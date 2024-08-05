@@ -18,9 +18,17 @@ log = logging.getLogger("main")
 
 def targets(target):
     if target == "chater":
-        return {"target": "chater", "send_topic": "gpt-send", "receive_topic": ["gpt-response"]}
+        return {
+            "target": "chater",
+            "send_topic": "gpt-send",
+            "receive_topic": ["gpt-response"],
+        }
     elif target == "chamini":
-        return {"target": "chamini", "send_topic": "gemini-send", "receive_topic": ["gemini-response"]}
+        return {
+            "target": "chamini",
+            "send_topic": "gemini-send",
+            "receive_topic": ["gemini-response"],
+        }
     elif target == "gempt":
         return
 
@@ -33,7 +41,10 @@ def chater(session, target):
             question = request.form["question"]
             logging.info(f"Asked question in UI: {question}")
             question_uuid = str(uuid.uuid4())
-            message = {"key": question_uuid, "value": {"question": question, "send_topic": target["send_topic"]}}
+            message = {
+                "key": question_uuid,
+                "value": {"question": question, "send_topic": target["send_topic"]},
+            }
             logging.info(f"message {message}")
             produce_message(topic="dlp-source", message=message)
             json_response = get_messages(question_uuid, topics=target["receive_topic"])
@@ -103,7 +114,9 @@ def chater(session, target):
 
 
 def get_messages(message_uuid, topics):
-    log.info(f"Starting message processing with topics: {topics}, looking for {message_uuid}")
+    log.info(
+        f"Starting message processing with topics: {topics}, looking for {message_uuid}"
+    )
     consumer = create_consumer(topics)
     while True:
         for message in consume_messages(consumer):

@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 from flask import (
     redirect,
     url_for,
-    flash, request,
+    flash,
+    request,
 )
 import logging
 
@@ -35,9 +36,8 @@ def chater_clear(session):
         if referrer:
             return redirect(referrer)
         else:
-            return redirect(url_for('chater'))
+            return redirect(url_for("chater"))
     else:
         logging.warning("Unauthorized clear attempt")
         flash("You need to log in to perform this action")
         return redirect(url_for("chater_login"))
-

@@ -1,12 +1,4 @@
-from flask import (
-    Flask,
-    render_template,
-    session,
-    redirect,
-    url_for,
-    flash,
-    request,
-)
+from flask import Flask, render_template, session
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -18,12 +10,12 @@ from common import before_request, chater_clear
 from login import login, logout
 from google_ops import g_login
 
-logging.basicConfig()
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 app = Flask(__name__, static_url_path="/chater/static")
 app.secret_key = os.getenv("SECRET_KEY")
+
 picFolder = "/app/static/pics/"
 SESSION_LIFETIME = int(os.getenv("SESSION_LIFETIME"))
 ALLOWED_EMAILS = os.getenv("ALLOWED_EMAILS", "").split(",")
@@ -37,7 +29,6 @@ google_bp = make_google_blueprint(
 app.register_blueprint(google_bp, url_prefix="/login")
 
 CORS(app)
-
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 
 
@@ -58,17 +49,17 @@ def google_login():
 
 @app.route("/chater", methods=["GET", "POST"])
 def chater():
-    return chater_ui(session, target='chater')
+    return chater_ui(session, target="chater")
 
 
 @app.route("/chamini", methods=["GET", "POST"])
 def chamini():
-    return chater_ui(session, target='chamini')
+    return chater_ui(session, target="chamini")
 
 
 @app.route("/gempt", methods=["GET", "POST"])
 def gempt():
-    return chater_ui(session, target='gempt')
+    return chater_ui(session, target="gempt")
 
 
 @app.route("/chater_clear_responses", methods=["GET"])
@@ -83,7 +74,7 @@ def chater_logout():
 
 @app.route("/chater_wait")
 def chater_wait():
-    logging.warning("Waiting for next chater_login attempt")
+    logger.warning("Waiting for next chater_login attempt")
     return render_template("wait.html")
 
 
@@ -93,7 +84,5 @@ def gphoto_ui():
 
 
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
-    logger = logging.getLogger("werkzeug")
-    logger.setLevel(logging.INFO)
+    logging.getLogger("werkzeug").setLevel(logging.INFO)
     app.run(host="0.0.0.0")
