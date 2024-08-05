@@ -29,7 +29,7 @@ class ChaterLoginForm(FlaskForm):
 log = logging.getLogger("main")
 
 
-def login(session):
+def login(session, target):
     global LAST_FAILED_ATTEMPT_TIME
     if LAST_FAILED_ATTEMPT_TIME and (
         datetime.now() - LAST_FAILED_ATTEMPT_TIME

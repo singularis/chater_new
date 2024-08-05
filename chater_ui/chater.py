@@ -15,6 +15,7 @@ import json
 
 log = logging.getLogger("main")
 
+
 def targets(target):
     if target == "chater":
         return {"target": "chater", "send_topic": "gpt-send", "receive_topic": ["gpt-response"]}
@@ -23,9 +24,11 @@ def targets(target):
     elif target == "gempt":
         return
 
+
 def chater(session, target):
     if "logged_in" in session:
         if request.method == "POST":
+            question_uuid = None
             target = targets(target)
             question = request.form["question"]
             logging.info(f"Asked question in UI: {question}")
@@ -100,7 +103,7 @@ def chater(session, target):
 
 
 def get_messages(message_uuid, topics):
-    log.info(f"Starting message processing with topics: {topics}")
+    log.info(f"Starting message processing with topics: {topics}, looking for {message_uuid}")
     consumer = create_consumer(topics)
     while True:
         for message in consume_messages(consumer):
@@ -108,12 +111,12 @@ def get_messages(message_uuid, topics):
                 value = message.value().decode("utf-8")
                 value_dict = json.loads(value)
                 actual_uuid = value_dict["key"]
-                log.info(f"actual_uuid {actual_uuid}")
-                log.info(f"message_uuid {message_uuid}")
+                consumer.commit(message)
                 if actual_uuid == message_uuid:
                     log.info(f"Found send message for requested uuid {message_uuid}")
                     actual_value = value_dict["value"]
-                    consumer.commit(message)
+                    log.info(f"actual_value {actual_value}")
                     return actual_value
             except Exception as e:
                 log.error(f"Failed to process message: {e}")
+                return f"Timeout"

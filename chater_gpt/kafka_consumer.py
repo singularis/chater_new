@@ -1,11 +1,14 @@
 import logging
 import os
+import time
 from confluent_kafka import Consumer, KafkaError
 
 logger = logging.getLogger("kafka_consumer")
 
+class NoMessageError(Exception):
+    pass
 
-def consume_messages(topics):
+def consume_messages(topics,):
     logger.info(f"Starting Kafka consumer with topics: {topics}")
     if not isinstance(topics, list):
         logger.error("Expected list of topic unicode strings")
@@ -21,8 +24,15 @@ def consume_messages(topics):
     )
 
     consumer.subscribe(topics)
+    start_time = time.time()
+    timeout = os.getenv("timeout")
 
     while True:
+        elapsed_time = time.time() - start_time
+        if elapsed_time > int(timeout):
+            logger.error("No messages received in 60 seconds")
+            raise NoMessageError("No messages received in 60 seconds")
+
         msg = consumer.poll(1.0)
         if msg is None:
             continue
@@ -35,3 +45,4 @@ def consume_messages(topics):
 
         logger.info(f"Consumed message: {msg}")
         yield msg, consumer
+        start_time = time.time()

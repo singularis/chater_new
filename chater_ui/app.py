@@ -2,7 +2,10 @@ from flask import (
     Flask,
     render_template,
     session,
-    logging,
+    redirect,
+    url_for,
+    flash,
+    request,
 )
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_cors import CORS
@@ -22,7 +25,6 @@ logger.setLevel(logging.DEBUG)
 app = Flask(__name__, static_url_path="/chater/static")
 app.secret_key = os.getenv("SECRET_KEY")
 picFolder = "/app/static/pics/"
-
 SESSION_LIFETIME = int(os.getenv("SESSION_LIFETIME"))
 ALLOWED_EMAILS = os.getenv("ALLOWED_EMAILS", "").split(",")
 
@@ -58,9 +60,11 @@ def google_login():
 def chater():
     return chater_ui(session, target='chater')
 
+
 @app.route("/chamini", methods=["GET", "POST"])
 def chamini():
     return chater_ui(session, target='chamini')
+
 
 @app.route("/gempt", methods=["GET", "POST"])
 def gempt():
