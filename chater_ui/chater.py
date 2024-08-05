@@ -1,18 +1,13 @@
-from flask import (
-    render_template,
-    redirect,
-    url_for,
-    flash,
-    request,
-    logging,
-)
+from flask import render_template, redirect, url_for, flash, request
 import logging
-import sys
-from kafka_producer import produce_message
-from kafka_consumer import create_consumer, consume_messages
 import uuid
 import json
+import sys
+from kafka_producer import produce_message, create_producer
+from kafka_consumer import create_consumer, consume_messages
+from logging_config import setup_logging
 
+setup_logging("app.log")
 log = logging.getLogger("main")
 
 
@@ -36,19 +31,24 @@ def targets(target):
 def chater(session, target):
     if "logged_in" in session:
         if request.method == "POST":
-            question_uuid = None
-            target = targets(target)
+            target_config = targets(target)
             question = request.form["question"]
-            logging.info(f"Asked question in UI: {question}")
+            log.info(f"Asked question in UI: {question}")
             question_uuid = str(uuid.uuid4())
             message = {
                 "key": question_uuid,
-                "value": {"question": question, "send_topic": target["send_topic"]},
+                "value": {
+                    "question": question,
+                    "send_topic": target_config["send_topic"],
+                },
             }
-            logging.info(f"message {message}")
-            produce_message(topic="dlp-source", message=message)
-            json_response = get_messages(question_uuid, topics=target["receive_topic"])
-            logging.info(f"Gemini message {json_response}")
+            log.info(f"message {message}")
+            producer = create_producer()
+            produce_message(producer, topic="dlp-source", message=message)
+            json_response = get_messages(
+                question_uuid, topics=target_config["receive_topic"]
+            )
+            log.info(f"Message {json_response}")
             try:
                 response_data = json.loads(json_response)
                 possible_keys = [
@@ -105,10 +105,10 @@ def chater(session, target):
             while sys.getsizeof(temp_responses) > 2000:
                 temp_responses.pop()
             session["responses"] = temp_responses[:2]
-            return redirect(url_for(target["target"]))
+            return redirect(url_for(target_config["target"]))
         return render_template("chater.html", responses=session.get("responses", []))
     else:
-        logging.warning("Unauthorized chater access attempt")
+        log.warning("Unauthorized chater access attempt")
         flash("You need to log in to view this page")
         return redirect(url_for("chater_login"))
 
@@ -118,18 +118,17 @@ def get_messages(message_uuid, topics):
         f"Starting message processing with topics: {topics}, looking for {message_uuid}"
     )
     consumer = create_consumer(topics)
-    while True:
-        for message in consume_messages(consumer):
-            try:
-                value = message.value().decode("utf-8")
-                value_dict = json.loads(value)
-                actual_uuid = value_dict["key"]
-                consumer.commit(message)
-                if actual_uuid == message_uuid:
-                    log.info(f"Found send message for requested uuid {message_uuid}")
-                    actual_value = value_dict["value"]
-                    log.info(f"actual_value {actual_value}")
-                    return actual_value
-            except Exception as e:
-                log.error(f"Failed to process message: {e}")
-                return f"Timeout"
+    log.info(f"message_uuid {message_uuid}")
+    for message in consume_messages(consumer):
+        try:
+            value = message.value().decode("utf-8")
+            value_dict = json.loads(value)
+            actual_uuid = value_dict["key"]
+            if actual_uuid == message_uuid:
+                log.info(f"Found send message for requested uuid {message_uuid}")
+                actual_value = value_dict["value"]
+                return actual_value
+            consumer.commit(message)
+        except Exception as e:
+            log.error(f"Failed to process message: {e}")
+            return f"Timeout"

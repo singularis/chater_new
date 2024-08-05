@@ -4,13 +4,14 @@ from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 import logging
+from logging_config import setup_logging
 from gphoto import gphoto
 from chater import chater as chater_ui
 from common import before_request, chater_clear
 from login import login, logout
 from google_ops import g_login
 
-logging.basicConfig(level=logging.DEBUG)
+setup_logging("app.log")
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_url_path="/chater/static")
