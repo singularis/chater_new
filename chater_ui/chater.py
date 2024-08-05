@@ -31,6 +31,7 @@ def chater(session, target):
             logging.info(f"Asked question in UI: {question}")
             question_uuid = str(uuid.uuid4())
             message = {"key": question_uuid, "value": {"question": question, "send_topic": target["send_topic"]}}
+            logging.info(f"message {message}")
             produce_message(topic="dlp-source", message=message)
             json_response = get_messages(question_uuid, topics=target["receive_topic"])
             logging.info(f"Gemini message {json_response}")
@@ -90,7 +91,7 @@ def chater(session, target):
             while sys.getsizeof(temp_responses) > 2000:
                 temp_responses.pop()
             session["responses"] = temp_responses[:2]
-            return redirect(url_for("chater"))
+            return redirect(url_for(target["target"]))
         return render_template("chater.html", responses=session.get("responses", []))
     else:
         logging.warning("Unauthorized chater access attempt")
@@ -107,6 +108,8 @@ def get_messages(message_uuid, topics):
                 value = message.value().decode("utf-8")
                 value_dict = json.loads(value)
                 actual_uuid = value_dict["key"]
+                log.info(f"actual_uuid {actual_uuid}")
+                log.info(f"message_uuid {message_uuid}")
                 if actual_uuid == message_uuid:
                     log.info(f"Found send message for requested uuid {message_uuid}")
                     actual_value = value_dict["value"]
