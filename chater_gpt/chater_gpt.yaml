@@ -53,8 +53,6 @@
                         value: "{{ vars.BOOTSTRAP_SERVER }}"
                       - name: MODEL
                         value: "{{ vars.MODEL }}"
-                      - name: TIMEOUT
-                        value: "{{ vars.TIMEOUT }}"
     - name: Create secret for environment variables
       kubernetes.core.k8s:
         state: present

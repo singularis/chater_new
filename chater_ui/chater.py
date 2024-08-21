@@ -3,6 +3,7 @@ import logging
 import uuid
 import json
 import sys
+import re
 from kafka_producer import produce_message, create_producer
 from kafka_consumer import create_consumer, consume_messages
 from logging_config import setup_logging
@@ -100,15 +101,23 @@ def format_script(json_response):
     ]
 
     try:
+        json_string = re.search(r'```json\n(.*?)\n```', json_response, re.DOTALL)
+        if json_string:
+            json_response = json_string.group(1)
+
         response_data = json.loads(json_response)
-        script_content = next((response_data[key] for key in possible_keys if key in response_data), response_data)
-        return "\n".join(script_content) if isinstance(script_content, list) else script_content
-    except json.JSONDecodeError:
+        script_content = next((response_data[key] for key in possible_keys if key in response_data), None)
+        if script_content is not None:
+            return "\n".join(script_content) if isinstance(script_content, list) else script_content
+        else:
+            # If no script is found, return the original JSON string
+            return json.dumps(response_data, indent=2)
+    except (json.JSONDecodeError, TypeError) as e:
         return json_response
 
 
 def manage_session_responses(existing_responses, new_response):
     temp_responses = [new_response] + existing_responses
-    while sys.getsizeof(temp_responses) > 2000:
+    while sys.getsizeof(temp_responses) > 10000:
         temp_responses.pop()
-    return temp_responses[:2]
+    return temp_responses[:10]
