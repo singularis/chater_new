@@ -81,10 +81,10 @@ def get_messages(message_uuid, topics):
         try:
             value = message.value().decode("utf-8")
             value_dict = json.loads(value)
-            if value_dict.get("key") == message_uuid:
-                log.info(f"Found message for requested uuid {message_uuid}")
-                return value_dict.get("value")
+            # if value_dict.get("key") == message_uuid:
+            log.info(f"Found message for requested uuid {message_uuid}")
             consumer.commit(message)
+            return value_dict.get("value")
         except Exception as e:
             log.error(f"Failed to process message: {e}")
             return "Timeout"

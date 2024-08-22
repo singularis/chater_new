@@ -65,7 +65,7 @@
                       - name: GOOGLE_APPLICATION_CREDENTIALS
                         value: /var/secrets/google/service-account.json
                       - name: SESSION_LIFETIME
-                        value: "800"
+                        value: "{{ vars.SESSION_LIFETIME }}"
                       - name: GCP_PROJECT_ID
                         value: "{{ vars.GCP_PROJECT_ID }}"
                       - name: BOOTSTRAP_SERVER
