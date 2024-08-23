@@ -57,9 +57,10 @@ def chater(session, target):
         producer = create_producer()
         produce_message(producer, topic="dlp-source", message=message)
         json_response = get_messages(question_uuid, topics=target_config["receive_topic"])
-        log.info(f"Message {json_response}")
+        log.info(f"Message response {json_response}")
 
         formatted_script = format_script(json_response)
+        log.info(f"Formated data {formatted_script}")
         new_response = {
             "question": question,
             "response": formatted_script,
@@ -81,8 +82,6 @@ def get_messages(message_uuid, topics):
         try:
             value = message.value().decode("utf-8")
             value_dict = json.loads(value)
-            # if value_dict.get("key") == message_uuid:
-            log.info(f"Found message for requested uuid {message_uuid}")
             consumer.commit(message)
             return value_dict.get("value")
         except Exception as e:
@@ -110,7 +109,6 @@ def format_script(json_response):
         if script_content is not None:
             return "\n".join(script_content) if isinstance(script_content, list) else script_content
         else:
-            # If no script is found, return the original JSON string
             return json.dumps(response_data, indent=2)
     except (json.JSONDecodeError, TypeError) as e:
         return json_response

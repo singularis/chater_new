@@ -4,11 +4,12 @@
     <title>Chater</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+
 </head>
 <body>
 <div class="container">
     <div class="row">
-        <form class="col s12" method="POST">
+        <form class="col s12 request-window" method="POST">
             <div class="row">
                 <div class="input-field col s12">
                     <textarea id="question" name="question" class="materialize-textarea" autocomplete="off"></textarea>
@@ -25,9 +26,15 @@
         <div class="col s12">
             {% for entry in responses %}
             <div class="card-panel dark-blue lighten-4">
-                <span><b>Q:</b> {{ entry.question }}</span><br>
-                <pre class="script-code"><b>A:</b> {{ entry.response | safe }}</pre>
-                <pre class="script-code"><b>Full:</b> {{ entry.full | safe }}</pre>
+                <div class="collapsible-header" onclick="toggleContent(this)">
+                    <span>Q: {{ entry.question }}</span>
+                </div>
+                <div class="collapsible-content">
+                    <div class="scrollable">
+                        <pre class="script-code"><b>A:</b> {{ entry.response | safe }}</pre>
+                        <pre class="script-code"><b>Full:</b> {{ entry.full | safe }}</pre>
+                    </div>
+                </div>
             </div>
             {% endfor %}
         </div>
