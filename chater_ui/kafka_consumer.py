@@ -17,7 +17,7 @@ def create_consumer(topics):
             {
                 "bootstrap.servers": os.getenv("BOOTSTRAP_SERVER"),
                 "group.id": "chater",
-                "auto.offset.reset": "latest",
+                "auto.offset.reset": "earliest",
                 "enable.auto.commit": True,
             }
         )

@@ -11,3 +11,5 @@
   import_playbook: ./dlp-secret-auth/gcp-dlp-service-account.yaml
 - name: Setup chater_gpt
   import_playbook: ./chater_gpt/chater_gpt.yaml
+- name: Setup chater_gemini
+  import_playbook: ./chater_gemini/chater_gemini.yaml

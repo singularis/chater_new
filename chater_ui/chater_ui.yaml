@@ -114,7 +114,7 @@
             persistentVolumeReclaimPolicy: Recycle
             storageClassName: local-storage
             local:
-              path: /other_hdd/chater-ui
+              path: /other/chater-ui
             nodeAffinity:
               required:
                 nodeSelectorTerms:
@@ -143,7 +143,7 @@
                 storage: 5Gi
     - name: Create local directory for chater
       ansible.builtin.file:
-        path: /other_hdd/chater-ui
+        path: /other/chater-ui
         state: directory
         mode: '0755'
     - name: Create secret for environment variables
