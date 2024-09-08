@@ -44,6 +44,9 @@ def chater(session, target):
             return redirect(url_for("chater"))
 
         question = request.form["question"]
+        if session.get('switch_state', 'off') == 'on':
+            log.info(f"Context: {session['context']}")
+            log.info(f"Context_get  {session.get('context', None)}")
         log.info(f"Asked question in UI: {question}")
         question_uuid = str(uuid.uuid4())
         message = {
@@ -51,6 +54,7 @@ def chater(session, target):
             "value": {
                 "question": question,
                 "send_topic": target_config["send_topic"],
+                "context": session['context']
             },
         }
         log.info(f"message {message}")
@@ -58,7 +62,10 @@ def chater(session, target):
         produce_message(producer, topic="dlp-source", message=message)
         json_response = get_messages(question_uuid, topics=target_config["receive_topic"])
         log.info(f"Message response {json_response}")
-
+        if session.get('switch_state', 'off') == 'on':
+            session['context'] = [session['context'], f"previous_llm_question: {question}",
+                                  f'previous_llm_response_to_question {json_response}']
+            log.info(f"Context crated {session['context'] }")
         formatted_script = format_script(json_response)
         log.info(f"Formated data {formatted_script}")
         new_response = {

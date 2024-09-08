@@ -4,12 +4,14 @@ from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 import logging
+import context
 from logging_config import setup_logging
 from gphoto import gphoto
 from chater import chater as chater_ui
 from common import before_request, chater_clear
 from login import login, logout
 from google_ops import g_login
+
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -82,6 +84,14 @@ def chater_wait():
 @app.route("/gphoto", methods=["GET"])
 def gphoto_ui():
     return gphoto(session, picFolder)
+
+@app.route('/toggle-switch', methods=['POST'])
+def toggle_switch():
+    return context.context_switch(session)
+
+@app.route('/get-switch-state', methods=['GET'])
+def get_switch_state():
+    return context.use_switch_state(session)
 
 
 if __name__ == "__main__":
