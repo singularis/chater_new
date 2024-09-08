@@ -9,22 +9,31 @@ MODEL = os.getenv("MODEL")
 client = OpenAI()
 
 
-def gpt_request(question) -> dict[str, str]:
-    logging.info(f"GPT Question {question}")
+def gpt_request(question, context=None) -> dict[str, str]:
+    logging.info(f"GPT Question: {question}")
+
+    # Base messages with the system message and user question
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful assistant designed to output JSON. "
+                       "Oriented on software development, python, java, AWS, SRE",
+        },
+        {"role": "user", "content": question},
+    ]
+    if context:
+        context_string = " ".join([str(item) for item in context if item is not None])
+        messages.append({"role": "assistant", "content": context_string})
+
     response = client.chat.completions.create(
         model=MODEL,
         response_format={"type": "json_object"},
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a helpful assistant designed to output JSON. "
-                "Oriented on software development,python,java,AWS, SRE",
-            },
-            {"role": "user", "content": question},
-        ],
+        messages=messages,
     )
+
     response_content = response.choices[0].message.content
-    logging.info(f"GPT Answer {response_content}")
+    logging.info(f"GPT Answer: {response_content}")
+
     return response_content
 
 
@@ -39,8 +48,9 @@ def process_messages():
 
                 value_dict = json.loads(value)
                 actual_value = value_dict["value"]
-
-                response_value = gpt_request(actual_value)
+                context = actual_value["context"]
+                question = actual_value["question"]
+                response_value = gpt_request(question, context)
                 kafka_message = {"key": key, "value": response_value}
 
                 produce_message("gpt-response", kafka_message)

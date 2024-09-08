@@ -31,7 +31,7 @@ def before_request(session, app, SESSION_LIFETIME):
 def chater_clear(session):
     if "logged_in" in session:
         session["responses"] = []
-        session["context"] = {}
+        session["context"] = None
         flash("Responses cleared successfully")
         referrer = request.referrer
         if referrer:

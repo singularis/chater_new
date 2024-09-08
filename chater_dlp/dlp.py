@@ -73,7 +73,11 @@ def process_messages():
                     redacted_value,
                     flags=re.IGNORECASE,
                 )
-                redacted_message = {"key": key, "value": redacted_value}
+                redacted_data = {
+                    "question": question,
+                    "context": actual_value["context"],
+                }
+                redacted_message = {"key": key, "value": redacted_data}
 
                 produce_message(send_topic, redacted_message)
                 logging.info(f"Processed and redacted message: {redacted_message}, send to topic {send_topic}")

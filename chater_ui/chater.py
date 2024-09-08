@@ -44,9 +44,6 @@ def chater(session, target):
             return redirect(url_for("chater"))
 
         question = request.form["question"]
-        if session.get('switch_state', 'off') == 'on':
-            log.info(f"Context: {session['context']}")
-            log.info(f"Context_get  {session.get('context', None)}")
         log.info(f"Asked question in UI: {question}")
         question_uuid = str(uuid.uuid4())
         message = {
@@ -54,7 +51,7 @@ def chater(session, target):
             "value": {
                 "question": question,
                 "send_topic": target_config["send_topic"],
-                "context": session['context']
+                "context": session.get('context', None)
             },
         }
         log.info(f"message {message}")
