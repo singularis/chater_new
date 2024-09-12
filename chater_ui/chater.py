@@ -63,6 +63,8 @@ def chater(session, target):
             session['context'] = [session['context'], f"previous_llm_question: {question}",
                                   f'previous_llm_response_to_question {json_response}']
             log.info(f"Context crated {session['context'] }")
+        else:
+            session['context'] = None
         formatted_script = format_script(json_response)
         log.info(f"Formated data {formatted_script}")
         new_response = {
@@ -120,6 +122,6 @@ def format_script(json_response):
 
 def manage_session_responses(existing_responses, new_response):
     temp_responses = [new_response] + existing_responses
-    while sys.getsizeof(temp_responses) > 10000:
+    while sys.getsizeof(temp_responses) > 100000:
         temp_responses.pop()
-    return temp_responses[:10]
+    return temp_responses[:20]
