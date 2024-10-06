@@ -10,7 +10,7 @@ from gphoto import gphoto
 from chater import chater as chater_ui
 from common import before_request, chater_clear
 from login import login, logout
-from google_ops import g_login
+from google_ops import g_login, create_google_blueprint
 
 
 setup_logging("app.log")
@@ -23,14 +23,8 @@ picFolder = "/app/static/pics/"
 SESSION_LIFETIME = int(os.getenv("SESSION_LIFETIME"))
 ALLOWED_EMAILS = os.getenv("ALLOWED_EMAILS", "").split(",")
 
-google_bp = make_google_blueprint(
-    client_id=os.getenv("GOOGLE_OAUTH_CLIENT_ID"),
-    client_secret=os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
-    scope=["profile", "email"],
-    redirect_to="google_login",
-)
-app.register_blueprint(google_bp, url_prefix="/login")
-
+google_bp = create_google_blueprint()
+app.register_blueprint(google_bp, url_prefix="/google_login")
 CORS(app)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 

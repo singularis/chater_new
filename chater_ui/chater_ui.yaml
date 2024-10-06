@@ -70,6 +70,12 @@
                         value: "{{ vars.GCP_PROJECT_ID }}"
                       - name: BOOTSTRAP_SERVER
                         value: "{{ vars.BOOTSTRAP_SERVER }}"
+                      - name: GOOGLE_OAUTH_CLIENT_ID
+                        value: "{{ vars.GOOGLE_OAUTH_CLIENT_ID }}"
+                      - name: GOOGLE_OAUTH_CLIENT_SECRET
+                        value: "{{ vars.GOOGLE_OAUTH_CLIENT_SECRET }}"
+                      - name: ALLOWED_EMAILS
+                        value: "{{ vars.ALLOWED_EMAILS }}"
                 volumes:
                   - name: chater-ui-pvc
                     persistentVolumeClaim:
