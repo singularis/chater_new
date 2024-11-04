@@ -1,15 +1,8 @@
+import logging
 import os
 from datetime import date
-from flask import (
-    render_template,
-    redirect,
-    url_for,
-    flash,
-    request,
-    logging,
-)
-import logging
 
+from flask import flash, logging, redirect, render_template, request, url_for
 
 log = logging.getLogger("main")
 

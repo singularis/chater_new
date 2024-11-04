@@ -1,7 +1,9 @@
 import json
 import logging
 import os
-from confluent_kafka import Producer, KafkaException
+
+from confluent_kafka import KafkaException, Producer
+
 from logging_config import setup_logging
 
 setup_logging("kafka_producer.log")

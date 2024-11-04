@@ -1,15 +1,17 @@
-from flask import  request, jsonify
 import logging
 
+from flask import jsonify, request
 
 log = logging.getLogger("main")
 
+
 def context_switch(session):
-    state = request.json.get('state', 'off')
-    session['switch_state'] = state
-    return jsonify({'status': 'success', 'state': state})
+    state = request.json.get("state", "off")
+    session["switch_state"] = state
+    return jsonify({"status": "success", "state": state})
+
 
 def use_switch_state(session):
     # Retrieve the switch state from the session
-    switch_state = session.get('switch_state', 'off')
+    switch_state = session.get("switch_state", "off")
     return jsonify({"switch_state": switch_state})

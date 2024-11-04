@@ -1,16 +1,17 @@
-from flask import Flask, render_template, session, jsonify
+import logging
+import os
+
+from flask import Flask, jsonify, render_template, session
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
-import os
-import logging
+
 import context
-from logging_config import setup_logging
-from gphoto import gphoto
 from chater import chater as chater_ui
 from common import before_request, chater_clear, token_required
+from google_ops import create_google_blueprint, g_login
+from gphoto import gphoto
+from logging_config import setup_logging
 from login import login, logout
-from google_ops import g_login, create_google_blueprint
-
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -78,18 +79,21 @@ def chater_wait():
 def gphoto_ui():
     return gphoto(session, picFolder)
 
-@app.route('/toggle-switch', methods=['POST'])
+
+@app.route("/toggle-switch", methods=["POST"])
 def toggle_switch():
     return context.context_switch(session)
 
-@app.route('/get-switch-state', methods=['GET'])
+
+@app.route("/get-switch-state", methods=["GET"])
 def get_switch_state():
     return context.use_switch_state(session)
 
-@app.route('/eater', methods=['GET'])
+
+@app.route("/eater", methods=["GET"])
 @token_required
 def eater():
-    return jsonify({'message': 'Access granted to eater endpoint!'})
+    return jsonify({"message": "Access granted to eater endpoint!"})
 
 
 if __name__ == "__main__":

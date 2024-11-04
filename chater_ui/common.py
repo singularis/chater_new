@@ -1,14 +1,9 @@
-from datetime import datetime, timedelta
-from flask import (
-    redirect,
-    url_for,
-    flash,
-    request,
-    jsonify
-)
 import logging
-import jwt
 import os
+from datetime import datetime, timedelta
+
+import jwt
+from flask import flash, jsonify, redirect, request, url_for
 
 log = logging.getLogger("main")
 SECRET_KEY = str(os.getenv("EATER_SECRET_KEY"))
@@ -47,25 +42,27 @@ def chater_clear(session):
         flash("You need to log in to perform this action")
         return redirect(url_for("chater_login"))
 
+
 def token_required(f):
     def wrapper(*args, **kwargs):
-        auth_header = request.headers.get('Authorization')
+        auth_header = request.headers.get("Authorization")
         if not auth_header:
             logging.debug("Authorization header is missing")
-            return jsonify({'message': 'Token is missing'}), 401
-        if not auth_header.startswith('Bearer '):
+            return jsonify({"message": "Token is missing"}), 401
+        if not auth_header.startswith("Bearer "):
             logging.debug("Authorization header is invalid: %s", auth_header)
-            return jsonify({'message': 'Invalid token format'}), 401
+            return jsonify({"message": "Invalid token format"}), 401
         try:
-            token = auth_header.split(' ')[1]
-            decoded_token = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-            logging.debug("Decoded token subject: %s", decoded_token.get('sub'))
+            token = auth_header.split(" ")[1]
+            decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            logging.debug("Decoded token subject: %s", decoded_token.get("sub"))
         except jwt.ExpiredSignatureError:
             logging.debug("Token has expired")
-            return jsonify({'message': 'Token has expired'}), 401
+            return jsonify({"message": "Token has expired"}), 401
         except jwt.InvalidTokenError as e:
             logging.debug("Invalid token: %s", str(e))
-            return jsonify({'message': 'Invalid token'}), 401
+            return jsonify({"message": "Invalid token"}), 401
 
         return f(*args, **kwargs)
+
     return wrapper

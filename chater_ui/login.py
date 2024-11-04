@@ -1,18 +1,13 @@
-from datetime import datetime, timedelta
 import logging
-from flask import (
-    redirect,
-    url_for,
-    flash,
-    render_template,
-)
 import os
-from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField
-from wtforms.validators import InputRequired, DataRequired
-from werkzeug.security import check_password_hash
-from flask_dance.contrib.google import make_google_blueprint, google
+from datetime import datetime, timedelta
 
+from flask import flash, redirect, render_template, url_for
+from flask_dance.contrib.google import google, make_google_blueprint
+from flask_wtf import FlaskForm
+from werkzeug.security import check_password_hash
+from wtforms import PasswordField, StringField
+from wtforms.validators import DataRequired, InputRequired
 
 USERNAME = os.getenv("USERNAME")
 PASSWORD_HASH = os.getenv("PASSWORD_HASH")

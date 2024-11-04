@@ -1,21 +1,25 @@
 import logging
-from flask import (
-    redirect,
-    url_for,
-    flash,
-)
-from flask_dance.contrib.google import make_google_blueprint, google
 import os
+
+from flask import flash, redirect, url_for
+from flask_dance.contrib.google import google, make_google_blueprint
+
 log = logging.getLogger("main")
+
 
 def create_google_blueprint():
     google_bp = make_google_blueprint(
         client_id=os.getenv("GOOGLE_OAUTH_CLIENT_ID"),
         client_secret=os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
-        scope=["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"],
+        scope=[
+            "openid",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile",
+        ],
         redirect_to="google_login",
     )
     return google_bp
+
 
 def g_login(session, ALLOWED_EMAILS):
     logging.info("Google login")
