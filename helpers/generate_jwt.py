@@ -9,7 +9,7 @@ with open('../vars.yaml', 'r') as file:
 
 def generate_token():
     payload = {
-        'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1),
+        'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=20000),
         'iat': datetime.datetime.now(datetime.timezone.utc),
         'sub': 'singularis'
     }
