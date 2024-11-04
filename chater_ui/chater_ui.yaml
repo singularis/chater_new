@@ -36,7 +36,7 @@
               spec:
                 containers:
                   - name: chater-ui
-                    image: singularis314/chater-ui:0.3
+                    image: singularis314/chater-ui:0.4
                     imagePullPolicy: Always
                     ports:
                       - containerPort: 5000
@@ -76,6 +76,8 @@
                         value: "{{ vars.GOOGLE_OAUTH_CLIENT_SECRET }}"
                       - name: ALLOWED_EMAILS
                         value: "{{ vars.ALLOWED_EMAILS }}"
+                      - name: EATER_SECRET_KEY
+                        value: "{{ vars.EATER_SECRET_KEY }}"
                 volumes:
                   - name: chater-ui-pvc
                     persistentVolumeClaim:

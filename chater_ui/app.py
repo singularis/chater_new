@@ -1,5 +1,4 @@
-from flask import Flask, render_template, session
-from flask_dance.contrib.google import make_google_blueprint, google
+from flask import Flask, render_template, session, jsonify
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 import os
@@ -8,7 +7,7 @@ import context
 from logging_config import setup_logging
 from gphoto import gphoto
 from chater import chater as chater_ui
-from common import before_request, chater_clear
+from common import before_request, chater_clear, token_required
 from login import login, logout
 from google_ops import g_login, create_google_blueprint
 
@@ -86,6 +85,11 @@ def toggle_switch():
 @app.route('/get-switch-state', methods=['GET'])
 def get_switch_state():
     return context.use_switch_state(session)
+
+@app.route('/eater', methods=['GET'])
+@token_required
+def eater():
+    return jsonify({'message': 'Access granted to eater endpoint!'})
 
 
 if __name__ == "__main__":
