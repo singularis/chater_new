@@ -1,0 +1,90 @@
+---
+- name: Apply PostgreSQL Custom Resource
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Apply PostgreSQL CRD
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: "acid.zalan.do/v1"
+          kind: "postgresql"
+          metadata:
+            name: "eater"
+            namespace: "chater-ui"
+            labels:
+              team: acid
+          spec:
+            teamId: "acid"
+            postgresql:
+              version: "16"
+            numberOfInstances: 1
+            maintenanceWindows: []
+            volume:
+              size: "10Gi"
+            users:
+              eater: []
+            databases:
+              eater: eater
+            allowedSourceRanges:
+              - 0.0.0.0/32
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "100Mi"
+              limits:
+                cpu: "500m"
+                memory: "500Mi"
+      register: result
+    - name: Create local directory for eater-postgres
+      ansible.builtin.file:
+        path: /other/eater_postgres
+        state: directory
+        mode: '0777'
+    - name: Create eater_postgres PersistentVolume
+      kubernetes.core.k8s:
+        state: present
+        namespace: chater-ui
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: eater-postgres-pvc
+            namespace: chater-ui
+          spec:
+            capacity:
+              storage: 10Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Recycle
+            local:
+              path: /other/eater_postgres
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+    - name: Create ClusterIP service for PostgreSQL
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: eater-postgres-service
+            namespace: chater-ui
+            labels:
+              app: eater-postgres
+          spec:
+            type: LoadBalancer
+            loadBalancerIP: 192.168.0.21
+            selector:
+              cluster-name: eater
+            ports:
+              - protocol: TCP
+                port: 5432
+                targetPort: 5432

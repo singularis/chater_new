@@ -1,0 +1,9 @@
+---
+- name: "Main chater"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+- name: Import postgres
+  import_playbook: ./postgres_eater.yaml
+- name: Import chater
+  import_playbook: ./chater_ui.yaml
