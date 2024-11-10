@@ -12,6 +12,7 @@ from google_ops import create_google_blueprint, g_login
 from gphoto import gphoto
 from logging_config import setup_logging
 from login import login, logout
+from eater.eater import eater_get_photo
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -90,10 +91,15 @@ def get_switch_state():
     return context.use_switch_state(session)
 
 
-@app.route("/eater", methods=["GET"])
+@app.route("/eater_test", methods=["GET"])
 @token_required
 def eater():
-    return jsonify({"message": "Access granted to eater endpoint!"})
+    return jsonify({"message": "Eater endpoint granted!"})
+
+@app.route("/eater_receive_photo", methods=["POST"])
+@token_required
+def eater_receive_photo():
+    return eater_get_photo()
 
 
 if __name__ == "__main__":

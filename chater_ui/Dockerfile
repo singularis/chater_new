@@ -15,5 +15,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 EXPOSE 5000
+ENV PYTHONPATH=/app
 
-CMD ["python3", "/app/app.py"]
+CMD ["python3", "-m", "app.app"]

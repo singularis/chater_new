@@ -1,12 +1,16 @@
 import logging
 import os
 from datetime import datetime, timedelta
+from functools import wraps
+import yaml
+
 
 import jwt
 from flask import flash, jsonify, redirect, request, url_for
 
 log = logging.getLogger("main")
 SECRET_KEY = str(os.getenv("EATER_SECRET_KEY"))
+PROMPT_FILE="eater/prompt.yaml"
 
 
 def before_request(session, app, SESSION_LIFETIME):
@@ -44,6 +48,7 @@ def chater_clear(session):
 
 
 def token_required(f):
+    @wraps(f)  # This preserves the original function's metadata
     def wrapper(*args, **kwargs):
         auth_header = request.headers.get("Authorization")
         if not auth_header:
@@ -64,5 +69,27 @@ def token_required(f):
             return jsonify({"message": "Invalid token"}), 401
 
         return f(*args, **kwargs)
-
     return wrapper
+
+def get_prompt(key):
+    try:
+        logging.debug(f"Attempting to open the file {PROMPT_FILE}.")
+        with open(PROMPT_FILE, "r") as file:
+            data = yaml.safe_load(file)
+            logging.info(f"Successfully loaded data from {PROMPT_FILE}.")
+        value = data.get(key)
+        if value is not None:
+            logging.info(f"Key '{key}' found in the YAML file. Value: {value}")
+            return value
+        else:
+            logging.error(f"Key '{key}' is not defined in the YAML file.")
+            raise ValueError(f"Key '{key}' is not defined in the YAML file.")
+    except FileNotFoundError:
+        logging.critical(f"The file {PROMPT_FILE} was not found.")
+        raise FileNotFoundError(f"Error: The file {PROMPT_FILE} was not found.")
+    except yaml.YAMLError as e:
+        logging.error(f"Error parsing YAML file: {e}")
+        raise ValueError(f"Error parsing YAML file: {e}")
+    except Exception as e:
+        logging.exception(f"An unexpected error occurred: {e}")
+        raise RuntimeError(f"An unexpected error occurred: {e}")

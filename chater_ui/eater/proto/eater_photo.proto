@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package eater;
+
+message PhotoMessage {
+    string time = 1;
+    bytes photo_data = 2;
+}

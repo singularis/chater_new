@@ -10,3 +10,4 @@ flask_cors
 confluent_kafka
 PyJWT
 pyyaml
+protobuf

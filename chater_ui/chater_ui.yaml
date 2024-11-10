@@ -45,7 +45,7 @@
                       - name: chater-ui-pvc
                         mountPath: /app/data
                       - name: gphoto-chater-ui-pvc
-                        mountPath: /app/static/
+                        mountPath: /app/app/static/
                     env:
                       - name: USERNAME
                         valueFrom:

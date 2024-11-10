@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import date
 
-from flask import flash, logging, redirect, render_template, request, url_for
+from flask import flash, redirect, render_template, request, url_for
 
 log = logging.getLogger("main")
 

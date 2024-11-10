@@ -1,0 +1,21 @@
+default_prompt: |
+  You receive a photo of food taken on an iPhone 13 Pro Max. Analyze the image and:
+
+  - Identify the dish name.
+  - Provide a list of ingredients used.
+  - Estimate the average total calories.
+  - Break down the macronutrient content (proteins, fats, carbohydrates, sugar in grams).
+  - Produce a JSON response in the following format:
+
+  ```json
+  {
+    "dish_name": "dish_name",
+    "estimated_avg_calories": estimated_avg_calories,
+    "ingredients": ["ingredient1", "ingredient2", "..."],
+    "contains": {
+      "proteins": grams,
+      "fats": grams,
+      "carbohydrates": grams,
+      "sugar": grams
+    }
+  }
