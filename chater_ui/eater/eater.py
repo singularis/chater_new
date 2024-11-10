@@ -5,7 +5,7 @@ import uuid
 import base64
 from datetime import datetime
 from kafka_producer import produce_message, create_producer
-from common import get_prompt
+from common import get_prompt, resize_image
 
 logger = logging.getLogger(__name__)
 current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -20,7 +20,9 @@ def eater_get_photo():
         photo_data = photo_message.photo_data
         logger.info(f"Received time: {time}")
         logger.info(f"Received photo_data size: {len(photo_data)} bytes")
-        send_kafka_message(photo_data)
+        resized_photo_data = resize_image(photo_data, max_size=(1024, 1024))
+        logger.info(f"Resized photo_data size: {len(resized_photo_data)} bytes")
+        send_kafka_message(resized_photo_data)
 
         # Optional: Save photo data to a file
         filename = f"{current_time}.jpg"

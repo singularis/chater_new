@@ -3,6 +3,8 @@ import os
 from datetime import datetime, timedelta
 from functools import wraps
 import yaml
+from PIL import Image
+import io
 
 
 import jwt
@@ -93,3 +95,17 @@ def get_prompt(key):
     except Exception as e:
         logging.exception(f"An unexpected error occurred: {e}")
         raise RuntimeError(f"An unexpected error occurred: {e}")
+
+def resize_image(image_data, max_size=(1024, 1024)):
+    try:
+        image = Image.open(io.BytesIO(image_data))
+
+        image.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+        # Save the resized image back to binary
+        output = io.BytesIO()
+        image.save(output, format=image.format)
+        return output.getvalue()
+    except Exception as e:
+        logging.error(f"Failed to resize image: {str(e)}")
+        raise

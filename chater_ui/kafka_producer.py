@@ -14,7 +14,7 @@ def create_producer():
     try:
         conf = {
             "bootstrap.servers": os.getenv("BOOTSTRAP_SERVER"),
-            "max_request_size": 10000000,
+            "message.max.bytes": 10000000,
             "client.id": "python-producer",
             "acks": "all",
         }

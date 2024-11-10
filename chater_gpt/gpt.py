@@ -75,10 +75,10 @@ def process_messages():
                 topic = message.topic()
                 key = message.key().decode("utf-8") if message.key() else None
                 value = message.value().decode("utf-8")
+                value_dict = json.loads(value)
+                actual_value = value_dict["value"]
 
                 if topic == "gpt-send":
-                    value_dict = json.loads(value)
-                    actual_value = value_dict["value"]
                     context = actual_value.get("context")
                     question = actual_value.get("question")
                     response_value = gpt_request(question, context)
@@ -91,9 +91,8 @@ def process_messages():
 
                 elif topic == "eater-send-photo":
                     logging.info("Received message on 'eater-send-photo'.")
-                    value_dict = json.loads(value)
-                    prompt = value_dict.get("prompt")
-                    photo_base64 = value_dict.get("photo")
+                    prompt = actual_value.get("prompt")
+                    photo_base64 = actual_value.get("photo")
                     if prompt and photo_base64:
                         photo_analysis_result = analyze_photo(prompt, photo_base64)
                         kafka_message = {"key": key, "value": photo_analysis_result}
