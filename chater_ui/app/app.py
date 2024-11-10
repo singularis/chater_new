@@ -12,7 +12,7 @@ from google_ops import create_google_blueprint, g_login
 from gphoto import gphoto
 from logging_config import setup_logging
 from login import login, logout
-from eater.eater import eater_get_photo
+from eater.eater import eater_photo
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, static_url_path="/chater/static")
 app.secret_key = os.getenv("SECRET_KEY")
 
-picFolder = "/app/static/pics/"
+picFolder = "/app/app/static/pics"
 SESSION_LIFETIME = int(os.getenv("SESSION_LIFETIME"))
 ALLOWED_EMAILS = os.getenv("ALLOWED_EMAILS", "").split(",")
 
@@ -99,7 +99,7 @@ def eater():
 @app.route("/eater_receive_photo", methods=["POST"])
 @token_required
 def eater_receive_photo():
-    return eater_get_photo()
+    return eater_photo()
 
 
 if __name__ == "__main__":

@@ -1,51 +1,23 @@
-from flask import request, jsonify
+from .process_photo import eater_get_photo
+from .process_gpt import get_messages, proces_food
 import logging
-from .proto import eater_photo_pb2
-import uuid
-import base64
-from datetime import datetime
-from kafka_producer import produce_message, create_producer
-from common import get_prompt, resize_image
+import json
 
 logger = logging.getLogger(__name__)
-current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
+logger.info("Starting eater")
 
-def eater_get_photo():
+def eater_photo():
     try:
-        photo_message = eater_photo_pb2.PhotoMessage()
-        photo_message.ParseFromString(request.data)
-
-        time = photo_message.time
-        photo_data = photo_message.photo_data
-        logger.info(f"Received time: {time}")
-        logger.info(f"Received photo_data size: {len(photo_data)} bytes")
-        resized_photo_data = resize_image(photo_data, max_size=(1024, 1024))
-        logger.info(f"Resized photo_data size: {len(resized_photo_data)} bytes")
-        send_kafka_message(resized_photo_data)
-
-        # Optional: Save photo data to a file
-        filename = f"{current_time}.jpg"
-        # TODO Save photo to persistent storage
-        with open(filename, "wb") as image_file:
-            image_file.write(photo_data)
-        logger.info("Photo saved to received_image.jpg")
-
-        return jsonify({"message": "Photo received successfully!", "time": time}), 200
+        eater_get_photo()
+        gpt_response=get_messages(["photo-analysis-response"])
+        json_response = json.loads(gpt_response)
+        if json_response.get("error"):
+            logging.error(f"Error {json_response}")
+            return f"ERROR: {json_response}"
+        else:
+            proces_food(json_response)
     except Exception as e:
-        logger.error(f"Error processing request: {str(e)}")
-        return jsonify({"message": "Failed to process the request", "error": str(e)}), 400
-
-def send_kafka_message(photo):
-    producer = create_producer()
-    photo_uuid = str(uuid.uuid4())
-    prompt = get_prompt("default_prompt")
-    message = {
-        "key": photo_uuid,
-        "value": {
-            "prompt": prompt,
-            "photo": base64.b64encode(photo).decode("utf-8"),
-        },
-    }
-    logger.info(f"Food image {photo_uuid} send")
-    produce_message(producer, topic="eater-send-photo", message=message)
+        logger.info(f"Exception {e}")
+        return "Failed"
+    return "Success"

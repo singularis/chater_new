@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 import yaml
 from PIL import Image
+import base64
 import io
 
 
@@ -109,3 +110,7 @@ def resize_image(image_data, max_size=(1024, 1024)):
     except Exception as e:
         logging.error(f"Failed to resize image: {str(e)}")
         raise
+
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')

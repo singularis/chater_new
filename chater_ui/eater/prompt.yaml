@@ -1,21 +1,25 @@
 default_prompt: |
-  You receive a photo of food taken on an iPhone 13 Pro Max. Analyze the image and:
-
-  - Identify the dish name.
-  - Provide a list of ingredients used.
-  - Estimate the average total calories.
-  - Break down the macronutrient content (proteins, fats, carbohydrates, sugar in grams).
-  - Produce a JSON response in the following format:
-
-  ```json
-  {
-    "dish_name": "dish_name",
-    "estimated_avg_calories": estimated_avg_calories,
-    "ingredients": ["ingredient1", "ingredient2", "..."],
-    "contains": {
-      "proteins": grams,
-      "fats": grams,
-      "carbohydrates": grams,
-      "sugar": grams
-    }
-  }
+  "You receive a photo of food taken on an iPhone 13 Pro Max. Analyze the image and:\n\n"
+  "  - Identify the dish name.\n"
+  "  - Provide a list of ingredients used.\n"
+  "  - Estimate the average total calories.\n"
+  "  - Break down the macronutrient content (proteins, fats, carbohydrates, sugar in grams).\n"
+  "  - Respond only by JSON. No additional text \n"
+  "  - For JSON response. Send only key and values. Do not add json keyword \n"
+  "  - If not a food, respond a JSON in the following format." \n"
+  "   {\n"
+  "    \"error\": \"NOT A FOOD\",\n"
+  "    }\n"
+  "  - If food on the image: produce a JSON response in the following format:\n\n"
+  "  {\n"
+  "    \"dish_name\": \"dish_name\",\n"
+  "    \"estimated_avg_calories\": estimated_avg_calories,\n"
+  "    \"ingredients\": [\"ingredient1\", \"ingredient2\", \"...\"],\n"
+  "    \"total_avg_weight\": gram,\n"
+  "    \"contains\": {\n"
+  "      \"proteins\": grams,\n"
+  "      \"fats\": grams,\n"
+  "      \"carbohydrates\": grams,\n"
+  "      \"sugar\": grams\n"
+  "    }\n"
+  "  }\n"

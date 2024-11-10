@@ -1,5 +1,4 @@
 import os
-import base64
 from openai import OpenAI
 import logging
 import json
@@ -7,6 +6,7 @@ from kafka_consumer import consume_messages
 from kafka_producer import produce_message
 
 MODEL = os.getenv("MODEL")
+VISION_MODEL = os.getenv("VISION_MODEL")
 client = OpenAI()
 
 
@@ -41,20 +41,28 @@ def gpt_request(question, context=None, content=None) -> dict[str, str]:
 
     return response_content
 
-
 def analyze_photo(prompt, photo_base64):
     try:
         logging.info("Analyzing photo with prompt via ChatGPT.")
         response = client.chat.completions.create(
-            model=MODEL,
+            model=VISION_MODEL,
             messages=[
                 {
-                    "role": "system",
-                    "content": "You are an AI that analyzes photos and provides insights based on prompts."
-                },
-                {"role": "user", "content": prompt},
-                {"role": "user", "content": f"Photo Base64: {photo_base64}"}
-            ],
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": str(prompt),
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url":  f"data:image/jpeg;base64,{photo_base64}"
+                            },
+                        },
+                    ],
+                }
+            ]
         )
 
         response_content = response.choices[0].message.content

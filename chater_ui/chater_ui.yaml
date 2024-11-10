@@ -46,6 +46,8 @@
                         mountPath: /app/data
                       - name: gphoto-chater-ui-pvc
                         mountPath: /app/app/static/
+                      - name: eater-ui-pvc
+                        mountPath: /app/eater_storage
                     env:
                       - name: USERNAME
                         valueFrom:
@@ -85,6 +87,9 @@
                   - name: gphoto-chater-ui-pvc
                     persistentVolumeClaim:
                       claimName: gphoto-chater-ui-pvc
+                  - name: eater-ui-pvc
+                    persistentVolumeClaim:
+                      claimName: eater-ui-pvc
     - name: Create chater Service
       kubernetes.core.k8s:
         state: present
@@ -152,6 +157,57 @@
     - name: Create local directory for chater
       ansible.builtin.file:
         path: /other/chater-ui
+        state: directory
+        mode: '0755'
+    - name: Create eater PersistentVolume
+      kubernetes.core.k8s:
+        state: present
+        namespace: chater-ui
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: eater-ui-pv
+            namespace: chater-ui
+          spec:
+            capacity:
+              storage: 20Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteMany
+            persistentVolumeReclaimPolicy: Recycle
+            storageClassName: local-storage
+            local:
+              path: /other/eater_storage
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+
+    - name: Create eater PersistentVolumeClaim
+      kubernetes.core.k8s:
+        state: present
+        namespace: chater-ui
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: eater-ui-pvc
+            namespace: chater-ui
+          spec:
+            storageClassName: local-storage
+            accessModes:
+              - ReadWriteMany
+            resources:
+              requests:
+                storage: 20Gi
+    - name: Create local directory for eater
+      ansible.builtin.file:
+        path: /other/eater_storage
         state: directory
         mode: '0755'
     - name: Create secret for environment variables
