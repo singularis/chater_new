@@ -65,16 +65,8 @@ def process_messages():
                 send_topic = actual_value["send_topic"]
 
                 redacted_value = inspect_and_redact(question)
-                redacted_value = re.sub(
-                    r"\bai\b|\bml\b|\bchatgpt\b|\bopenai\b",
-                    lambda match: "vault"
-                    if match.group(0).lower() in ["ai", "ml", "chatgpt"]
-                    else "TM",
-                    redacted_value,
-                    flags=re.IGNORECASE,
-                )
                 redacted_data = {
-                    "question": question,
+                    "question": redacted_value,
                     "context": actual_value["context"],
                 }
                 redacted_message = {"key": key, "value": redacted_data}
