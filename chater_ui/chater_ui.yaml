@@ -34,6 +34,22 @@
                 labels:
                   app: chater-ui
               spec:
+                initContainers:
+                  - name: eater-init-db
+                    imagePullPolicy: Always
+                    image: singularis314/eater-init:0.1
+                    env:
+                      - name: POSTGRES_USER
+                        value: "{{ vars.EATER.DB_NAME }}"
+                      - name: POSTGRES_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: "{{ vars.EATER.DB_PASSWORD }}"
+                            key: password
+                      - name: POSTGRES_DB
+                        value: "{{ vars.EATER.DB_NAME }}"
+                      - name: POSTGRES_HOST
+                        value: "{{ vars.EATER.POSTGRES_HOST }}"
                 containers:
                   - name: chater-ui
                     image: singularis314/chater-ui:0.4

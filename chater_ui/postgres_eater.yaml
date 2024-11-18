@@ -2,6 +2,8 @@
 - name: Apply PostgreSQL Custom Resource
   hosts: localhost
   gather_facts: no
+  vars_files:
+    - ../vars.yaml
   tasks:
     - name: Apply PostgreSQL CRD
       kubernetes.core.k8s:
@@ -23,9 +25,9 @@
             volume:
               size: "10Gi"
             users:
-              eater: []
+              "{{ vars.EATER.DB_NAME }}": []
             databases:
-              eater: eater
+              "{{ vars.EATER.DB_NAME }}": "{{ vars.EATER.DB_NAME }}"
             allowedSourceRanges:
               - 0.0.0.0/32
             resources:
