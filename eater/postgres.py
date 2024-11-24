@@ -7,7 +7,6 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import func
 
-
 logger = logging.getLogger(__name__)
 
 db_user = os.environ.get("POSTGRES_USER")
@@ -36,6 +35,7 @@ class DishesDay(Base):
     total_avg_weight = Column(Integer)
     contains = Column(JSON)
 
+
 class TotalForDay(Base):
     __tablename__ = 'total_for_day'
     __table_args__ = {'schema': 'public'}
@@ -46,7 +46,6 @@ class TotalForDay(Base):
     dishes_of_day = Column(ARRAY(String))
     total_avg_weight = Column(Integer)
     contains = Column(JSON)
-
 
 
 Session = sessionmaker(bind=engine)
@@ -79,21 +78,29 @@ def write_to_dish_day(message):
 
         # Query aggregated data for the current date
         logger.info(f"Calculating total food data for {current_date}")
+
+        # Get total_calories, total_weight, all_dishes, all_contains
         total_data = session.query(
             func.sum(DishesDay.estimated_avg_calories).label("total_calories"),
-            func.array_agg(DishesDay.ingredients).label("all_ingredients"),
             func.sum(DishesDay.total_avg_weight).label("total_weight"),
             func.array_agg(DishesDay.dish_name).label("all_dishes"),
             func.json_agg(DishesDay.contains).label("all_contains")
         ).filter(DishesDay.date == current_date).one()
 
-        # Aggregating total data
-        total_calories = total_data.total_calories or 0
-        all_ingredients = [item for sublist in total_data.all_ingredients for item in sublist] if total_data.all_ingredients else []
-        total_weight = total_data.total_weight or 0
-        all_dishes = [dish for dish in total_data.all_dishes if dish] if total_data.all_dishes else []  # Flatten list of dish names
+        ingredients_subq = session.query(
+            func.unnest(DishesDay.ingredients).label('ingredient')
+        ).filter(DishesDay.date == current_date).subquery()
 
-        # Calculate aggregated contains
+        all_ingredients_result = session.query(
+            func.array_agg(ingredients_subq.c.ingredient).label('all_ingredients')
+        ).one()
+
+        all_ingredients = all_ingredients_result.all_ingredients or []
+
+        total_calories = total_data.total_calories or 0
+        total_weight = total_data.total_weight or 0
+        all_dishes = [dish for dish in total_data.all_dishes if dish] if total_data.all_dishes else []
+
         all_contains = total_data.all_contains or []
         aggregated_contains = {"proteins": 0, "fats": 0, "carbohydrates": 0, "sugar": 0}
         for entry in all_contains:
