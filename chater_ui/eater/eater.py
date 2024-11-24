@@ -20,5 +20,4 @@ def eater_today():
     except Exception as e:
         logger.info(f"Exception {e}")
         return "Failed"
-    #TODO Use protobuf to send response
     return today_food
