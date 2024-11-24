@@ -12,7 +12,7 @@ from google_ops import create_google_blueprint, g_login
 from gphoto import gphoto
 from logging_config import setup_logging
 from login import login, logout
-from eater.eater import eater_photo
+from eater.eater import eater_photo, eater_today
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)

@@ -16,8 +16,9 @@ def eater_photo():
 def eater_today():
     logger.info("Returning food for today")
     try:
-        eater_get_today()
+        today_food = eater_get_today()
     except Exception as e:
         logger.info(f"Exception {e}")
         return "Failed"
-    return "Success"
+    #TODO Use protobuf to send response
+    return today_food

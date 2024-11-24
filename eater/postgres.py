@@ -137,9 +137,33 @@ def write_to_dish_day(message):
 def get_today_dishes():
     try:
         session = Session()
-        today_dishes = session.query(DishesDay).filter(DishesDay.date == current_date).all()
-        return today_dishes
+        total_data = session.query(TotalForDay).filter(TotalForDay.today == current_date).first()
+        if not total_data:
+            logger.info(f"No data found in total_for_day for {current_date}")
+            return {}
+        total_for_day_data = {
+            "total_calories": total_data.total_calories,
+            "total_avg_weight": total_data.total_avg_weight,
+            "contains": total_data.contains,
+        }
+        dishes_today = session.query(DishesDay).filter(DishesDay.date == current_date).all()
+        dishes_list = [
+            {
+                "dish_name": dish.dish_name,
+                "estimated_avg_calories": dish.estimated_avg_calories,
+                "total_avg_weight": dish.total_avg_weight,
+                "ingredients": dish.ingredients,
+            }
+            for dish in dishes_today
+        ]
+        result = {
+            "total_for_day": total_for_day_data,
+            "dishes_today": dishes_list,
+        }
+        logger.info(f"Result of get_today_dishes {result}")
+        return result
     except Exception as e:
-        logger.error(f"Error writing to database: {e}")
+        logger.error(f"Error retrieving today's dishes: {e}")
+        return {}
     finally:
         session.close()
