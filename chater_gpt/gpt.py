@@ -13,28 +13,35 @@ client = OpenAI()
 def gpt_request(question, context=None, content=None) -> dict[str, str]:
     logging.info(f"GPT Question: {question}")
 
-    system_message = content if content else (
-        "You are a helpful assistant designed to output JSON. "
-        "Oriented on software development, python, java, AWS, SRE."
-    )
+    if MODEL == "o1-preview":
+        messages = [{"role": "user", "content": question}]
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=messages,
+        )
+    else:
+        system_message = content if content else (
+            "You are a helpful assistant designed to output JSON. "
+            "Oriented on software development, python, java, AWS, SRE."
+        )
 
-    # Base messages with the system message and user question
-    messages = [
-        {
-            "role": "system",
-            "content": system_message,
-        },
-        {"role": "user", "content": question},
-    ]
-    if context:
-        context_string = " ".join([str(item) for item in context if item is not None])
-        messages.append({"role": "assistant", "content": context_string})
+        # Base messages with the system message and user question
+        messages = [
+            {
+                "role": "system",
+                "content": system_message,
+            },
+            {"role": "user", "content": question},
+        ]
+        if context:
+            context_string = " ".join([str(item) for item in context if item is not None])
+            messages.append({"role": "assistant", "content": context_string})
 
-    response = client.chat.completions.create(
-        model=MODEL,
-        response_format={"type": "json_object"},
-        messages=messages,
-    )
+        response = client.chat.completions.create(
+            model=MODEL,
+            response_format={"type": "json_object"},
+            messages=messages,
+        )
 
     response_content = response.choices[0].message.content
     logging.info(f"GPT Answer: {response_content}")
