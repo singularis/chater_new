@@ -1,0 +1,5 @@
+confluent_kafka
+PyJWT
+pyyaml
+protobuf
+pillow

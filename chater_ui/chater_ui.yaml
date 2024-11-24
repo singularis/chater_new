@@ -34,25 +34,9 @@
                 labels:
                   app: chater-ui
               spec:
-                initContainers:
-                  - name: eater-init-db
-                    imagePullPolicy: Always
-                    image: singularis314/eater-init:0.1
-                    env:
-                      - name: POSTGRES_USER
-                        value: "{{ vars.EATER.DB_NAME }}"
-                      - name: POSTGRES_PASSWORD
-                        valueFrom:
-                          secretKeyRef:
-                            name: "{{ vars.EATER.DB_PASSWORD }}"
-                            key: password
-                      - name: POSTGRES_DB
-                        value: "{{ vars.EATER.DB_NAME }}"
-                      - name: POSTGRES_HOST
-                        value: "{{ vars.EATER.POSTGRES_HOST }}"
                 containers:
                   - name: chater-ui
-                    image: singularis314/chater-ui:0.4
+                    image: docker.io/singularis314/chater-ui:0.4
                     imagePullPolicy: Always
                     ports:
                       - containerPort: 5000
@@ -178,13 +162,11 @@
     - name: Create eater PersistentVolume
       kubernetes.core.k8s:
         state: present
-        namespace: chater-ui
         definition:
           apiVersion: v1
           kind: PersistentVolume
           metadata:
             name: eater-ui-pv
-            namespace: chater-ui
           spec:
             capacity:
               storage: 20Gi
@@ -192,7 +174,7 @@
             accessModes:
               - ReadWriteMany
             persistentVolumeReclaimPolicy: Recycle
-            storageClassName: local-storage
+            storageClassName: shared-storage
             local:
               path: /other/eater_storage
             nodeAffinity:
@@ -215,12 +197,13 @@
             name: eater-ui-pvc
             namespace: chater-ui
           spec:
-            storageClassName: local-storage
+            storageClassName: shared-storage
             accessModes:
               - ReadWriteMany
             resources:
               requests:
                 storage: 20Gi
+            volumeName: eater-ui-pv
     - name: Create local directory for eater
       ansible.builtin.file:
         path: /other/eater_storage

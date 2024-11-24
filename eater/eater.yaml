@@ -1,0 +1,121 @@
+- name: Deploy Kubernetes objects for eater application
+  hosts: localhost
+  gather_facts: no
+
+  vars_files:
+    - ../vars.yaml
+
+  tasks:
+    - name: Create eater Namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: eater
+    - name: Create eater PVC referencing the PVC in chater-ui namespace
+      kubernetes.core.k8s:
+        state: present
+        namespace: eater
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: eater-pvc
+            namespace: eater
+          spec:
+            storageClassName: shared-storage
+            accessModes:
+              - ReadWriteMany
+            resources:
+              requests:
+                storage: 20Gi
+            volumeName: eater-pv
+    - name: Create eater PersistentVolume
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: eater-pv
+          spec:
+            capacity:
+              storage: 20Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteMany
+            persistentVolumeReclaimPolicy: Recycle
+            storageClassName: shared-storage
+            local:
+              path: /other/eater_storage
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "racoon"
+    - name: Deploy eater Deployment
+      kubernetes.core.k8s:
+        state: present
+        namespace: eater
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: eater
+            namespace: eater
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: eater
+            template:
+              metadata:
+                labels:
+                  app: eater
+              spec:
+                initContainers:
+                  - name: eater-init-db
+                    imagePullPolicy: IfNotPresent
+                    image: docker.io/singularis314/eater-init:0.1
+                    env:
+                      - name: POSTGRES_USER
+                        value: "{{ vars.EATER.DB_NAME }}"
+                      - name: POSTGRES_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: "{{ vars.EATER.DB_PASSWORD }}"
+                            key: password
+                      - name: POSTGRES_DB
+                        value: "{{ vars.EATER.DB_NAME }}"
+                      - name: POSTGRES_HOST
+                        value: "{{ vars.EATER.POSTGRES_HOST }}"
+                containers:
+                  - name: eater
+                    image: docker.io/singularis314/eater:0.1
+                    imagePullPolicy: IfNotPresent
+                    volumeMounts:
+                      - name: eater-pvc
+                        mountPath: /app/eater_storage
+                    env:
+                      - name: BOOTSTRAP_SERVER
+                        value: "{{ vars.BOOTSTRAP_SERVER }}"
+                      - name: POSTGRES_USER
+                        value: "{{ vars.EATER.DB_NAME }}"
+                      - name: POSTGRES_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: "{{ vars.EATER.DB_PASSWORD }}"
+                            key: password
+                      - name: POSTGRES_DB
+                        value: "{{ vars.EATER.DB_NAME }}"
+                      - name: POSTGRES_HOST
+                        value: "{{ vars.EATER.POSTGRES_HOST }}"
+                volumes:
+                  - name: eater-pvc
+                    persistentVolumeClaim:
+                      claimName: eater-pvc
