@@ -3,3 +3,5 @@ PyJWT
 pyyaml
 protobuf
 pillow
+sqlalchemy
+psycopg2-binary

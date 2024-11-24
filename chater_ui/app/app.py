@@ -101,6 +101,11 @@ def eater():
 def eater_receive_photo():
     return eater_photo()
 
+@app.route("/eater_get_today", methods=["GET"])
+@token_required
+def eater_get_today():
+    return eater_today()
+
 
 if __name__ == "__main__":
     logging.getLogger("werkzeug").setLevel(logging.INFO)

@@ -2,6 +2,7 @@ import logging
 import os
 from sqlalchemy import create_engine, Column, Integer, String, Date, ARRAY, JSON, text
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ class DishesDay(Base):
     __table_args__ = {'schema': 'public'}
 
     time = Column(Integer, primary_key=True)
+    date = Column(String)
     dish_name = Column(String)
     estimated_avg_calories = Column(Integer)
     ingredients = Column(ARRAY(String))
@@ -25,9 +27,10 @@ class TotalForDay(Base):
     __tablename__ = 'total_for_day'
     __table_args__ = {'schema': 'public'}
 
-    today = Column(Date, primary_key=True)
+    today = Column(String, primary_key=True)
     total_calories = Column(Integer)
     ingredients = Column(ARRAY(String))
+    dishes_of_day = Column(ARRAY(String))
     total_avg_weight = Column(Integer)
     contains = Column(JSON)
 
@@ -42,6 +45,7 @@ def create_tables():
         db_url = f'postgresql://postgres:{db_password}@{db_host}:5432/{db_name}'
 
         engine = create_engine(db_url)
+        Session = sessionmaker(bind=engine)
 
         with engine.connect() as connection:
             connection.execute(text(f"ALTER USER {db_user} WITH PASSWORD '{db_password}'"))
@@ -49,8 +53,8 @@ def create_tables():
 
             connection.execute(text("CREATE SCHEMA IF NOT EXISTS public"))
 
-            Base.metadata.create_all(engine)
-            logger.info("Tables created successfully")
+            Base.metadata.create_all(engine, checkfirst=True)
+            logger.info("Tables created/updated successfully")
 
             for table in Base.metadata.tables.keys():
                 connection.execute(text(f"ALTER TABLE {table} OWNER TO {db_user}"))

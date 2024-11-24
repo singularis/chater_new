@@ -80,7 +80,7 @@
               spec:
                 initContainers:
                   - name: eater-init-db
-                    imagePullPolicy: IfNotPresent
+                    imagePullPolicy: Always
                     image: docker.io/singularis314/eater-init:0.1
                     env:
                       - name: POSTGRES_USER
@@ -97,7 +97,7 @@
                 containers:
                   - name: eater
                     image: docker.io/singularis314/eater:0.1
-                    imagePullPolicy: IfNotPresent
+                    imagePullPolicy: Always
                     volumeMounts:
                       - name: eater-pvc
                         mountPath: /app/eater_storage

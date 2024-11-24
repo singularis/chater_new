@@ -1,0 +1,145 @@
+import logging
+import os
+from datetime import datetime
+
+from sqlalchemy import ARRAY, JSON, Column, Integer, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import func
+
+
+logger = logging.getLogger(__name__)
+
+db_user = os.environ.get("POSTGRES_USER")
+db_password = os.environ.get("POSTGRES_PASSWORD")
+db_host = os.environ.get("POSTGRES_HOST")
+db_name = os.environ.get("POSTGRES_DB")
+
+DATABASE_URL = f"postgresql://postgres:{db_password}@{db_host}:5432/{db_name}"
+
+engine = create_engine(DATABASE_URL)
+
+Base = declarative_base()
+
+current_date = datetime.now().strftime("%d-%m-%Y")
+
+
+class DishesDay(Base):
+    __tablename__ = "dishes_day"
+    __table_args__ = {"schema": "public"}
+
+    time = Column(Integer, primary_key=True)
+    date = Column(String)
+    dish_name = Column(String)
+    estimated_avg_calories = Column(Integer)
+    ingredients = Column(ARRAY(String))
+    total_avg_weight = Column(Integer)
+    contains = Column(JSON)
+
+class TotalForDay(Base):
+    __tablename__ = 'total_for_day'
+    __table_args__ = {'schema': 'public'}
+
+    today = Column(String, primary_key=True)
+    total_calories = Column(Integer)
+    ingredients = Column(ARRAY(String))
+    dishes_of_day = Column(ARRAY(String))
+    total_avg_weight = Column(Integer)
+    contains = Column(JSON)
+
+
+
+Session = sessionmaker(bind=engine)
+
+
+def write_to_dish_day(message):
+    try:
+        session = Session()
+        dish_name = message.get("dish_name")
+        estimated_avg_calories = message.get("estimated_avg_calories")
+        ingredients = message.get("ingredients")
+        total_avg_weight = message.get("total_avg_weight")
+        contains = message.get("contains")
+
+        # Insert the new dish entry
+        dish_day = DishesDay(
+            time=int(datetime.now().timestamp()),
+            date=current_date,
+            dish_name=dish_name,
+            estimated_avg_calories=estimated_avg_calories,
+            ingredients=ingredients,
+            total_avg_weight=total_avg_weight,
+            contains=contains,
+        )
+
+        session.add(dish_day)
+        session.commit()
+
+        logger.info(f"Successfully wrote dish data to database: {dish_name}")
+
+        # Query aggregated data for the current date
+        logger.info(f"Calculating total food data for {current_date}")
+        total_data = session.query(
+            func.sum(DishesDay.estimated_avg_calories).label("total_calories"),
+            func.array_agg(DishesDay.ingredients).label("all_ingredients"),
+            func.sum(DishesDay.total_avg_weight).label("total_weight"),
+            func.array_agg(DishesDay.dish_name).label("all_dishes"),
+            func.json_agg(DishesDay.contains).label("all_contains")
+        ).filter(DishesDay.date == current_date).one()
+
+        # Aggregating total data
+        total_calories = total_data.total_calories or 0
+        all_ingredients = [item for sublist in total_data.all_ingredients for item in sublist] if total_data.all_ingredients else []
+        total_weight = total_data.total_weight or 0
+        all_dishes = [dish for dish in total_data.all_dishes if dish] if total_data.all_dishes else []  # Flatten list of dish names
+
+        # Calculate aggregated contains
+        all_contains = total_data.all_contains or []
+        aggregated_contains = {"proteins": 0, "fats": 0, "carbohydrates": 0, "sugar": 0}
+        for entry in all_contains:
+            for key in aggregated_contains:
+                aggregated_contains[key] += entry.get(key, 0)
+
+        # Prepare data for total_for_day table
+        total_for_day = TotalForDay(
+            today=current_date,
+            total_calories=total_calories,
+            ingredients=all_ingredients,
+            dishes_of_day=all_dishes,
+            total_avg_weight=total_weight,
+            contains=aggregated_contains,
+        )
+
+        # Check if there's an existing entry for today
+        existing_entry = session.query(TotalForDay).filter(TotalForDay.today == current_date).first()
+        if existing_entry:
+            logger.info("Updating existing entry in total_for_day table")
+            existing_entry.total_calories = total_calories
+            existing_entry.ingredients = all_ingredients
+            existing_entry.dishes_of_day = all_dishes
+            existing_entry.total_avg_weight = total_weight
+            existing_entry.contains = aggregated_contains
+        else:
+            logger.info("Inserting new entry in total_for_day table")
+            session.add(total_for_day)
+
+        session.commit()
+
+        logger.info(f"Successfully wrote aggregated data to total_for_day for {current_date}")
+
+    except Exception as e:
+        logger.error(f"Error writing to database: {e}")
+
+    finally:
+        session.close()
+
+
+def get_today_dishes():
+    try:
+        session = Session()
+        today_dishes = session.query(DishesDay).filter(DishesDay.date == current_date).all()
+        return today_dishes
+    except Exception as e:
+        logger.error(f"Error writing to database: {e}")
+    finally:
+        session.close()
