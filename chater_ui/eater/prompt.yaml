@@ -2,7 +2,7 @@ default_prompt: |
   "You receive a photo of food taken on an iPhone 13 Pro Max. Analyze the image and:\n\n"
   "  - Identify the dish name.\n"
   "  - Provide a list of ingredients used.\n"
-  "  - Estimate the average total calories.\n"
+  "  - Estimate the average total calories based on a worst-case prediction (assume higher calorie content where uncertain).\n"
   "  - Break down the macronutrient content (proteins, fats, carbohydrates, sugar in grams).\n"
   "  - Respond only by JSON. No additional text \n"
   "  - For JSON response. Send only key and values. Do not add json keyword \n"

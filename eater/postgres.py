@@ -20,7 +20,8 @@ engine = create_engine(DATABASE_URL)
 
 Base = declarative_base()
 
-current_date = datetime.now().strftime("%d-%m-%Y")
+def current_date():
+    return datetime.now().strftime("%d-%m-%Y")
 
 
 class DishesDay(Base):
@@ -63,7 +64,7 @@ def write_to_dish_day(message):
         # Insert the new dish entry
         dish_day = DishesDay(
             time=int(datetime.now().timestamp()),
-            date=current_date,
+            date=current_date(),
             dish_name=dish_name,
             estimated_avg_calories=estimated_avg_calories,
             ingredients=ingredients,
@@ -77,7 +78,7 @@ def write_to_dish_day(message):
         logger.info(f"Successfully wrote dish data to database: {dish_name}")
 
         # Query aggregated data for the current date
-        logger.info(f"Calculating total food data for {current_date}")
+        logger.info(f"Calculating total food data for {current_date()}")
 
         # Get total_calories, total_weight, all_dishes, all_contains
         total_data = session.query(
@@ -85,11 +86,11 @@ def write_to_dish_day(message):
             func.sum(DishesDay.total_avg_weight).label("total_weight"),
             func.array_agg(DishesDay.dish_name).label("all_dishes"),
             func.json_agg(DishesDay.contains).label("all_contains")
-        ).filter(DishesDay.date == current_date).one()
+        ).filter(DishesDay.date == current_date()).one()
 
         ingredients_subq = session.query(
             func.unnest(DishesDay.ingredients).label('ingredient')
-        ).filter(DishesDay.date == current_date).subquery()
+        ).filter(DishesDay.date == current_date()).subquery()
 
         all_ingredients_result = session.query(
             func.array_agg(ingredients_subq.c.ingredient).label('all_ingredients')
@@ -109,7 +110,7 @@ def write_to_dish_day(message):
 
         # Prepare data for total_for_day table
         total_for_day = TotalForDay(
-            today=current_date,
+            today=current_date(),
             total_calories=total_calories,
             ingredients=all_ingredients,
             dishes_of_day=all_dishes,
@@ -118,7 +119,7 @@ def write_to_dish_day(message):
         )
 
         # Check if there's an existing entry for today
-        existing_entry = session.query(TotalForDay).filter(TotalForDay.today == current_date).first()
+        existing_entry = session.query(TotalForDay).filter(TotalForDay.today == current_date()).first()
         if existing_entry:
             logger.info("Updating existing entry in total_for_day table")
             existing_entry.total_calories = total_calories
@@ -132,7 +133,7 @@ def write_to_dish_day(message):
 
         session.commit()
 
-        logger.info(f"Successfully wrote aggregated data to total_for_day for {current_date}")
+        logger.info(f"Successfully wrote aggregated data to total_for_day for {current_date()}")
 
     except Exception as e:
         logger.error(f"Error writing to database: {e}")
@@ -144,16 +145,16 @@ def write_to_dish_day(message):
 def get_today_dishes():
     try:
         session = Session()
-        total_data = session.query(TotalForDay).filter(TotalForDay.today == current_date).first()
+        total_data = session.query(TotalForDay).filter(TotalForDay.today == current_date()).first()
         if not total_data:
-            logger.info(f"No data found in total_for_day for {current_date}")
+            logger.info(f"No data found in total_for_day for {current_date()}")
             return {}
         total_for_day_data = {
             "total_calories": total_data.total_calories,
             "total_avg_weight": total_data.total_avg_weight,
             "contains": total_data.contains,
         }
-        dishes_today = session.query(DishesDay).filter(DishesDay.date == current_date).all()
+        dishes_today = session.query(DishesDay).filter(DishesDay.date == current_date()).all()
         dishes_list = [
             {
                 "dish_name": dish.dish_name,
