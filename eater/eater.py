@@ -32,7 +32,7 @@ def process_messages():
                         proces_food(json_response)
                         produce_message(topic="photo-analysis-response-check", message={
                             "key": id,
-                            "value": 200
+                            "value": "Food"
                         })
                 elif message.topic() == "get_today_data":
                     today_dishes=get_today_dishes()
