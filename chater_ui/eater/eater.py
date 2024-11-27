@@ -7,11 +7,12 @@ logger = logging.getLogger(__name__)
 def eater_photo():
     logger.info("Starting eater from chater")
     try:
-        eater_get_photo()
+        photo_confirmation = eater_get_photo()
+        logger.info(f"Received photo confirmation {photo_confirmation}")
+        return photo_confirmation
     except Exception as e:
         logger.info(f"Exception {e}")
         return "Failed"
-    return "Success"
 
 def eater_today():
     logger.info("Returning food for today")

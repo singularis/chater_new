@@ -1,8 +1,10 @@
 from flask import request, jsonify
 from kafka_producer import produce_message, create_producer
+from kafka_consumer import consume_messages, create_consumer
 from .proto import eater_photo_pb2
 from common import get_prompt, resize_image, encode_image
 import uuid
+import json
 import logging
 from datetime import datetime
 
@@ -27,7 +29,16 @@ def eater_get_photo():
             image_file.write(resized_photo_data)
         logger.info(f"Photo saved to {current_time}.jpg")
         send_kafka_message(encode_image(filename))
-        return jsonify({"message": "Photo received successfully!", "time": time}), 200
+        consumer = create_consumer(["photo-analysis-response-check"])
+        for message in consume_messages(consumer):
+            try:
+                value = message.value().decode("utf-8")
+                value_dict = json.loads(value)
+                consumer.commit(message)
+                return value_dict.get("value")
+            except Exception as e:
+                logger.error(f"Failed to process message: {e}")
+                return "Timeout"
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}")
         return jsonify({"message": "Failed to process the request", "error": str(e)}), 400

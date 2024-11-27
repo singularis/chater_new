@@ -21,10 +21,19 @@ def process_messages():
                 if message.topic() == "photo-analysis-response":
                     gpt_response = value_dict.get("value")
                     json_response = json.loads(gpt_response)
+                    id = str(uuid.uuid4())
                     if json_response.get("error"):
                         logging.error(f"Error {json_response}")
+                        produce_message(topic="photo-analysis-response-check", message={
+                            "key": id,
+                            "value": json_response.get("error")
+                        })
                     else:
                         proces_food(json_response)
+                        produce_message(topic="photo-analysis-response-check", message={
+                            "key": id,
+                            "value": 200
+                        })
                 elif message.topic() == "get_today_data":
                     today_dishes=get_today_dishes()
                     logger.info(f"Received request to get food")
