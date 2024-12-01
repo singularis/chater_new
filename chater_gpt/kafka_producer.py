@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 conf = {
     "bootstrap.servers": os.getenv("BOOTSTRAP_SERVER"),
+    "message.max.bytes": 10000000,
     "client.id": "python-producer",
     "acks": "all",
 }

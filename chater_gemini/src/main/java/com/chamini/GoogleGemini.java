@@ -16,10 +16,10 @@ import org.json.JSONObject;
 public class GoogleGemini {
 
     private static final Logger LOGGER = Logger.getLogger(GoogleGemini.class.getName());
-    private static final String API_MODEL = System.getenv("API_MODEL");
+    private static final String API_MODEL = System.getenv("GEMINI_MODEL");
     private static final String API_KEY = System.getenv("API_KEY");
     private static final String BOOTSTRAP_SERVER = System.getenv("BOOTSTRAP_SERVER");
-    private static final String TOPIC = "gemini-send"
+    private static final String TOPIC = "gemini-send";
 
 
     public static void main(String[] args) {
@@ -57,7 +57,8 @@ public class GoogleGemini {
         try {
             JSONObject jsonObject = new JSONObject(message);
             uuid = jsonObject.getString("key");
-            question = jsonObject.getString("value");
+            JSONObject valueObject = jsonObject.getJSONObject("value");
+            question = valueObject.getString("question");
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Failed to extract question from message", e);
             return;
