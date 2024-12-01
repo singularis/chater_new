@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Optional
 from datetime import datetime
 
 from sqlalchemy import ARRAY, JSON, Column, Integer, String, create_engine
@@ -52,30 +53,31 @@ class TotalForDay(Base):
 Session = sessionmaker(bind=engine)
 
 
-def write_to_dish_day(message):
+def write_to_dish_day(message=None, recalculate: Optional[bool] = False):
     try:
         session = Session()
-        dish_name = message.get("dish_name")
-        estimated_avg_calories = message.get("estimated_avg_calories")
-        ingredients = message.get("ingredients")
-        total_avg_weight = message.get("total_avg_weight")
-        contains = message.get("contains")
+        if not recalculate:
+            dish_name = message.get("dish_name")
+            estimated_avg_calories = message.get("estimated_avg_calories")
+            ingredients = message.get("ingredients")
+            total_avg_weight = message.get("total_avg_weight")
+            contains = message.get("contains")
 
-        # Insert the new dish entry
-        dish_day = DishesDay(
-            time=int(datetime.now().timestamp()),
-            date=current_date(),
-            dish_name=dish_name,
-            estimated_avg_calories=estimated_avg_calories,
-            ingredients=ingredients,
-            total_avg_weight=total_avg_weight,
-            contains=contains,
-        )
+            # Insert the new dish entry
+            dish_day = DishesDay(
+                time=int(datetime.now().timestamp()),
+                date=current_date(),
+                dish_name=dish_name,
+                estimated_avg_calories=estimated_avg_calories,
+                ingredients=ingredients,
+                total_avg_weight=total_avg_weight,
+                contains=contains,
+            )
 
-        session.add(dish_day)
-        session.commit()
+            session.add(dish_day)
+            session.commit()
 
-        logger.info(f"Successfully wrote dish data to database: {dish_name}")
+            logger.info(f"Successfully wrote dish data to database: {dish_name}")
 
         # Query aggregated data for the current date
         logger.info(f"Calculating total food data for {current_date()}")
@@ -157,6 +159,7 @@ def get_today_dishes():
         dishes_today = session.query(DishesDay).filter(DishesDay.date == current_date()).all()
         dishes_list = [
             {
+                "time": dish.time,
                 "dish_name": dish.dish_name,
                 "estimated_avg_calories": dish.estimated_avg_calories,
                 "total_avg_weight": dish.total_avg_weight,
@@ -173,5 +176,21 @@ def get_today_dishes():
     except Exception as e:
         logger.error(f"Error retrieving today's dishes: {e}")
         return {}
+    finally:
+        session.close()
+
+def delete_food(time):
+    logger.info(f"Deleting food with time {time} from db")
+    try:
+        session = Session()
+        rows_deleted = session.query(DishesDay).filter(DishesDay.time == time).delete()
+        session.commit()
+        if rows_deleted > 0:
+            logger.info(f"Successfully deleted {rows_deleted} food entries with time {time} from database")
+            write_to_dish_day(recalculate=True)
+        else:
+            logger.info(f"No food entries found with time {time}")
+    except Exception as e:
+        logger.error(f"Error deleting food from database: {e}")
     finally:
         session.close()

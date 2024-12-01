@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package Eater;
+
+message DeleteFoodRequest {
+  int64 time = 1;
+}
+
+message DeleteFoodResponse {
+  bool success = 1;
+}
+
+service EaterService {
+  rpc DeleteFood (DeleteFoodRequest) returns (DeleteFoodResponse);
+}

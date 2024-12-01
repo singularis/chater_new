@@ -9,7 +9,6 @@ import logging
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
-current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 def eater_get_photo():
     try:
@@ -22,7 +21,7 @@ def eater_get_photo():
         logger.info(f"Received photo_data size: {len(photo_data)} bytes")
         resized_photo_data = resize_image(photo_data, max_size=(1024, 1024))
         logger.info(f"Resized photo_data size: {len(resized_photo_data)} bytes")
-
+        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
         # Optional: Save photo data to a file
         filename = f"/app/eater_storage/{current_time}.jpg"
         with open(filename, "wb") as image_file:

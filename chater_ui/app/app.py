@@ -1,7 +1,7 @@
 import logging
 import os
 
-from flask import Flask, jsonify, render_template, session
+from flask import Flask, jsonify, render_template, session, request
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -12,7 +12,7 @@ from google_ops import create_google_blueprint, g_login
 from gphoto import gphoto
 from logging_config import setup_logging
 from login import login, logout
-from eater.eater import eater_photo, eater_today
+from eater.eater import eater_photo, eater_today, delete_food_record
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -105,6 +105,11 @@ def eater_receive_photo():
 @token_required
 def eater_get_today():
     return eater_today()
+
+@app.route("/delete_food", methods=["POST"])
+@token_required
+def delete_food():
+    return delete_food_record(request=request)
 
 
 if __name__ == "__main__":

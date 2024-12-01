@@ -5,12 +5,12 @@ import logging
 from kafka_consumer import consume_messages
 from kafka_producer import produce_message
 from process_gpt import proces_food
-from postgres import get_today_dishes
+from postgres import get_today_dishes, delete_food
 
 logger = logging.getLogger(__name__)
 
 def process_messages():
-    topics = ["photo-analysis-response", "get_today_data"]
+    topics = ["photo-analysis-response", "get_today_data", "delete_food"]
     logging.info(f"Starting message processing with topics: {topics}")
     while True:
         for message, consumer in consume_messages(topics):
@@ -39,6 +39,8 @@ def process_messages():
                     logger.info(f"Received request to get food")
                     message = {"key": str(uuid.uuid4()), "value": today_dishes}
                     produce_message(topic="send_today_data", message=message)
+                elif message.topic() == "delete_food":
+                    delete_food(value_dict.get("value"))
             except Exception as e:
                 logging.error(f"Failed to process message: {e}")
 

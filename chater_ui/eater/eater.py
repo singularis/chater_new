@@ -1,5 +1,6 @@
 from .process_photo import eater_get_photo
 from .getter_eater import eater_get_today
+from .food_operations import delete_food
 import logging
 
 logger = logging.getLogger(__name__)
@@ -22,3 +23,11 @@ def eater_today():
         logger.info(f"Exception {e}")
         return "Failed"
     return today_food
+
+def delete_food_record(request):
+    logger.info("Deleting food")
+    try:
+        return delete_food(request=request)
+    except Exception as e:
+        logger.info(f"Exception {e}")
+        return "Failed"
