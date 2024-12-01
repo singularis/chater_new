@@ -1,13 +1,14 @@
 import json
-import uuid
 import logging
+import uuid
 
 from kafka_consumer import consume_messages
 from kafka_producer import produce_message
+from postgres import delete_food, get_today_dishes
 from process_gpt import proces_food
-from postgres import get_today_dishes, delete_food
 
 logger = logging.getLogger(__name__)
+
 
 def process_messages():
     topics = ["photo-analysis-response", "get_today_data", "delete_food"]
@@ -24,18 +25,18 @@ def process_messages():
                     id = str(uuid.uuid4())
                     if json_response.get("error"):
                         logging.error(f"Error {json_response}")
-                        produce_message(topic="photo-analysis-response-check", message={
-                            "key": id,
-                            "value": json_response.get("error")
-                        })
+                        produce_message(
+                            topic="photo-analysis-response-check",
+                            message={"key": id, "value": json_response.get("error")},
+                        )
                     else:
                         proces_food(json_response)
-                        produce_message(topic="photo-analysis-response-check", message={
-                            "key": id,
-                            "value": "Food"
-                        })
+                        produce_message(
+                            topic="photo-analysis-response-check",
+                            message={"key": id, "value": "Food"},
+                        )
                 elif message.topic() == "get_today_data":
-                    today_dishes=get_today_dishes()
+                    today_dishes = get_today_dishes()
                     logger.info(f"Received request to get food")
                     message = {"key": str(uuid.uuid4()), "value": today_dishes}
                     produce_message(topic="send_today_data", message=message)

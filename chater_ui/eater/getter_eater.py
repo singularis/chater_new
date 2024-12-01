@@ -1,12 +1,12 @@
-from kafka_producer import produce_message, create_producer
-from kafka_consumer import consume_messages, create_consumer
-import logging
 import json
+import logging
 import uuid
 from datetime import datetime
+
+from kafka_consumer import consume_messages, create_consumer
+from kafka_producer import create_producer, produce_message
+
 from .proto import today_food_pb2
-
-
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ def eater_get_today_kafka():
     message = {
         "key": str(uuid.uuid4()),
         "value": {
-            "date":  datetime.now().strftime("%d-%m-%Y"),
+            "date": datetime.now().strftime("%d-%m-%Y"),
         },
     }
     produce_message(producer, topic="get_today_data", message=message)
@@ -33,25 +33,38 @@ def eater_get_today_kafka():
             logger.error(f"Failed to process message: {e}")
             return "Timeout"
 
+
 def eater_get_today():
     try:
         today_food = eater_get_today_kafka()
         proto_message = today_food_pb2.TodayFood()
-        proto_message.total_for_day.total_avg_weight = today_food['total_for_day']['total_avg_weight']
-        proto_message.total_for_day.total_calories = today_food['total_for_day']['total_calories']
-        proto_message.total_for_day.contains.carbohydrates = today_food['total_for_day']['contains']['carbohydrates']
-        proto_message.total_for_day.contains.fats = today_food['total_for_day']['contains']['fats']
-        proto_message.total_for_day.contains.proteins = today_food['total_for_day']['contains']['proteins']
-        proto_message.total_for_day.contains.sugar = today_food['total_for_day']['contains']['sugar']
-        for dish in today_food['dishes_today']:
+        proto_message.total_for_day.total_avg_weight = today_food["total_for_day"][
+            "total_avg_weight"
+        ]
+        proto_message.total_for_day.total_calories = today_food["total_for_day"][
+            "total_calories"
+        ]
+        proto_message.total_for_day.contains.carbohydrates = today_food[
+            "total_for_day"
+        ]["contains"]["carbohydrates"]
+        proto_message.total_for_day.contains.fats = today_food["total_for_day"][
+            "contains"
+        ]["fats"]
+        proto_message.total_for_day.contains.proteins = today_food["total_for_day"][
+            "contains"
+        ]["proteins"]
+        proto_message.total_for_day.contains.sugar = today_food["total_for_day"][
+            "contains"
+        ]["sugar"]
+        for dish in today_food["dishes_today"]:
             dish_proto = proto_message.dishes_today.add()
-            dish_proto.time = dish['time']
-            dish_proto.dish_name = dish['dish_name']
-            dish_proto.estimated_avg_calories = dish['estimated_avg_calories']
-            dish_proto.total_avg_weight = dish['total_avg_weight']
-            dish_proto.ingredients.extend(dish['ingredients'])
+            dish_proto.time = dish["time"]
+            dish_proto.dish_name = dish["dish_name"]
+            dish_proto.estimated_avg_calories = dish["estimated_avg_calories"]
+            dish_proto.total_avg_weight = dish["total_avg_weight"]
+            dish_proto.ingredients.extend(dish["ingredients"])
         proto_data = proto_message.SerializeToString()
-        return proto_data, 200, {'Content-Type': 'application/protobuf'}
+        return proto_data, 200, {"Content-Type": "application/protobuf"}
     except Exception as e:
         logger.info(f"Exception {e}")
         return "Failed", 500

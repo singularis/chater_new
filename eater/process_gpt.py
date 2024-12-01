@@ -18,8 +18,6 @@ def proces_food(message):
         )
         write_to_dish_day(message=message)
 
-
-
     except Exception as e:
         logger.info(f"Somthing went wrong during processing, {e}")
         raise

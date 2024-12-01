@@ -1,19 +1,18 @@
+import base64
+import io
 import logging
 import os
 from datetime import datetime, timedelta
 from functools import wraps
-import yaml
-from PIL import Image
-import base64
-import io
-
 
 import jwt
+import yaml
 from flask import flash, jsonify, redirect, request, url_for
+from PIL import Image
 
 log = logging.getLogger("main")
 SECRET_KEY = str(os.getenv("EATER_SECRET_KEY"))
-PROMPT_FILE="eater/prompt.yaml"
+PROMPT_FILE = "eater/prompt.yaml"
 
 
 def before_request(session, app, SESSION_LIFETIME):
@@ -72,7 +71,9 @@ def token_required(f):
             return jsonify({"message": "Invalid token"}), 401
 
         return f(*args, **kwargs)
+
     return wrapper
+
 
 def get_prompt(key):
     try:
@@ -97,6 +98,7 @@ def get_prompt(key):
         logging.exception(f"An unexpected error occurred: {e}")
         raise RuntimeError(f"An unexpected error occurred: {e}")
 
+
 def resize_image(image_data, max_size=(1024, 1024)):
     try:
         image = Image.open(io.BytesIO(image_data))
@@ -111,6 +113,7 @@ def resize_image(image_data, max_size=(1024, 1024)):
         logging.error(f"Failed to resize image: {str(e)}")
         raise
 
+
 def encode_image(image_path):
     with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
+        return base64.b64encode(image_file.read()).decode("utf-8")

@@ -1,14 +1,18 @@
-from flask import request, jsonify
-from kafka_producer import produce_message, create_producer
-from kafka_consumer import consume_messages, create_consumer
-from .proto import eater_photo_pb2
-from common import get_prompt, resize_image, encode_image
-import uuid
 import json
 import logging
+import uuid
 from datetime import datetime
 
+from flask import jsonify, request
+
+from common import encode_image, get_prompt, resize_image
+from kafka_consumer import consume_messages, create_consumer
+from kafka_producer import create_producer, produce_message
+
+from .proto import eater_photo_pb2
+
 logger = logging.getLogger(__name__)
+
 
 def eater_get_photo():
     try:
@@ -40,7 +44,11 @@ def eater_get_photo():
                 return "Timeout"
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}")
-        return jsonify({"message": "Failed to process the request", "error": str(e)}), 400
+        return (
+            jsonify({"message": "Failed to process the request", "error": str(e)}),
+            400,
+        )
+
 
 def send_kafka_message(photo_base64):
     producer = create_producer()
