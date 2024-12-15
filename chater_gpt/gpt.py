@@ -1,9 +1,10 @@
-import os
-from openai import OpenAI
-import logging
 import json
+import logging
+import os
+
 from kafka_consumer import consume_messages
 from kafka_producer import produce_message
+from openai import OpenAI
 
 MODEL = os.getenv("MODEL")
 VISION_MODEL = os.getenv("VISION_MODEL")
@@ -20,9 +21,13 @@ def gpt_request(question, context=None, content=None) -> dict[str, str]:
             messages=messages,
         )
     else:
-        system_message = content if content else (
-            "You are a helpful assistant designed to output JSON. "
-            "Oriented on software development, python, java, AWS, SRE."
+        system_message = (
+            content
+            if content
+            else (
+                "You are a helpful assistant designed to output JSON. "
+                "Oriented on software development, python, java, AWS, SRE."
+            )
         )
 
         # Base messages with the system message and user question
@@ -34,7 +39,9 @@ def gpt_request(question, context=None, content=None) -> dict[str, str]:
             {"role": "user", "content": question},
         ]
         if context:
-            context_string = " ".join([str(item) for item in context if item is not None])
+            context_string = " ".join(
+                [str(item) for item in context if item is not None]
+            )
             messages.append({"role": "assistant", "content": context_string})
 
         response = client.chat.completions.create(
@@ -47,6 +54,7 @@ def gpt_request(question, context=None, content=None) -> dict[str, str]:
     logging.info(f"GPT Answer: {response_content}")
 
     return response_content
+
 
 def analyze_photo(prompt, photo_base64):
     try:
@@ -64,12 +72,12 @@ def analyze_photo(prompt, photo_base64):
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url":  f"data:image/jpeg;base64,{photo_base64}"
+                                "url": f"data:image/jpeg;base64,{photo_base64}"
                             },
                         },
                     ],
                 }
-            ]
+            ],
         )
 
         response_content = response.choices[0].message.content

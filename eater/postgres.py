@@ -3,8 +3,8 @@ import os
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import (ARRAY, JSON, Column, Integer, String, create_engine,
-                        func, Float)
+from sqlalchemy import (ARRAY, JSON, Column, Float, Integer, String,
+                        create_engine, func)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -52,8 +52,8 @@ class TotalForDay(Base):
 
 
 class Weight(Base):
-    __tablename__ = 'weight'
-    __table_args__ = {'schema': 'public'}
+    __tablename__ = "weight"
+    __table_args__ = {"schema": "public"}
 
     time = Column(Integer, primary_key=True)
     date = Column(String)

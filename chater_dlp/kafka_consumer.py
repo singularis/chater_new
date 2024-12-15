@@ -1,5 +1,6 @@
 import logging
 import os
+
 from confluent_kafka import Consumer, KafkaError
 
 logger = logging.getLogger("kafka_consumer")

@@ -1,15 +1,14 @@
+import json
+import logging
 import os
 import re
-import logging
-import json
+
 from dlp_types import INFO_TYPES
 from google.cloud import dlp_v2
-from google.cloud.dlp_v2.types import (
-    DeidentifyConfig,
-    InfoTypeTransformations,
-    PrimitiveTransformation,
-    ReplaceValueConfig,
-)
+from google.cloud.dlp_v2.types import (DeidentifyConfig,
+                                       InfoTypeTransformations,
+                                       PrimitiveTransformation,
+                                       ReplaceValueConfig)
 from kafka_consumer import consume_messages
 from kafka_producer import produce_message
 
@@ -72,7 +71,9 @@ def process_messages():
                 redacted_message = {"key": key, "value": redacted_data}
 
                 produce_message(send_topic, redacted_message)
-                logging.info(f"Processed and redacted message: {redacted_message}, send to topic {send_topic}")
+                logging.info(
+                    f"Processed and redacted message: {redacted_message}, send to topic {send_topic}"
+                )
 
                 consumer.commit(message)
             except Exception as e:

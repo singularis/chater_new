@@ -1,7 +1,8 @@
-from confluent_kafka import Producer
 import json
 import logging
 import os
+
+from confluent_kafka import Producer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

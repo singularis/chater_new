@@ -1,18 +1,22 @@
 import logging
 import os
-from sqlalchemy import create_engine, Column, Integer, String, Date, ARRAY, JSON, text, Float
+
+from sqlalchemy import (ARRAY, JSON, Column, Date, Float, Integer, String,
+                        create_engine, text)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
 
 class DishesDay(Base):
-    __tablename__ = 'dishes_day'
-    __table_args__ = {'schema': 'public'}
+    __tablename__ = "dishes_day"
+    __table_args__ = {"schema": "public"}
 
     time = Column(Integer, primary_key=True)
     date = Column(String)
@@ -24,8 +28,8 @@ class DishesDay(Base):
 
 
 class TotalForDay(Base):
-    __tablename__ = 'total_for_day'
-    __table_args__ = {'schema': 'public'}
+    __tablename__ = "total_for_day"
+    __table_args__ = {"schema": "public"}
 
     today = Column(String, primary_key=True)
     total_calories = Column(Integer)
@@ -34,9 +38,10 @@ class TotalForDay(Base):
     total_avg_weight = Column(Integer)
     contains = Column(JSON)
 
+
 class Weight(Base):
-    __tablename__ = 'weight'
-    __table_args__ = {'schema': 'public'}
+    __tablename__ = "weight"
+    __table_args__ = {"schema": "public"}
 
     time = Column(Integer, primary_key=True)
     date = Column(String)
@@ -45,18 +50,20 @@ class Weight(Base):
 
 def create_tables():
     try:
-        db_user = os.environ.get('POSTGRES_USER')
-        db_password = os.environ.get('POSTGRES_PASSWORD')
-        db_host = os.environ.get('POSTGRES_HOST')
-        db_name = os.environ.get('POSTGRES_DB')
+        db_user = os.environ.get("POSTGRES_USER")
+        db_password = os.environ.get("POSTGRES_PASSWORD")
+        db_host = os.environ.get("POSTGRES_HOST")
+        db_name = os.environ.get("POSTGRES_DB")
 
-        db_url = f'postgresql://postgres:{db_password}@{db_host}:5432/{db_name}'
+        db_url = f"postgresql://postgres:{db_password}@{db_host}:5432/{db_name}"
 
         engine = create_engine(db_url)
         Session = sessionmaker(bind=engine)
 
         with engine.connect() as connection:
-            connection.execute(text(f"ALTER USER {db_user} WITH PASSWORD '{db_password}'"))
+            connection.execute(
+                text(f"ALTER USER {db_user} WITH PASSWORD '{db_password}'")
+            )
             logger.info(text(f"ALTER USER {db_user} WITH PASSWORD '{db_password}'"))
 
             connection.execute(text("CREATE SCHEMA IF NOT EXISTS public"))

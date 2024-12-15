@@ -22,6 +22,7 @@ def proces_food(message):
         logger.info(f"Somthing went wrong during processing, {e}")
         raise
 
+
 def process_weight(message):
     weight = message.get("weight")
     logger.info(f"Starting processing received weight {weight}")

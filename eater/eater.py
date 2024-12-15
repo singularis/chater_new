@@ -31,9 +31,9 @@ def process_messages():
                         )
                     else:
                         type_of_processing = json_response.get("type")
-                        if type_of_processing =='food_processing':
+                        if type_of_processing == "food_processing":
                             proces_food(json_response)
-                        elif type_of_processing == 'weight_processing':
+                        elif type_of_processing == "weight_processing":
                             process_weight(json_response)
                         else:
                             produce_message(

@@ -1,5 +1,6 @@
 import logging
 import os
+
 from confluent_kafka import Consumer, KafkaError
 
 logger = logging.getLogger("kafka_consumer")
@@ -9,7 +10,9 @@ class NoMessageError(Exception):
     pass
 
 
-def consume_messages(topics, ):
+def consume_messages(
+    topics,
+):
     logger.info(f"Starting Kafka consumer with topics: {topics}")
     if not isinstance(topics, list):
         logger.error("Expected list of topic unicode strings")

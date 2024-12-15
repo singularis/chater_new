@@ -5,7 +5,6 @@ import sys
 import uuid
 
 from flask import flash, redirect, render_template, request, url_for
-
 from kafka_consumer import consume_messages, create_consumer
 from kafka_producer import create_producer, produce_message
 from logging_config import setup_logging
