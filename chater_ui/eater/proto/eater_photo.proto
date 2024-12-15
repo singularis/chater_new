@@ -5,4 +5,5 @@ package eater;
 message PhotoMessage {
     string time = 1;
     bytes photo_data = 2;
+    string photoType = 3;
 }

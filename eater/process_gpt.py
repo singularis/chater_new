@@ -1,6 +1,6 @@
 import logging
 
-from postgres import write_to_dish_day
+from postgres import write_to_dish_day, write_weight
 
 logger = logging.getLogger(__name__)
 
@@ -21,3 +21,8 @@ def proces_food(message):
     except Exception as e:
         logger.info(f"Somthing went wrong during processing, {e}")
         raise
+
+def process_weight(message):
+    weight = message.get("weight")
+    logger.info(f"Starting processing received weight {weight}")
+    write_weight(weight=weight)

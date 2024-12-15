@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (ARRAY, JSON, Column, Integer, String, create_engine,
-                        func)
+                        func, Float)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -49,6 +49,15 @@ class TotalForDay(Base):
     dishes_of_day = Column(ARRAY(String))
     total_avg_weight = Column(Integer)
     contains = Column(JSON)
+
+
+class Weight(Base):
+    __tablename__ = 'weight'
+    __table_args__ = {'schema': 'public'}
+
+    time = Column(Integer, primary_key=True)
+    date = Column(String)
+    weight = Column(Float)
 
 
 Session = sessionmaker(bind=engine)
@@ -164,6 +173,8 @@ def write_to_dish_day(message=None, recalculate: Optional[bool] = False):
 def get_today_dishes():
     try:
         session = Session()
+        latest_weight_entry = session.query(Weight).order_by(Weight.time.desc()).first()
+
         total_data = (
             session.query(TotalForDay)
             .filter(TotalForDay.today == current_date())
@@ -194,6 +205,13 @@ def get_today_dishes():
             "total_for_day": total_for_day_data,
             "dishes_today": dishes_list,
         }
+
+        if latest_weight_entry:
+            result["latest_weight"] = {
+                "time": latest_weight_entry.time,
+                "weight": latest_weight_entry.weight,
+            }
+
         logger.info(f"Result of get_today_dishes {result}")
         return result
     except Exception as e:
@@ -218,5 +236,22 @@ def delete_food(time):
             logger.info(f"No food entries found with time {time}")
     except Exception as e:
         logger.error(f"Error deleting food from database: {e}")
+    finally:
+        session.close()
+
+
+def write_weight(weight):
+    try:
+        session = Session()
+        weight_entry = Weight(
+            time=int(datetime.now().timestamp()),
+            date=current_date(),
+            weight=weight,
+        )
+        session.add(weight_entry)
+        session.commit()
+        logger.info(f"Successfully wrote weight data to database: {weight}")
+    except Exception as e:
+        logger.error(f"Error writing weight to database: {e}")
     finally:
         session.close()

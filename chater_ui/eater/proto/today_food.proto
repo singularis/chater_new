@@ -24,4 +24,5 @@ message TotalForDay {
 message TodayFood {
   repeated Dish dishes_today = 1;
   TotalForDay total_for_day = 2;
+  float person_weight = 3;
 }

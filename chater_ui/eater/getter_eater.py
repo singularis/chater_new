@@ -56,6 +56,7 @@ def eater_get_today():
         proto_message.total_for_day.contains.sugar = today_food["total_for_day"][
             "contains"
         ]["sugar"]
+        proto_message.person_weight = today_food["latest_weight"]["weight"]
         for dish in today_food["dishes_today"]:
             dish_proto = proto_message.dishes_today.add()
             dish_proto.time = dish["time"]

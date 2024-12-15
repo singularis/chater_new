@@ -1,6 +1,6 @@
 import logging
 import os
-from sqlalchemy import create_engine, Column, Integer, String, Date, ARRAY, JSON, text
+from sqlalchemy import create_engine, Column, Integer, String, Date, ARRAY, JSON, text, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -33,6 +33,14 @@ class TotalForDay(Base):
     dishes_of_day = Column(ARRAY(String))
     total_avg_weight = Column(Integer)
     contains = Column(JSON)
+
+class Weight(Base):
+    __tablename__ = 'weight'
+    __table_args__ = {'schema': 'public'}
+
+    time = Column(Integer, primary_key=True)
+    date = Column(String)
+    weight = Column(Float)
 
 
 def create_tables():

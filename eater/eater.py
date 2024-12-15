@@ -5,7 +5,7 @@ import uuid
 from kafka_consumer import consume_messages
 from kafka_producer import produce_message
 from postgres import delete_food, get_today_dishes
-from process_gpt import proces_food
+from process_gpt import proces_food, process_weight
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +30,19 @@ def process_messages():
                             message={"key": id, "value": json_response.get("error")},
                         )
                     else:
-                        proces_food(json_response)
+                        type_of_processing = json_response.get("type")
+                        if type_of_processing =='food_processing':
+                            proces_food(json_response)
+                        elif type_of_processing == 'weight_processing':
+                            process_weight(json_response)
+                        else:
+                            produce_message(
+                                topic="photo-analysis-response-check",
+                                message={"key": id, "value": "unknown request"},
+                            )
                         produce_message(
                             topic="photo-analysis-response-check",
-                            message={"key": id, "value": "Food"},
+                            message={"key": id, "value": "Success"},
                         )
                 elif message.topic() == "get_today_data":
                     today_dishes = get_today_dishes()
