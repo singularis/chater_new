@@ -2,27 +2,26 @@ import json
 import logging
 import uuid
 from datetime import datetime
+from common import get_prompt, json_to_plain_text
 
 from kafka_consumer import consume_messages, create_consumer
 from kafka_producer import create_producer, produce_message
 
-from .proto import today_food_pb2
+from .proto import today_food_pb2, get_recomendation_pb2
 
 logger = logging.getLogger(__name__)
 
-
-def eater_get_today_kafka():
+def eater_kafka_request(topic_send, topic_receive, payload):
     producer = create_producer()
-    logger.info(f"Received request to get food")
+    logger.info(f"Sending request to topic {topic_send}")
     message = {
         "key": str(uuid.uuid4()),
-        "value": {
-            "date": datetime.now().strftime("%d-%m-%Y"),
-        },
+        "value": payload,
     }
-    produce_message(producer, topic="get_today_data", message=message)
-    logger.info(f"Listening Kafka to get today")
-    consumer = create_consumer(["send_today_data"])
+    produce_message(producer, topic=topic_send, message=message)
+
+    logger.info(f"Listening for response on topic {topic_receive}")
+    consumer = create_consumer([topic_receive])
     for message in consume_messages(consumer):
         try:
             value = message.value().decode("utf-8")
@@ -31,12 +30,20 @@ def eater_get_today_kafka():
             return value_dict.get("value")
         except Exception as e:
             logger.error(f"Failed to process message: {e}")
-            return "Timeout"
+            return None
 
+def eater_get_today_kafka():
+    payload = {
+        "date": datetime.now().strftime("%d-%m-%Y"),
+    }
+    return eater_kafka_request("get_today_data", "send_today_data", payload)
 
 def eater_get_today():
     try:
         today_food = eater_get_today_kafka()
+        if today_food is None:
+            raise ValueError("No data received from Kafka")
+
         proto_message = today_food_pb2.TodayFood()
         proto_message.total_for_day.total_avg_weight = today_food["total_for_day"][
             "total_avg_weight"
@@ -67,5 +74,27 @@ def eater_get_today():
         proto_data = proto_message.SerializeToString()
         return proto_data, 200, {"Content-Type": "application/protobuf"}
     except Exception as e:
-        logger.info(f"Exception {e}")
+        logger.error(f"Exception: {e}")
+        return "Failed", 500
+
+def get_recommendation(request):
+    try:
+        proto_request = get_recomendation_pb2.RecommendationRequest()
+        proto_request.ParseFromString(request.data)
+
+        days = proto_request.days
+        prompt = get_prompt("get_recommendation")
+        payload = {"days": days, "prompt": prompt, "type_of_processing": "get_recommendation"}
+        recommendation_data = eater_kafka_request("get_recommendation", "gemini-response", payload)
+        logger.info(f"recommendation_data {recommendation_data}")
+        if recommendation_data is None:
+            raise ValueError("No recommendation received from Kafka")
+        plain_text = json_to_plain_text(recommendation_data)
+        logger.info(f"plain_text {plain_text}")
+        proto_response = get_recomendation_pb2.RecommendationResponse()
+        proto_response.recommendation = plain_text
+        response_data = proto_response.SerializeToString()
+        return response_data, 200, {"Content-Type": "application/protobuf"}
+    except Exception as e:
+        logger.error(f"Exception: {e}")
         return "Failed", 500

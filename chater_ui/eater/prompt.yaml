@@ -39,3 +39,14 @@ weight_prompt: |
     "    \"type\": \"weight_processing\",\n"
   "      \"weight\": \"<numeric_value_in_kilograms>\"\n"
   "    }\n"
+get_recommendation: |
+  You received a table of various foods and nutritional data. Analyze the data and:
+  - Give general food recommendations based on food data.
+  - Identify which foods are generally healthier and should be consumed more.
+  - Identify which foods should be reduced or avoided for better health.
+  - Respond only by JSON. No additional text.
+  - For JSON response, send only keys and values.
+  - Response should include 3 main fields in following order. Do not change order of fields in response:
+  - 1) foods_to_reduce_or_avoid(dish_name, reason) provide 3 most harmful options
+  - 2) healthier_foods(dish_name, reason) provide 3 most healthier options
+  - 3) general_recommendations(key:value) 3 most important recommendation

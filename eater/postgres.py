@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import (ARRAY, JSON, Column, Float, Integer, String,
@@ -253,5 +253,38 @@ def write_weight(weight):
         logger.info(f"Successfully wrote weight data to database: {weight}")
     except Exception as e:
         logger.error(f"Error writing weight to database: {e}")
+    finally:
+        session.close()
+
+def get_dishes(days):
+    try:
+        session = Session()
+        today = datetime.now()
+        start_date = today - timedelta(days=days)
+        today_str = today.strftime("%d-%m-%Y")
+        start_date_str = start_date.strftime("%d-%m-%Y")
+
+        dishes = (
+            session.query(DishesDay)
+            .filter(DishesDay.date.between(start_date_str, today_str))
+            .all()
+        )
+
+        dishes_list = [
+            {
+                "time": dish.time,
+                "date": dish.date,
+                "dish_name": dish.dish_name,
+                "estimated_avg_calories": dish.estimated_avg_calories,
+                "total_avg_weight": dish.total_avg_weight,
+                "ingredients": dish.ingredients,
+                "contains": dish.contains,
+            }
+            for dish in dishes
+        ]
+        return dishes_list
+    except Exception as e:
+        logger.error(f"Error retrieving dishes from database: {e}")
+        return []
     finally:
         session.close()

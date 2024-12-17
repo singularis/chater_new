@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package eater;
+
+message RecommendationRequest {
+  int32 days = 1;
+}
+
+message RecommendationResponse {
+  string recommendation = 1;
+}

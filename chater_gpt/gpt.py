@@ -29,8 +29,6 @@ def gpt_request(question, context=None, content=None) -> dict[str, str]:
                 "Oriented on software development, python, java, AWS, SRE."
             )
         )
-
-        # Base messages with the system message and user question
         messages = [
             {
                 "role": "system",

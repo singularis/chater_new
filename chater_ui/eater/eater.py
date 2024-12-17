@@ -1,7 +1,7 @@
 import logging
 
 from .food_operations import delete_food
-from .getter_eater import eater_get_today
+from .getter_eater import eater_get_today, get_recommendation
 from .process_photo import eater_get_photo
 
 logger = logging.getLogger(__name__)
@@ -32,6 +32,14 @@ def delete_food_record(request):
     logger.info("Deleting food")
     try:
         return delete_food(request=request)
+    except Exception as e:
+        logger.info(f"Exception {e}")
+        return "Failed"
+
+def get_recommendations(request):
+    logger.info("Requested recommendation providing")
+    try:
+        return get_recommendation(request=request)
     except Exception as e:
         logger.info(f"Exception {e}")
         return "Failed"

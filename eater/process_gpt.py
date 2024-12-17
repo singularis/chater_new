@@ -1,6 +1,8 @@
 import logging
-
-from postgres import write_to_dish_day, write_weight
+import uuid
+import json
+from postgres import write_to_dish_day, write_weight, get_dishes
+from kafka_producer import produce_message
 
 logger = logging.getLogger(__name__)
 
@@ -27,3 +29,25 @@ def process_weight(message):
     weight = message.get("weight")
     logger.info(f"Starting processing received weight {weight}")
     write_weight(weight=weight)
+
+def get_recommendation(message):
+    days = message.get("days")
+    prompt = message.get("prompt", "")
+    food_table = get_dishes(days=days)
+    id = str(uuid.uuid4())
+    if food_table:
+        try:
+            payload = {
+                "key": id,
+                "value": {
+                    "question": str(f"{prompt} Food Table: {food_table}")
+                }
+            }
+            produce_message(
+                topic="gemini-send",
+                message=payload
+            )
+            logger.info(f"formatted_payload {payload}")
+        except Exception as e:
+            logger.error(f"Error formatting payload: {e}")
+            return
