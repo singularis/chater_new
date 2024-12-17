@@ -5,13 +5,18 @@ import uuid
 from kafka_consumer import consume_messages
 from kafka_producer import produce_message
 from postgres import delete_food, get_today_dishes
-from process_gpt import proces_food, process_weight, get_recommendation
+from process_gpt import get_recommendation, proces_food, process_weight
 
 logger = logging.getLogger(__name__)
 
 
 def process_messages():
-    topics = ["photo-analysis-response", "get_today_data", "delete_food", "get_recommendation"]
+    topics = [
+        "photo-analysis-response",
+        "get_today_data",
+        "delete_food",
+        "get_recommendation",
+    ]
     logging.info(f"Starting message processing with topics: {topics}")
     while True:
         for message, consumer in consume_messages(topics):

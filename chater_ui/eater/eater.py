@@ -36,6 +36,7 @@ def delete_food_record(request):
         logger.info(f"Exception {e}")
         return "Failed"
 
+
 def get_recommendations(request):
     logger.info("Requested recommendation providing")
     try:

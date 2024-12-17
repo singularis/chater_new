@@ -3,8 +3,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import (ARRAY, JSON, Column, Float, Integer, String,
-                        create_engine, func)
+from sqlalchemy import ARRAY, JSON, Column, Float, Integer, String, create_engine, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -255,6 +254,7 @@ def write_weight(weight):
         logger.error(f"Error writing weight to database: {e}")
     finally:
         session.close()
+
 
 def get_dishes(days):
     try:

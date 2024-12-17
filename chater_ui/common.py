@@ -1,14 +1,14 @@
 import base64
 import io
+import json
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 from functools import wraps
 
-import re
 import jwt
 import yaml
-import json
 from flask import flash, jsonify, redirect, request, url_for
 from PIL import Image
 
@@ -123,13 +123,14 @@ def encode_image(image_path):
 
 import json
 
+
 def json_to_plain_text(json_data):
     if isinstance(json_data, str):
         cleaned_data = json_data.strip()
-        if cleaned_data.startswith('```json'):
-            cleaned_data = cleaned_data[len('```json'):].strip('`').strip()
-        elif cleaned_data.startswith('json'):
-            cleaned_data = cleaned_data[len('json'):].strip()
+        if cleaned_data.startswith("```json"):
+            cleaned_data = cleaned_data[len("```json") :].strip("`").strip()
+        elif cleaned_data.startswith("json"):
+            cleaned_data = cleaned_data[len("json") :].strip()
 
         try:
             json_data = json.loads(cleaned_data)
@@ -140,34 +141,38 @@ def json_to_plain_text(json_data):
 
     if "foods_to_reduce_or_avoid" in json_data:
         output_text += "Foods to Reduce or Avoid:\n\n"
-        for food in json_data['foods_to_reduce_or_avoid']:
-            dish_name = food.get('dish_name', 'Unnamed Dish')
-            reason = food.get('reason', '')
+        for food in json_data["foods_to_reduce_or_avoid"]:
+            dish_name = food.get("dish_name", "Unnamed Dish")
+            reason = food.get("reason", "")
             output_text += f"- {dish_name}: {reason}\n"
             output_text += "\n"
         output_text += "\n"
 
     if "healthier_foods" in json_data:
         output_text += "Healthier Food Options:\n\n"
-        for food in json_data['healthier_foods']:
-            dish_name = food.get('dish_name', 'Unnamed Dish')
-            reason = food.get('reason', '')
+        for food in json_data["healthier_foods"]:
+            dish_name = food.get("dish_name", "Unnamed Dish")
+            reason = food.get("reason", "")
             output_text += f"- {dish_name}: {reason}\n"
             output_text += "\n"
         output_text += "\n"
 
     if "general_recommendations" in json_data:
         output_text += "General Recommendations:\n\n"
-        if isinstance(json_data['general_recommendations'], dict):
-            for key, value in json_data['general_recommendations'].items():
+        if isinstance(json_data["general_recommendations"], dict):
+            for key, value in json_data["general_recommendations"].items():
                 output_text += f"- {value}\n"
         else:
             output_text += f"{json_data['general_recommendations']}\n"
         output_text += "\n"
 
     for key, value in json_data.items():
-        if key not in ["general_recommendations", "healthier_foods", "foods_to_reduce_or_avoid"]:
-            display_key = key.replace('_', ' ').title()
+        if key not in [
+            "general_recommendations",
+            "healthier_foods",
+            "foods_to_reduce_or_avoid",
+        ]:
+            display_key = key.replace("_", " ").title()
             if isinstance(value, list):
                 output_text += f"{display_key}:\n"
                 for item in value:
@@ -178,7 +183,9 @@ def json_to_plain_text(json_data):
             elif isinstance(value, dict):
                 output_text += f"{display_key}:\n"
                 for sub_key, sub_value in value.items():
-                    output_text += f"- {sub_key.replace('_', ' ').title()}: {sub_value}\n"
+                    output_text += (
+                        f"- {sub_key.replace('_', ' ').title()}: {sub_value}\n"
+                    )
                 output_text += "\n"
 
     return output_text

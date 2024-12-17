@@ -12,7 +12,12 @@ from login import login, logout
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from chater import chater as chater_ui
-from eater.eater import delete_food_record, eater_photo, eater_today, get_recommendations
+from eater.eater import (
+    delete_food_record,
+    eater_photo,
+    eater_today,
+    get_recommendations,
+)
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -113,6 +118,7 @@ def eater_get_today():
 @token_required
 def delete_food():
     return delete_food_record(request=request)
+
 
 @app.route("/get_recommendation", methods=["POST"])
 @token_required

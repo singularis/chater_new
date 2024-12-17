@@ -1,8 +1,17 @@
 import logging
 import os
 
-from sqlalchemy import (ARRAY, JSON, Column, Date, Float, Integer, String,
-                        create_engine, text)
+from sqlalchemy import (
+    ARRAY,
+    JSON,
+    Column,
+    Date,
+    Float,
+    Integer,
+    String,
+    create_engine,
+    text,
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 

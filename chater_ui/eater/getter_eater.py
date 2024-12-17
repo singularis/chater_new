@@ -2,14 +2,15 @@ import json
 import logging
 import uuid
 from datetime import datetime
-from common import get_prompt, json_to_plain_text
 
+from common import get_prompt, json_to_plain_text
 from kafka_consumer import consume_messages, create_consumer
 from kafka_producer import create_producer, produce_message
 
-from .proto import today_food_pb2, get_recomendation_pb2
+from .proto import get_recomendation_pb2, today_food_pb2
 
 logger = logging.getLogger(__name__)
+
 
 def eater_kafka_request(topic_send, topic_receive, payload):
     producer = create_producer()
@@ -32,11 +33,13 @@ def eater_kafka_request(topic_send, topic_receive, payload):
             logger.error(f"Failed to process message: {e}")
             return None
 
+
 def eater_get_today_kafka():
     payload = {
         "date": datetime.now().strftime("%d-%m-%Y"),
     }
     return eater_kafka_request("get_today_data", "send_today_data", payload)
+
 
 def eater_get_today():
     try:
@@ -77,6 +80,7 @@ def eater_get_today():
         logger.error(f"Exception: {e}")
         return "Failed", 500
 
+
 def get_recommendation(request):
     try:
         proto_request = get_recomendation_pb2.RecommendationRequest()
@@ -84,8 +88,14 @@ def get_recommendation(request):
 
         days = proto_request.days
         prompt = get_prompt("get_recommendation")
-        payload = {"days": days, "prompt": prompt, "type_of_processing": "get_recommendation"}
-        recommendation_data = eater_kafka_request("get_recommendation", "gemini-response", payload)
+        payload = {
+            "days": days,
+            "prompt": prompt,
+            "type_of_processing": "get_recommendation",
+        }
+        recommendation_data = eater_kafka_request(
+            "get_recommendation", "gemini-response", payload
+        )
         logger.info(f"recommendation_data {recommendation_data}")
         if recommendation_data is None:
             raise ValueError("No recommendation received from Kafka")
