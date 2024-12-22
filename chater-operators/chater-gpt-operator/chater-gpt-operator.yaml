@@ -1,0 +1,124 @@
+---
+- name: Deploy ChaterGPT Operator and CRD
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Create chater Namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: chater-gpt
+    - name: Create or Update the ChaterGpt CRD
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apiextensions.k8s.io/v1
+          kind: CustomResourceDefinition
+          metadata:
+            name: chatergpts.chater.example.com
+          spec:
+            group: chater.example.com
+            versions:
+              - name: v1
+                served: true
+                storage: true
+                schema:
+                  openAPIV3Schema:
+                    type: object
+                    properties:
+                      spec:
+                        type: object
+                        properties:
+                          namespace:
+                            type: string
+                          bootstrapServer:
+                            type: string
+                          model:
+                            type: string
+                          visionModel:
+                            type: string
+                          openAIAPIKey:
+                            type: string
+                          secretKey:
+                            type: string
+            scope: Namespaced
+            names:
+              plural: chatergpts
+              singular: chatergpt
+              kind: ChaterGpt
+              shortNames:
+                - cgt
+
+    - name: Create or Update the ClusterRole for ChaterGPT Operator
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRole
+          metadata:
+            name: chater-gpt-operator
+          rules:
+            - apiGroups: ["chater.example.com"]
+              resources: ["chatergpts"]
+              verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+            - apiGroups: ["apiextensions.k8s.io"]
+              resources: ["customresourcedefinitions"]
+              verbs: ["get", "list", "watch", "create", "update", "delete"]
+            - apiGroups: [""]
+              resources: ["events", "namespaces"]
+              verbs: ["get", "list", "watch", "create", "delete"]
+            - apiGroups: ["apps"]
+              resources: ["deployments"]
+              verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+            - apiGroups: [""]
+              resources: ["secrets"]
+              verbs: ["get", "list", "watch", "create", "delete", "patch"]
+
+
+    - name: Create or Update the ClusterRoleBinding for ChaterGPT Operator
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: chater-gpt-operator-binding
+          subjects:
+            - kind: ServiceAccount
+              name: default
+              namespace: chater-gpt
+          roleRef:
+            kind: ClusterRole
+            name: chater-gpt-operator
+            apiGroup: rbac.authorization.k8s.io
+
+    - name: Create or Update the ChaterGPT Operator Deployment
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: chater-gpt-operator
+            namespace: chater-gpt
+            labels:
+              app: chater-gpt-operator
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: chater-gpt-operator
+            template:
+              metadata:
+                labels:
+                  app: chater-gpt-operator
+              spec:
+                serviceAccountName: default
+                containers:
+                  - name: chater-gpt-operator
+                    image: singularis314/chater-gpt-operator:0.1
+                    imagePullPolicy: Always

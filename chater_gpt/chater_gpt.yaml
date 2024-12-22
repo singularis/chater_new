@@ -6,67 +6,19 @@
     - ../vars.yaml
 
   tasks:
-    - name: Create chater Namespace
+    - name: Create ChaterGpt Custom Resource
       kubernetes.core.k8s:
         state: present
         definition:
-          apiVersion: v1
-          kind: Namespace
+          apiVersion: chater.example.com/v1
+          kind: ChaterGpt
           metadata:
-            name: chater-gpt
-    - name: Deploy chater Deployment
-      kubernetes.core.k8s:
-        state: present
-        namespace: chater-gpt
-        definition:
-          apiVersion: apps/v1
-          kind: Deployment
-          metadata:
-            name: chater-gpt
+            name: chater-gpt-operated
             namespace: chater-gpt
           spec:
-            replicas: 1
-            selector:
-              matchLabels:
-                app: chater-gpt
-            template:
-              metadata:
-                labels:
-                  app: chater-gpt
-              spec:
-                containers:
-                  - name: chater-gpt
-                    image: singularis314/chater-gpt:0.3
-                    imagePullPolicy: Always
-                    env:
-                      - name: OPENAI_API_KEY
-                        valueFrom:
-                          secretKeyRef:
-                            name: chater-gpt
-                            key: OPENAI_API_KEY
-                      - name: SECRET_KEY
-                        valueFrom:
-                          secretKeyRef:
-                            name: chater-gpt
-                            key: SECRET_KEY
-                      - name: BOOTSTRAP_SERVER
-                        value: "{{ vars.BOOTSTRAP_SERVER }}"
-                      - name: MODEL
-                        value: "{{ vars.MODEL }}"
-                      - name: VISION_MODEL
-                        value: "{{ vars.VISION_MODEL }}"
-    - name: Create secret for environment variables
-      kubernetes.core.k8s:
-        state: present
-        namespace: chater-gpt
-        kind: Secret
-        name: chater-gpt
-        resource_definition:
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: chater-gpt
-            namespace: chater-gpt
-          data:
-            OPENAI_API_KEY: "{{ vars.CAPI | b64encode }}"
-            SECRET_KEY: "{{ vars.SECRET_KEY | b64encode }}"
+            namespace: chater-gpt-operated
+            bootstrapServer: "{{ vars.BOOTSTRAP_SERVER }}"
+            model: "{{ vars.MODEL }}"
+            visionModel: "{{ vars.VISION_MODEL }}"
+            openAIAPIKey: "{{ vars.CAPI | b64encode }}"
+            secretKey: "{{ vars.SECRET_KEY | b64encode }}"
