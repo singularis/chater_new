@@ -4,7 +4,7 @@
   connection: local
   gather_facts: false
 - name: Setup chater-gpr-operator
-  import_playbook: ./chater-gpt-operator/chater-gpt-operator.yaml
+  import_playbook: ./chater-operators/chater-gpt-operator/chater-gpt-operator.yaml
 - name: Setup chater_ui
   import_playbook: ./chater_ui/chater_ui.yaml
 - name: Setup chater_dlp

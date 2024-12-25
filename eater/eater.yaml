@@ -77,6 +77,8 @@
               metadata:
                 labels:
                   app: eater
+                annotations:
+                  co.elastic.logs/enabled: "true"
               spec:
                 initContainers:
                   - name: eater-init-db
