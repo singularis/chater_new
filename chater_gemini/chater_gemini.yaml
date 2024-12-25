@@ -33,6 +33,8 @@
               metadata:
                 labels:
                   app: chater-gemini
+                annotations:
+                  co.elastic.logs/enabled: "true"
               spec:
                 containers:
                   - name: chater-gemini
