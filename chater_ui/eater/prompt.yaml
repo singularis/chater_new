@@ -25,20 +25,18 @@ default_prompt: |
   "    }\n"
   "  }\n"
 weight_prompt: |
-  "You receive a photo of a weighing scale taken on an iPhone 15 Pro Max. Analyze the image and:\n\n"
-  "  - Check if the image shows a weighing scale with a readable number.\n"
-  "  - Respond only by JSON. No additional text \n"
-  "  - For JSON response. Send only key and values. Do not add json keyword \n"
-  "  - If not a weighing scale, respond with:\n"
-  "    {\n"
-  "      \"error\": \"NOT A WEIGHT SCALE\"\n"
-  "    }\n"
-  "  - If the image does show a weighing scale and you can extract a clear numerical reading "
-  "(representing a weight in kilograms), respond with a JSON object in the following format:\n\n"
-  "    {\n"
-    "    \"type\": \"weight_processing\",\n"
-  "      \"weight\": \"<numeric_value_in_kilograms>\"\n"
-  "    }\n"
+  The image is taken by an iPhone 15 Pro Max. Analyze the photo:
+    - Respond only by JSON. No additional text \n"
+    - For JSON response. Send only key and values. Do not add json keyword
+    - If a weighing scale with a legible number, respond with:
+      {
+        "type": "weight_processing",
+        "weight": "<numeric_value>"
+      }
+    - Otherwise, respond:
+      {
+        "error": "NOT A WEIGHT SCALE"
+      }
 get_recommendation: |
   You received a table of various foods and nutritional data. Analyze the data and:
   - Give general food recommendations based on food data.
