@@ -97,7 +97,10 @@ def create_chater_gpt(spec, **kwargs):
     )
 
     pod_template = client.V1PodTemplateSpec(
-        metadata=client.V1ObjectMeta(labels={"app": "chater-gpt"}, annotations={"co.elastic.logs/enabled":"true"}),
+        metadata=client.V1ObjectMeta(
+            labels={"app": "chater-gpt"},
+            annotations={"co.elastic.logs/enabled": "true"},
+        ),
         spec=client.V1PodSpec(containers=[container]),
     )
 

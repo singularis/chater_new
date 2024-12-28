@@ -4,10 +4,10 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timedelta
-from functools import wraps
 import secrets
 import string
+from datetime import datetime, timedelta
+from functools import wraps
 
 import jwt
 import yaml
@@ -192,6 +192,7 @@ def json_to_plain_text(json_data):
 
     return output_text
 
+
 def generate_session_secret():
     alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(30))
+    return "".join(secrets.choice(alphabet) for _ in range(30))

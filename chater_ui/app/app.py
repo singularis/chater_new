@@ -2,16 +2,15 @@ import logging
 import os
 
 import context
-from common import before_request, chater_clear, token_required, generate_session_secret
+from common import before_request, chater_clear, generate_session_secret, token_required
 from flask import Flask, jsonify, render_template, request, session
 from flask_cors import CORS
+from flask_session import Session
 from google_ops import create_google_blueprint, g_login
 from gphoto import gphoto
 from logging_config import setup_logging
 from login import login, logout
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask_session import Session
-
 
 from chater import chater as chater_ui
 from eater.eater import (
