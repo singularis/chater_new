@@ -45,3 +45,4 @@ build/
 
 ### Mac OS ###
 .DS_Store
+/chater_vision/
