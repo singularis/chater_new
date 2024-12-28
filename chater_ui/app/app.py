@@ -2,7 +2,7 @@ import logging
 import os
 
 import context
-from common import before_request, chater_clear, token_required
+from common import before_request, chater_clear, token_required, generate_session_secret
 from flask import Flask, jsonify, render_template, request, session
 from flask_cors import CORS
 from google_ops import create_google_blueprint, g_login
@@ -10,6 +10,8 @@ from gphoto import gphoto
 from logging_config import setup_logging
 from login import login, logout
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_session import Session
+
 
 from chater import chater as chater_ui
 from eater.eater import (
@@ -23,6 +25,9 @@ setup_logging("app.log")
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_url_path="/chater/static")
+app.secret_key = generate_session_secret()
+app.config["SESSION_TYPE"] = "filesystem"
+Session(app)
 app.secret_key = os.getenv("SECRET_KEY")
 
 picFolder = "/app/app/static/pics"

@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-import sys
 import uuid
 
 from flask import flash, redirect, render_template, request, url_for
@@ -157,7 +156,5 @@ def format_script(json_response):
 
 
 def manage_session_responses(existing_responses, new_response):
-    temp_responses = [new_response] + existing_responses
-    while sys.getsizeof(temp_responses) > 100000:
-        temp_responses.pop()
-    return temp_responses[:20]
+    existing_responses.insert(0, new_response)
+    return existing_responses
