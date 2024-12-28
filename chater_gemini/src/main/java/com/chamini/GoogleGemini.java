@@ -93,7 +93,6 @@ public class GoogleGemini {
     }
 
     public static HttpURLConnection getHttpURLConnection(String question) throws IOException {
-        String sanitizedQuestion = question.replaceAll("[^\\p{Alnum}\\s]", "").replaceAll("\\s+", " ").trim();
         URL url = new URL("https://generativelanguage.googleapis.com/v1beta/models/" + API_MODEL + ":generateContent?key=" + API_KEY);
 
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -101,7 +100,7 @@ public class GoogleGemini {
         connection.setRequestProperty("Content-Type", "application/json");
         connection.setDoOutput(true);
 
-        String jsonInputString = String.format("{\"contents\":[{\"parts\":[{\"text\":\"%s\"}]}]}", sanitizedQuestion);
+        String jsonInputString = String.format("{\"contents\":[{\"parts\":[{\"text\":\"%s\"}]}]}", question);
 
         try (OutputStream os = connection.getOutputStream()) {
             byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
