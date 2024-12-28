@@ -1,6 +1,5 @@
 import base64
 import io
-import json
 import logging
 import os
 import re
@@ -196,3 +195,10 @@ def json_to_plain_text(json_data):
 def generate_session_secret():
     alphabet = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(30))
+
+
+def sanitize_question(question):
+    sanitized_question = re.sub(r"[^\w\s.,?!-]", "", question)
+    sanitized_question = sanitized_question.strip()
+    sanitized_question = re.sub(r"\s+", " ", sanitized_question)
+    return sanitized_question

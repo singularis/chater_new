@@ -4,6 +4,8 @@ import re
 import uuid
 
 from flask import flash, redirect, render_template, request, url_for
+
+from common import sanitize_question
 from kafka_consumer import consume_messages, create_consumer
 from kafka_producer import create_producer, produce_message
 from logging_config import setup_logging
@@ -44,6 +46,7 @@ def chater(session, target):
             return redirect(url_for("chater"))
 
         question = request.form["question"]
+        question = sanitize_question(question=question)
         log.info(f"Asked question in UI: {question}")
         question_uuid = str(uuid.uuid4())
         message = {

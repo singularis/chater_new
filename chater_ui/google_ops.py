@@ -40,7 +40,7 @@ def g_login(session, ALLOWED_EMAILS):
         session["google_id"] = user_info.get("id")
         session["user_email"] = user_email
         session.permanent = True
-        return redirect(url_for("chater"))
+        return redirect(url_for("chamini"))
     else:
         logging.error(
             f"Email {user_email} with {user_info} is not authorized for chater"

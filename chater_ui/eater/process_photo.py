@@ -3,8 +3,9 @@ import logging
 import uuid
 from datetime import datetime
 
-from common import encode_image, get_prompt, resize_image
 from flask import jsonify, request
+
+from common import encode_image, get_prompt, resize_image
 from kafka_consumer import consume_messages, create_consumer
 from kafka_producer import create_producer, produce_message
 

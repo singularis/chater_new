@@ -2,6 +2,7 @@ import logging
 import os
 
 from confluent_kafka import Consumer, KafkaError, KafkaException
+
 from logging_config import setup_logging
 
 setup_logging("kafka_consumer.log")

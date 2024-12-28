@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timedelta
 
 from flask import flash, redirect, render_template, url_for
-from flask_dance.contrib.google import google, make_google_blueprint
+from flask_dance.contrib.google import google
 from flask_wtf import FlaskForm
 from werkzeug.security import check_password_hash
 from wtforms import PasswordField, StringField
@@ -41,7 +41,7 @@ def login(session):
                 logging.info("Successful chater_login by user: %s", form.username.data)
                 session.permanent = True
                 session["logged_in"] = True
-                return redirect(url_for("chater"))
+                return redirect(url_for("chamini"))
             else:
                 LAST_FAILED_ATTEMPT_TIME = datetime.now()
                 logging.warning(

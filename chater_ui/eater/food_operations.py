@@ -2,6 +2,7 @@ import logging
 import uuid
 
 from flask import jsonify
+
 from kafka_producer import create_producer, produce_message
 
 from .proto import delete_food_pb2
