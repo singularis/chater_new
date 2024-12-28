@@ -13,3 +13,4 @@ pyyaml
 protobuf
 pillow
 flask_session
+redis

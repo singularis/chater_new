@@ -1,4 +1,5 @@
 import logging
+import redis
 import os
 
 from flask import Flask, jsonify, render_template, request, session
@@ -23,9 +24,11 @@ from login import login, logout
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
 
+redis_client = redis.StrictRedis(host=os.getenv("REDIS_ENDPOINT"), port=6379, db=0)
 app = Flask(__name__, static_url_path="/chater/static")
 app.secret_key = generate_session_secret()
-app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_TYPE"] = "redis"
+app.config["SESSION_REDIS"] = redis_client
 Session(app)
 app.secret_key = os.getenv("SECRET_KEY")
 

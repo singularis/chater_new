@@ -82,6 +82,8 @@
                         value: "{{ vars.ALLOWED_EMAILS }}"
                       - name: EATER_SECRET_KEY
                         value: "{{ vars.EATER_SECRET_KEY }}"
+                      - name: REDIS_ENDPOINT
+                        value: "{{ vars.REDIS_ENDPOINT }}"
                 volumes:
                   - name: chater-ui-pvc
                     persistentVolumeClaim:
