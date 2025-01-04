@@ -33,10 +33,12 @@ def process_weight(message):
 
 
 def get_recommendation(message):
+    logger.info("Received request to get recommendation")
     days = message.get("days")
     prompt = message.get("prompt", "")
     food_table = get_dishes(days=days)
     id = str(uuid.uuid4())
+    logger.info(f"Payload {days}, {prompt}, food table {food_table}")
     if food_table:
         try:
             payload = {

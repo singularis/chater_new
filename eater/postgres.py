@@ -22,7 +22,7 @@ Base = declarative_base()
 
 
 def current_date():
-    return datetime.now().strftime("%d-%m-%Y")
+    return datetime.now().date()
 
 
 class DishesDay(Base):
@@ -258,15 +258,14 @@ def write_weight(weight):
 
 def get_dishes(days):
     try:
+        logger.info(f"Starting get_dishes function with days={days}")
         session = Session()
+        logger.info("Database session created successfully.")
         today = datetime.now()
         start_date = today - timedelta(days=days)
-        today_str = today.strftime("%d-%m-%Y")
-        start_date_str = start_date.strftime("%d-%m-%Y")
-
         dishes = (
             session.query(DishesDay)
-            .filter(DishesDay.date.between(start_date_str, today_str))
+            .filter(DishesDay.date.between(start_date, today))
             .all()
         )
 
@@ -284,7 +283,7 @@ def get_dishes(days):
         ]
         return dishes_list
     except Exception as e:
-        logger.error(f"Error retrieving dishes from database: {e}")
+        logger.error(f"Error retrieving dishes from database: {e}", exc_info=True)
         return []
     finally:
         session.close()

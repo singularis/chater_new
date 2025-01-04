@@ -28,7 +28,7 @@ class DishesDay(Base):
     __table_args__ = {"schema": "public"}
 
     time = Column(Integer, primary_key=True)
-    date = Column(String)
+    date = Column(Date)
     dish_name = Column(String)
     estimated_avg_calories = Column(Integer)
     ingredients = Column(ARRAY(String))
@@ -40,7 +40,7 @@ class TotalForDay(Base):
     __tablename__ = "total_for_day"
     __table_args__ = {"schema": "public"}
 
-    today = Column(String, primary_key=True)
+    today = Column(Date, primary_key=True)
     total_calories = Column(Integer)
     ingredients = Column(ARRAY(String))
     dishes_of_day = Column(ARRAY(String))
@@ -53,7 +53,7 @@ class Weight(Base):
     __table_args__ = {"schema": "public"}
 
     time = Column(Integer, primary_key=True)
-    date = Column(String)
+    date = Column(Date)
     weight = Column(Float)
 
 
