@@ -85,6 +85,7 @@ public class GoogleGemini {
                 try (Scanner scanner = new Scanner(connection.getErrorStream())) {
                     String errorResponse = scanner.useDelimiter("\\A").next();
                     LOGGER.log(Level.WARNING, "Request failed with response code: {0} and error: {1}", new Object[]{responseCode, errorResponse});
+                    producer.sendMessage("gemini-response", uuid, errorResponse);
                 }
             }
         } catch (Exception e) {
