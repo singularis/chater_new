@@ -9,7 +9,6 @@ import com.google.cloud.vision.v1.Image;
 import com.google.cloud.vision.v1.ImageAnnotatorClient;
 import com.google.cloud.vision.v1.ImageAnnotatorSettings;
 import com.google.protobuf.ByteString;
-import org.apache.kafka.common.metrics.stats.Max;
 
 import java.io.FileInputStream;
 import java.io.IOException;

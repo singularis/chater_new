@@ -26,13 +26,13 @@ default_prompt: |
   "  }\n"
 weight_prompt: |
   Response from Google Cloud Vision API of weight scale Phot text recognize. Find walid weight value:
-    - Respond only by JSON. No additional text
-    - For JSON response, send only keys and values.
-    - If a weighing scale with a legible number, respond with:
-        type: weight_processing,
-        weight: numeric_value
-    - Otherwise, respond:
-        error: NOT A WEIGHT SCALE
+  - Respond only by JSON. No additional text.
+  - For JSON response, send only keys and values.
+  - If a weighing scale with a legible number, respond with:
+      type: weight_processing,
+      weight: numeric_value
+  - Otherwise, respond:
+      error: NOT A WEIGHT SCALE
 get_recommendation: |
   You received a table of various foods and nutritional data. Analyze the data and:
   - Give general food recommendations based on food data.
