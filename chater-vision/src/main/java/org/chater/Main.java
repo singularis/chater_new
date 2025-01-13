@@ -54,28 +54,33 @@ public class Main {
         visionConsumer.CreateConsumer("gemini-response", "gemini-chater-vision-group");
         Thread.sleep(3000);
         logger.info("Chater vision responder");
+        long startTime = System.currentTimeMillis();
         while (true) {
             message = visionConsumer.Consume();
             if (message!=null &&!message.isEmpty()) {
                 logger.info("Consumed message: {}", message);
+                cleanedJson = message
+                        .replace("```json", "")
+                        .replace("```", "")
+                        .trim();
+                logger.info("Cleaned json: {}", cleanedJson);
+                JSONObject jsonObject = new JSONObject(cleanedJson);
+                String valueString = jsonObject.getString("value");
+                String uuid = jsonObject.getString("key");
+
+                JSONObject responseObject = new JSONObject();
+                responseObject.put("key", uuid);
+                responseObject.put("value", valueString);
+                logger.info("Response after weight processing" + responseObject);
+                if (message!=null &&!message.isEmpty()) {
+                    visionProducer.SendMessage(responseObject.toString(), "photo-analysis-response");
+                }
                 break;
             }
-        }
-        cleanedJson = message
-                .replace("```json", "")
-                .replace("```", "")
-                .trim();
-        logger.info("Cleaned json: {}", cleanedJson);
-        JSONObject jsonObject = new JSONObject(cleanedJson);
-        String valueString = jsonObject.getString("value");
-        String uuid = jsonObject.getString("key");
-
-        JSONObject responseObject = new JSONObject();
-        responseObject.put("key", uuid);
-        responseObject.put("value", valueString);
-        logger.info("Response after weight processing" + responseObject);
-        if (message!=null &&!message.isEmpty()) {
-            visionProducer.SendMessage(responseObject.toString(), "photo-analysis-response");
+            if (System.currentTimeMillis()-startTime>20000) {
+                logger.info("No message received within 20 seconds. Exiting.");
+                break;
+            }
         }
         }
 }

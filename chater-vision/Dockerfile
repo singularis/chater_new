@@ -1,5 +1,5 @@
 # Use the latest Maven image with the latest OpenJDK
-FROM maven:3.9.9-eclipse-temurin-23 AS build
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 
 # Set the working directory in the container
 WORKDIR /app
@@ -15,7 +15,7 @@ COPY src ./src
 RUN mvn package -DskipTests
 
 # Use the latest OpenJDK runtime as a parent image
-FROM eclipse-temurin:23-jdk-alpine
+FROM eclipse-temurin:21-jdk
 
 # Set the working directory in the container
 WORKDIR /app
