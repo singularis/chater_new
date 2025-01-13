@@ -51,7 +51,7 @@ def eater_get_photo():
         )
 
 
-def send_kafka_message(photo_base64, type_of_processing):
+def send_kafka_message(photo_base64, type_of_processing, topic="eater-send-photo"):
     producer = create_producer()
     photo_uuid = str(uuid.uuid4())
     prompt = get_prompt(type_of_processing)
@@ -63,4 +63,7 @@ def send_kafka_message(photo_base64, type_of_processing):
         },
     }
     logger.info(f"Food image {photo_uuid} send")
-    produce_message(producer, topic="eater-send-photo", message=message)
+    if type_of_processing == "weight_prompt":
+        topic = "chater-vision"
+        logger.info(f"Topic: {topic}")
+    produce_message(producer, topic=topic, message=message)
