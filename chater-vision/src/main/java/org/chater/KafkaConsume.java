@@ -25,12 +25,14 @@ public class KafkaConsume {
         properties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,StringDeserializer.class.getName());
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG,groupId);
         properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,"latest");
+        properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+        properties.setProperty(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
         this.consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<>(properties);
         this.consumer.subscribe(Collections.singletonList(topic));
 
     }
     public String Consume() {
-            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(200));
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(20000));
             for (ConsumerRecord<String, String> record : records) {
                 log.info(record.value());
                 return record.value();

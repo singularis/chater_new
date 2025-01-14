@@ -28,7 +28,7 @@ public class KafkaConsumer {
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
 
         this.consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<>(props);
         this.consumer.subscribe(Collections.singletonList(topic));
@@ -37,7 +37,7 @@ public class KafkaConsumer {
     public String consumeMessage() {
         try {
             while (running.get()) {
-                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(2000));
                 for (ConsumerRecord<String, String> record : records) {
                     LOGGER.info("Consumed record with key {} and value {}", record.key(), record.value());
                     // Manually commit offset after processing the message

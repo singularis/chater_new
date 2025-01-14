@@ -13,6 +13,8 @@ public class Main {
         logger.info("Chater vision starting...");
         KafkaConsume newConsumer = new KafkaConsume();
         newConsumer.CreateConsumer("chater-vision", "chater-vision-group");
+        KafkaConsume visionConsumer = new KafkaConsume();
+        visionConsumer.CreateConsumer("gemini-response", "chater");
         KafkaProduce visionProducer = new KafkaProduce();
         visionProducer.CreateProducer();
         while (true) {
@@ -20,7 +22,7 @@ public class Main {
                 String message = newConsumer.Consume();
                 if (message!=null &&!message.isEmpty()) {
                     processMessage(message,visionProducer);
-                    responder(visionProducer);
+                    responder(visionProducer, visionConsumer);
                 }
             }
             catch (Exception e) {
@@ -47,12 +49,9 @@ public class Main {
         photoQuestion.put("value", addressObject);
         visionProducer.SendMessage(photoQuestion.toString(), "gemini-send");
     }
-    public static void responder(KafkaProduce visionProducer) throws InterruptedException {
+    public static void responder(KafkaProduce visionProducer, KafkaConsume visionConsumer) throws InterruptedException {
         String message;
         String cleanedJson;
-        KafkaConsume visionConsumer = new KafkaConsume();
-        visionConsumer.CreateConsumer("gemini-response", "gemini-chater-vision-group");
-        Thread.sleep(3000);
         logger.info("Chater vision responder");
         long startTime = System.currentTimeMillis();
         while (true) {
@@ -72,13 +71,11 @@ public class Main {
                 responseObject.put("key", uuid);
                 responseObject.put("value", valueString);
                 logger.info("Response after weight processing" + responseObject);
-                if (message!=null &&!message.isEmpty()) {
-                    visionProducer.SendMessage(responseObject.toString(), "photo-analysis-response");
-                }
+                visionProducer.SendMessage(responseObject.toString(), "photo-analysis-response");
                 break;
             }
-            if (System.currentTimeMillis()-startTime>20000) {
-                logger.info("No message received within 20 seconds. Exiting.");
+            if (System.currentTimeMillis()-startTime>60000) {
+                logger.info("No message received within 60 seconds. Exiting and waiting for next photo");
                 break;
             }
         }
