@@ -66,7 +66,7 @@ def chater(session, target):
         )
         log.info(f"Message response {json_response}")
         if session.get("switch_state", "off") == "on":
-            session["context"] = session["context"] + question + json_response
+            session["context"] = (session.get("context") or "") + question + json_response
             log.info(f"Context crated {session['context'] }")
         else:
             session["context"] = None
