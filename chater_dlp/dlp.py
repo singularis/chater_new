@@ -69,6 +69,7 @@ def process_messages():
                 redacted_data = {
                     "question": redacted_value,
                     "context": actual_value["context"],
+                    "think": actual_value["think"],
                 }
                 redacted_message = {"key": key, "value": redacted_data}
 

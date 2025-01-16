@@ -20,7 +20,7 @@ public class GoogleGemini {
     private static final String API_KEY = System.getenv("API_KEY");
     private static final String BOOTSTRAP_SERVER = System.getenv("BOOTSTRAP_SERVER");
     private static final String TOPIC = "gemini-send";
-
+    private static final String GEMINI_THINK_MODEL = System.getenv("GEMINI_THINK_MODEL");
 
     public static void main(String[] args) {
         if (API_KEY == null || API_KEY.isEmpty()) {
@@ -53,19 +53,29 @@ public class GoogleGemini {
     private static void processMessage(String message, KafkaProducerUtil producer) {
         String uuid;
         String question;
+        String model;
+        boolean think;
 
         try {
             JSONObject jsonObject = new JSONObject(message);
             uuid = jsonObject.getString("key");
             JSONObject valueObject = jsonObject.getJSONObject("value");
             question = valueObject.getString("question");
+            think = Boolean.parseBoolean(valueObject.optString("think", "false"));
+            if (think) {
+               model = GEMINI_THINK_MODEL;
+            }
+            else {
+                model =API_MODEL;
+            }
+            LOGGER.log(Level.INFO, "Model: ", model);
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Failed to extract question from message", e);
             return;
         }
 
         try {
-            HttpURLConnection connection = getHttpURLConnection(question);
+            HttpURLConnection connection = getHttpURLConnection(question, model);
 
             int responseCode = connection.getResponseCode();
             LOGGER.log(Level.INFO, "Response Code: {0}", responseCode);
@@ -93,8 +103,8 @@ public class GoogleGemini {
         }
     }
 
-    public static HttpURLConnection getHttpURLConnection(String question) throws IOException {
-        URL url = new URL("https://generativelanguage.googleapis.com/v1beta/models/" + API_MODEL + ":generateContent?key=" + API_KEY);
+    public static HttpURLConnection getHttpURLConnection(String question, String model) throws IOException {
+        URL url = new URL("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + API_KEY);
 
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("POST");

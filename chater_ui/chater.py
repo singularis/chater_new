@@ -55,6 +55,7 @@ def chater(session, target):
                 "question": question,
                 "send_topic": target_config["send_topic"],
                 "context": session.get("context", None),
+                "think": True,
             },
         }
         log.info(f"message {message}")
@@ -65,11 +66,7 @@ def chater(session, target):
         )
         log.info(f"Message response {json_response}")
         if session.get("switch_state", "off") == "on":
-            session["context"] = [
-                session["context"],
-                f"previous_llm_question: {question}",
-                f"previous_llm_response_to_question {json_response}",
-            ]
+            session["context"] = session["context"] + question + json_response
             log.info(f"Context crated {session['context'] }")
         else:
             session["context"] = None
