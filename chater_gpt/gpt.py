@@ -14,7 +14,7 @@ client = OpenAI()
 def gpt_request(question, context=None, content=None) -> dict[str, str]:
     logging.info(f"GPT Question: {question}")
 
-    if MODEL == "o1-preview":
+    if MODEL == "o1-mini":
         messages = [{"role": "user", "content": question}]
         response = client.chat.completions.create(
             model=MODEL,
