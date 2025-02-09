@@ -2,7 +2,7 @@ import kopf
 import kubernetes
 from kubernetes import client, config
 
-
+# Handler for when the CR is created
 @kopf.on.create("chater.example.com", "v1", "chatergpts")
 def create_chater_gpt(spec, **kwargs):
     """
@@ -20,11 +20,11 @@ def create_chater_gpt(spec, **kwargs):
     secret_key_b64 = spec.get("secretKey")
 
     config.load_incluster_config()
-
     api_client = client.ApiClient()
     core_api = client.CoreV1Api(api_client)
     apps_api = client.AppsV1Api(api_client)
 
+    # Ensure the namespace exists
     namespace_body = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace))
     try:
         core_api.create_namespace(namespace_body)
@@ -44,13 +44,13 @@ def create_chater_gpt(spec, **kwargs):
         else:
             raise
 
+    # Create the secret
     secret_body = client.V1Secret(
         api_version="v1",
         kind="Secret",
         metadata=client.V1ObjectMeta(name="chater-gpt", namespace=namespace),
         data={"OPENAI_API_KEY": openai_api_key_b64, "SECRET_KEY": secret_key_b64},
     )
-
     try:
         core_api.create_namespaced_secret(namespace=namespace, body=secret_body)
         kopf.info(
@@ -69,6 +69,7 @@ def create_chater_gpt(spec, **kwargs):
         else:
             raise
 
+    # Define the container using env vars from the Secret and CR spec
     container = client.V1Container(
         name="chater-gpt",
         image="singularis314/chater-gpt:0.3",
@@ -138,3 +139,88 @@ def create_chater_gpt(spec, **kwargs):
             raise
 
     return {"message": "chater-gpt Operator handling complete"}
+
+# New update handler to react to changes in the CRD's spec
+@kopf.on.update("chater.example.com", "v1", "chatergpts")
+def update_chater_gpt(spec, **kwargs):
+    """
+    This handler is triggered whenever the CRD is updated.
+    It patches the Secret and Deployment to update environment variables accordingly.
+    """
+    namespace = spec.get("namespace")
+    bootstrap_server = spec.get("bootstrapServer")
+    model = spec.get("model")
+    vision_model = spec.get("visionModel")
+    openai_api_key_b64 = spec.get("openAIAPIKey")
+    secret_key_b64 = spec.get("secretKey")
+
+    config.load_incluster_config()
+    api_client = client.ApiClient()
+    core_api = client.CoreV1Api(api_client)
+    apps_api = client.AppsV1Api(api_client)
+
+    # Patch the secret with the new keys
+    secret_patch = {
+        "data": {"OPENAI_API_KEY": openai_api_key_b64, "SECRET_KEY": secret_key_b64}
+    }
+    try:
+        core_api.patch_namespaced_secret(name="chater-gpt", namespace=namespace, body=secret_patch)
+        kopf.info(
+            objs=kwargs["body"],
+            reason="Updated",
+            message="Patched Secret chater-gpt with updated keys.",
+        )
+    except kubernetes.client.exceptions.ApiException as e:
+        raise
+
+    # Patch the deployment to update the environment variables
+    # Here we patch the container within the Deployment template.
+    deployment_patch = {
+        "spec": {
+            "template": {
+                "spec": {
+                    "containers": [
+                        {
+                            "name": "chater-gpt",
+                            "env": [
+                                {
+                                    "name": "OPENAI_API_KEY",
+                                    "valueFrom": {
+                                        "secretKeyRef": {
+                                            "name": "chater-gpt",
+                                            "key": "OPENAI_API_KEY",
+                                        }
+                                    },
+                                },
+                                {
+                                    "name": "SECRET_KEY",
+                                    "valueFrom": {
+                                        "secretKeyRef": {
+                                            "name": "chater-gpt",
+                                            "key": "SECRET_KEY",
+                                        }
+                                    },
+                                },
+                                {"name": "BOOTSTRAP_SERVER", "value": bootstrap_server},
+                                {"name": "MODEL", "value": model},
+                                {"name": "VISION_MODEL", "value": vision_model},
+                            ],
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    try:
+        apps_api.patch_namespaced_deployment(
+            name="chater-gpt", namespace=namespace, body=deployment_patch
+        )
+        kopf.info(
+            objs=kwargs["body"],
+            reason="Updated",
+            message="Patched Deployment chater-gpt with updated env variables.",
+        )
+    except kubernetes.client.exceptions.ApiException as e:
+        raise
+
+    return {"message": "Updated chater-gpt resources with new env variables."}
