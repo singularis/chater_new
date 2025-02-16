@@ -2,6 +2,7 @@ import json
 import logging
 import uuid
 
+from common import remove_markdown_fence
 from kafka_consumer import consume_messages
 from kafka_producer import produce_message
 from postgres import delete_food, get_today_dishes
@@ -20,12 +21,13 @@ def process_messages():
     logging.info(f"Starting message processing with topics: {topics}")
     while True:
         for message, consumer in consume_messages(topics):
+            value = message.value().decode("utf-8")
+            value_dict = json.loads(value)
+            consumer.commit(message)
             try:
-                value = message.value().decode("utf-8")
-                value_dict = json.loads(value)
-                consumer.commit(message)
                 if message.topic() == "photo-analysis-response":
                     gpt_response = value_dict.get("value")
+                    gpt_response = remove_markdown_fence(gpt_response)
                     json_response = json.loads(gpt_response)
                     id = str(uuid.uuid4())
                     if json_response.get("error"):
@@ -59,8 +61,7 @@ def process_messages():
                 elif message.topic() == "get_recommendation":
                     get_recommendation(value_dict.get("value"))
             except Exception as e:
-                logging.error(f"Failed to process message: {e}")
-
+                logging.error(f"Failed to process message: {e}, message {value_dict}")
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
