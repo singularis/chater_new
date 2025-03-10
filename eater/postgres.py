@@ -174,22 +174,31 @@ def get_today_dishes():
         session = Session()
         latest_weight_entry = session.query(Weight).order_by(Weight.time.desc()).first()
 
-        total_data = (
-            session.query(TotalForDay)
-            .filter(TotalForDay.today == current_date())
-            .first()
-        )
+        total_data = session.query(TotalForDay).filter(TotalForDay.today == current_date()).first()
         if not total_data:
             logger.info(f"No data found in total_for_day for {current_date()}")
-            return {}
+            total_for_day_data = {
+                "total_calories": 0,
+                "total_avg_weight": latest_weight_entry.weight if latest_weight_entry else 0,
+                "contains": [],
+            }
+            dishes_list = []
+            result = {
+                "total_for_day": total_for_day_data,
+                "dishes_today": dishes_list,
+            }
+            if latest_weight_entry:
+                result["latest_weight"] = {
+                    "time": latest_weight_entry.time,
+                    "weight": latest_weight_entry.weight,
+                }
+            return result
         total_for_day_data = {
             "total_calories": total_data.total_calories,
             "total_avg_weight": total_data.total_avg_weight,
             "contains": total_data.contains,
         }
-        dishes_today = (
-            session.query(DishesDay).filter(DishesDay.date == current_date()).all()
-        )
+        dishes_today = session.query(DishesDay).filter(DishesDay.date == current_date()).all()
         dishes_list = [
             {
                 "time": dish.time,
@@ -204,7 +213,6 @@ def get_today_dishes():
             "total_for_day": total_for_day_data,
             "dishes_today": dishes_list,
         }
-
         if latest_weight_entry:
             result["latest_weight"] = {
                 "time": latest_weight_entry.time,
@@ -216,8 +224,7 @@ def get_today_dishes():
     except Exception as e:
         logger.error(f"Error retrieving today's dishes: {e}")
         return {}
-    finally:
-        session.close()
+
 
 
 def delete_food(time):

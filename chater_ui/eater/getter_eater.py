@@ -44,40 +44,51 @@ def eater_get_today_kafka():
 def eater_get_today():
     try:
         today_food = eater_get_today_kafka()
-        if today_food is None:
+        if not today_food:
             raise ValueError("No data received from Kafka")
-
+        logger.info(f"Received today_food from Kafka: {today_food}")
         proto_message = today_food_pb2.TodayFood()
-        proto_message.total_for_day.total_avg_weight = today_food["total_for_day"][
-            "total_avg_weight"
-        ]
-        proto_message.total_for_day.total_calories = today_food["total_for_day"][
-            "total_calories"
-        ]
-        proto_message.total_for_day.contains.carbohydrates = today_food[
-            "total_for_day"
-        ]["contains"]["carbohydrates"]
-        proto_message.total_for_day.contains.fats = today_food["total_for_day"][
-            "contains"
-        ]["fats"]
-        proto_message.total_for_day.contains.proteins = today_food["total_for_day"][
-            "contains"
-        ]["proteins"]
-        proto_message.total_for_day.contains.sugar = today_food["total_for_day"][
-            "contains"
-        ]["sugar"]
-        proto_message.person_weight = today_food["latest_weight"]["weight"]
+        tf = today_food["total_for_day"]
+        logger.info(
+            f"Total_for_day content: {tf} | Types: { {k: type(v) for k, v in tf.items()} }"
+        )
+        total_avg_weight = tf["total_avg_weight"]
+        logger.info(
+            f"Assigning total_avg_weight: {total_avg_weight} (type: {type(total_avg_weight)})"
+        )
+        proto_message.total_for_day.total_avg_weight = int(total_avg_weight)
+        total_calories = tf["total_calories"]
+        logger.info(
+            f"Assigning total_calories: {total_calories} (type: {type(total_calories)})"
+        )
+        proto_message.total_for_day.total_calories = total_calories
+        contains = tf.get("contains")
+        proto_message.total_for_day.contains.carbohydrates = int(
+            contains.get("carbohydrates", 0)
+        )
+        proto_message.total_for_day.contains.fats = int(contains.get("fats", 0))
+        proto_message.total_for_day.contains.proteins = int(contains.get("proteins", 0))
+        proto_message.total_for_day.contains.sugar = int(contains.get("sugar", 0))
+        lw = today_food["latest_weight"]
+        proto_message.person_weight = lw["weight"]
         for dish in today_food["dishes_today"]:
+            logger.info(
+                f"Processing dish: {dish} | Types: { {k: type(v) for k, v in dish.items()} }"
+            )
             dish_proto = proto_message.dishes_today.add()
             dish_proto.time = dish["time"]
             dish_proto.dish_name = dish["dish_name"]
             dish_proto.estimated_avg_calories = dish["estimated_avg_calories"]
-            dish_proto.total_avg_weight = dish["total_avg_weight"]
+            dish_proto.total_avg_weight = int(dish["total_avg_weight"])
             dish_proto.ingredients.extend(dish["ingredients"])
         proto_data = proto_message.SerializeToString()
+        logger.info(f"Successfully processed message: {today_food}")
         return proto_data, 200, {"Content-Type": "application/protobuf"}
     except Exception as e:
-        logger.error(f"Exception: {e}")
+        logger.error(f"Exception in eater_get_today: {e}")
+        logger.error(
+            f"Problematic message: {today_food if 'today_food' in locals() else 'None'}"
+        )
         return "Failed", 500
 
 
