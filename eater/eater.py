@@ -38,7 +38,9 @@ def process_messages():
                         )
                     else:
                         type_of_processing = json_response.get("type")
+                        logger.info(f"Received food processing {type_of_processing}")
                         if type_of_processing == "food_processing":
+                            logger.info(f"Received food_process {json_response}")
                             proces_food(json_response)
                         elif type_of_processing == "weight_processing":
                             process_weight(json_response)
