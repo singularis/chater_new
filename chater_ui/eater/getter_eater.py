@@ -65,15 +65,23 @@ def eater_get_today():
         proto_message.total_for_day.total_calories = total_calories
         contains_data = tf.get("contains", {})
         if isinstance(contains_data, list):
-            logger.warning(f"'contains' is a list instead of dict: {contains_data}. Defaulting to empty.")
+            logger.warning(
+                f"'contains' is a list instead of dict: {contains_data}. Defaulting to empty."
+            )
             contains_data = {}
         elif not isinstance(contains_data, dict):
-            logger.warning(f"'contains' is neither dict nor list: {contains_data}. Defaulting to empty.")
+            logger.warning(
+                f"'contains' is neither dict nor list: {contains_data}. Defaulting to empty."
+            )
             contains_data = {}
 
-        proto_message.total_for_day.contains.carbohydrates = int(contains_data.get("carbohydrates", 0))
+        proto_message.total_for_day.contains.carbohydrates = int(
+            contains_data.get("carbohydrates", 0)
+        )
         proto_message.total_for_day.contains.fats = int(contains_data.get("fats", 0))
-        proto_message.total_for_day.contains.proteins = int(contains_data.get("proteins", 0))
+        proto_message.total_for_day.contains.proteins = int(
+            contains_data.get("proteins", 0)
+        )
         proto_message.total_for_day.contains.sugar = int(contains_data.get("sugar", 0))
 
         lw = today_food.get("latest_weight", {})
@@ -92,7 +100,9 @@ def eater_get_today():
             dish_proto.total_avg_weight = int(dish.get("total_avg_weight", 0))
             ingredients = dish.get("ingredients", [])
             if not isinstance(ingredients, list):
-                logger.warning(f"'ingredients' is not a list: {ingredients}. Converting to empty list.")
+                logger.warning(
+                    f"'ingredients' is not a list: {ingredients}. Converting to empty list."
+                )
                 ingredients = []
             dish_proto.ingredients.extend(ingredients)
 
@@ -106,7 +116,6 @@ def eater_get_today():
             f"Problematic message: {today_food if 'today_food' in locals() else 'None'}"
         )
         return "Failed", 500
-
 
 
 def get_recommendation(request):

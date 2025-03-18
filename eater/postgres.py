@@ -3,7 +3,8 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import ARRAY, JSON, Column, Float, Integer, String, create_engine, func
+from sqlalchemy import (ARRAY, JSON, Column, Float, Integer, String,
+                        create_engine, func)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -174,12 +175,18 @@ def get_today_dishes():
         session = Session()
         latest_weight_entry = session.query(Weight).order_by(Weight.time.desc()).first()
 
-        total_data = session.query(TotalForDay).filter(TotalForDay.today == current_date()).first()
+        total_data = (
+            session.query(TotalForDay)
+            .filter(TotalForDay.today == current_date())
+            .first()
+        )
         if not total_data:
             logger.info(f"No data found in total_for_day for {current_date()}")
             total_for_day_data = {
                 "total_calories": 0,
-                "total_avg_weight": latest_weight_entry.weight if latest_weight_entry else 0,
+                "total_avg_weight": latest_weight_entry.weight
+                if latest_weight_entry
+                else 0,
                 "contains": [],
             }
             dishes_list = []
@@ -198,7 +205,9 @@ def get_today_dishes():
             "total_avg_weight": total_data.total_avg_weight,
             "contains": total_data.contains,
         }
-        dishes_today = session.query(DishesDay).filter(DishesDay.date == current_date()).all()
+        dishes_today = (
+            session.query(DishesDay).filter(DishesDay.date == current_date()).all()
+        )
         dishes_list = [
             {
                 "time": dish.time,
@@ -224,7 +233,6 @@ def get_today_dishes():
     except Exception as e:
         logger.error(f"Error retrieving today's dishes: {e}")
         return {}
-
 
 
 def delete_food(time):

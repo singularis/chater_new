@@ -65,6 +65,7 @@ def process_messages():
             except Exception as e:
                 logging.error(f"Failed to process message: {e}, message {value_dict}")
 
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logging.info("Starting Eater processor")
