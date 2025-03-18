@@ -12,8 +12,7 @@ from sqlalchemy import (
     create_engine,
     text,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -80,9 +79,13 @@ def create_tables():
             Base.metadata.create_all(engine, checkfirst=True)
             logger.info("Tables created/updated successfully")
 
-            for table in Base.metadata.tables.keys():
-                connection.execute(text(f"ALTER TABLE {table} OWNER TO {db_user}"))
-                logger.info(f"Ownership of table '{table}' granted to user '{db_user}'")
+            for schema_dot_table in Base.metadata.tables.keys():
+                logger.info(f"Assigning permissions for {schema_dot_table}")
+                schema, table_name = schema_dot_table.split(".")
+                alter_stmt = text(f'ALTER TABLE "{schema}"."{table_name}" OWNER TO {db_user}')
+                connection.execute(alter_stmt)
+                logger.info(f"Ownership of table '{schema_dot_table}' granted to user '{db_user}'")
+
 
     except Exception as error:
         logger.error(f"Error while connecting to PostgreSQL: {error}")
