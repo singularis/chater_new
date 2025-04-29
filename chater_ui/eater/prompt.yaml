@@ -4,7 +4,7 @@ default_prompt: |
   "  - Provide a list of ingredients used."
   "  - Estimate the average total calories based on a worst-case prediction (assume higher calorie content where uncertain)."
   "  - Break down the macronutrient content (proteins, fats, carbohydrates, sugar in grams)."
-  "  - Respond only by JSON. No additional text "
+  "  - Respond only by JSON. No additional text. Do not use special characters in JSON response"
   "  - For JSON response. Send only key and values. Do not add json keyword, or special characters "
   "  - If not a food, respond a JSON in the following format." "
   "   {"
