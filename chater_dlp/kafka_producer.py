@@ -26,6 +26,15 @@ def delivery_report(err, msg):
 
 def produce_message(topic, message):
     try:
+        # Ensure message has a value field
+        if "value" not in message:
+            message["value"] = {}
+            
+        # Ensure user_email is present in the value
+        if "user_email" not in message["value"]:
+            logger.warning("No user_email found in message value")
+            message["value"]["user_email"] = "unknown"
+
         producer.produce(
             topic,
             key=(message["key"]),

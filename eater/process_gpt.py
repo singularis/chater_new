@@ -8,45 +8,66 @@ from postgres import get_dishes, write_to_dish_day, write_weight
 logger = logging.getLogger(__name__)
 
 
-def proces_food(message):
-    logger.info("Starting processing received food")
+def proces_food(message, user_email):
+    logger.info(f"Starting processing received food for user {user_email}")
     try:
         dish_name = message.get("dish_name")
         estimated_avg_calories = message.get("estimated_avg_calories")
         ingredients = message.get("ingredients")
         total_awg_weight = message.get("total_avg_weight")
         contains = message.get("contains")
+        
+        if not all([dish_name, estimated_avg_calories, ingredients, total_awg_weight, contains]):
+            logger.error(f"Missing required fields in food processing for user {user_email}")
+            raise ValueError("Missing required fields in food processing")
+            
         logger.info(
-            f"Found dish {dish_name}, with {estimated_avg_calories} calories, contains ingredients {ingredients}, weight {total_awg_weight}, and nutrients {contains}"
+            f"Found dish {dish_name} for user {user_email}, with {estimated_avg_calories} calories, "
+            f"contains ingredients {ingredients}, weight {total_awg_weight}, and nutrients {contains}"
         )
-        write_to_dish_day(message=message)
+        write_to_dish_day(message=message, user_email=user_email)
+        logger.info(f"Successfully processed food for user {user_email}")
 
     except Exception as e:
-        logger.info(f"Somthing went wrong during processing, {e}")
+        logger.error(f"Error during food processing for user {user_email}: {str(e)}")
         raise
 
 
-def process_weight(message):
-    weight = message.get("weight")
-    logger.info(f"Starting processing received weight {weight}")
-    write_weight(weight=weight)
+def process_weight(message, user_email):
+    logger.info(f"Starting processing weight for user {user_email}")
+    try:
+        weight = message.get("weight")
+        if not weight:
+            logger.error(f"Missing weight in message for user {user_email}")
+            raise ValueError("Missing weight in message")
+            
+        logger.info(f"Processing weight {weight} for user {user_email}")
+        write_weight(weight=weight, user_email=user_email)
+        logger.info(f"Successfully processed weight for user {user_email}")
+
+    except Exception as e:
+        logger.error(f"Error during weight processing for user {user_email}: {str(e)}")
+        raise
 
 
-def get_recommendation(message):
-    logger.info("Received request to get recommendation")
+def get_recommendation(message, user_email):
+    logger.info(f"Received request to get recommendation for user {user_email}")
     days = message.get("days")
     prompt = message.get("prompt", "")
-    food_table = get_dishes(days=days)
+    food_table = get_dishes(days=days, user_email=user_email)
     id = str(uuid.uuid4())
-    logger.info(f"Payload {days}, {prompt}, food table {food_table}")
+    logger.info(f"Payload for user {user_email}: {days}, {prompt}, food table {food_table}")
     if food_table:
         try:
             payload = {
                 "key": id,
-                "value": {"question": str(f"{prompt} Food Table: {food_table}")},
+                "value": {
+                    "question": str(f"{prompt} Food Table: {food_table}"),
+                    "user_email": user_email
+                },
             }
             produce_message(topic="gemini-send", message=payload)
-            logger.info(f"formatted_payload {payload}")
+            logger.info(f"formatted_payload for user {user_email}: {payload}")
         except Exception as e:
-            logger.error(f"Error formatting payload: {e}")
+            logger.error(f"Error formatting payload for user {user_email}: {e}")
             return

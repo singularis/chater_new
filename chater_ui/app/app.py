@@ -102,32 +102,32 @@ def get_switch_state():
 
 @app.route("/eater_test", methods=["GET"])
 @token_required
-def eater():
-    return jsonify({"message": "Eater endpoint granted!"})
+def eater(user_email):
+    return jsonify({"message": f"Eater endpoint granted for user: {user_email}!"})
 
 
 @app.route("/eater_receive_photo", methods=["POST"])
 @token_required
-def eater_receive_photo():
-    return eater_photo()
+def eater_receive_photo(user_email):
+    return eater_photo(user_email=user_email)
 
 
 @app.route("/eater_get_today", methods=["GET"])
 @token_required
-def eater_get_today():
-    return eater_today()
+def eater_get_today(user_email):
+    return eater_today(user_email=user_email)
 
 
 @app.route("/delete_food", methods=["POST"])
 @token_required
-def delete_food():
-    return delete_food_record(request=request)
+def delete_food(user_email):
+    return delete_food_record(request=request, user_email=user_email)
 
 
 @app.route("/get_recommendation", methods=["POST"])
 @token_required
-def recommendations():
-    recommendation = get_recommendations(request=request)
+def recommendations(user_email):
+    recommendation = get_recommendations(request=request, user_email=user_email)
     return recommendation
 
 

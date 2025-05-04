@@ -1,4 +1,6 @@
 def remove_markdown_fence(json_str):
+    if isinstance(json_str, dict):
+        return json_str
     json_str = json_str.strip()
     if json_str.startswith("```"):
         first_newline = json_str.find("\n")

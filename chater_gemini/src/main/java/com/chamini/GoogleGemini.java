@@ -55,20 +55,32 @@ public class GoogleGemini {
         String question;
         String model;
         boolean think;
+        String userEmail = null;
 
         try {
             JSONObject jsonObject = new JSONObject(message);
             uuid = jsonObject.getString("key");
-            JSONObject valueObject = jsonObject.getJSONObject("value");
-            question = valueObject.getString("question");
-            think = Boolean.parseBoolean(valueObject.optString("think", "false"));
+            Object value = jsonObject.get("value");
+            
+            // Handle both string and JSON object values
+            if (value instanceof String) {
+                question = (String) value;
+                think = false;
+            } else {
+                JSONObject valueObject = (JSONObject) value;
+                question = valueObject.getString("question");
+                think = Boolean.parseBoolean(valueObject.optString("think", "false"));
+                if (valueObject.has("user_email")) {
+                    userEmail = valueObject.getString("user_email");
+                }
+            }
+            
             if (think) {
-               model = GEMINI_THINK_MODEL;
+                model = GEMINI_THINK_MODEL;
+            } else {
+                model = API_MODEL;
             }
-            else {
-                model =API_MODEL;
-            }
-            LOGGER.log(Level.INFO, "Model: ", model);
+            LOGGER.log(Level.INFO, "Model: {0}", model);
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Failed to extract question from message", e);
             return;
@@ -88,14 +100,41 @@ public class GoogleGemini {
                     String text = JsonParser.extractText(responseBody);
                     if (text != null) {
                         LOGGER.log(Level.INFO, "Extracted Text: {0}", text);
-                        producer.sendMessage("gemini-response", uuid, text);
+                        String cleanedText = text.replace("```json", "").replace("```", "").trim();
+                        
+                        if (userEmail != null) {
+                            try {
+                                JSONObject valueResponse = new JSONObject(cleanedText);
+                                valueResponse.put("user_email", userEmail);
+                                producer.sendMessage("gemini-response", uuid, valueResponse);
+                            } catch (Exception e) {
+                                JSONObject valueResponse = new JSONObject();
+                                valueResponse.put("response", cleanedText);
+                                valueResponse.put("user_email", userEmail);
+                                producer.sendMessage("gemini-response", uuid, valueResponse);
+                            }
+                        } else {
+                            try {
+                                producer.sendMessage("gemini-response", uuid, new JSONObject(cleanedText));
+                            } catch (Exception e) {
+                                producer.sendMessage("gemini-response", uuid, cleanedText);
+                            }
+                        }
                     }
                 }
             } else {
                 try (Scanner scanner = new Scanner(connection.getErrorStream())) {
                     String errorResponse = scanner.useDelimiter("\\A").next();
                     LOGGER.log(Level.WARNING, "Request failed with response code: {0} and error: {1}", new Object[]{responseCode, errorResponse});
-                    producer.sendMessage("gemini-response", uuid, errorResponse);
+                    JSONObject errorObject = new JSONObject();
+                    errorObject.put("key", uuid);
+                    JSONObject errorValue = new JSONObject();
+                    errorValue.put("error", errorResponse);
+                    if (userEmail != null) {
+                        errorValue.put("user_email", userEmail);
+                    }
+                    errorObject.put("value", errorValue);
+                    producer.sendMessage("gemini-response", uuid, errorObject.toString());
                 }
             }
         } catch (Exception e) {

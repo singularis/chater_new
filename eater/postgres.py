@@ -37,6 +37,7 @@ class DishesDay(Base):
     ingredients = Column(ARRAY(String))
     total_avg_weight = Column(Integer)
     contains = Column(JSON)
+    user_email = Column(String, nullable=False)
 
 
 class TotalForDay(Base):
@@ -49,6 +50,7 @@ class TotalForDay(Base):
     dishes_of_day = Column(ARRAY(String))
     total_avg_weight = Column(Integer)
     contains = Column(JSON)
+    user_email = Column(String, nullable=False)
 
 
 class Weight(Base):
@@ -58,12 +60,13 @@ class Weight(Base):
     time = Column(Integer, primary_key=True)
     date = Column(String)
     weight = Column(Float)
+    user_email = Column(String, nullable=False)
 
 
 Session = sessionmaker(bind=engine)
 
 
-def write_to_dish_day(message=None, recalculate: Optional[bool] = False):
+def write_to_dish_day(message=None, recalculate: Optional[bool] = False, user_email: str = None):
     try:
         session = Session()
         if not recalculate:
@@ -82,6 +85,7 @@ def write_to_dish_day(message=None, recalculate: Optional[bool] = False):
                 ingredients=ingredients,
                 total_avg_weight=total_avg_weight,
                 contains=contains,
+                user_email=user_email
             )
 
             session.add(dish_day)
@@ -101,12 +105,14 @@ def write_to_dish_day(message=None, recalculate: Optional[bool] = False):
                 func.json_agg(DishesDay.contains).label("all_contains"),
             )
             .filter(DishesDay.date == current_date())
+            .filter(DishesDay.user_email == user_email)
             .one()
         )
 
         ingredients_subq = (
             session.query(func.unnest(DishesDay.ingredients).label("ingredient"))
             .filter(DishesDay.date == current_date())
+            .filter(DishesDay.user_email == user_email)
             .subquery()
         )
 
@@ -138,12 +144,14 @@ def write_to_dish_day(message=None, recalculate: Optional[bool] = False):
             dishes_of_day=all_dishes,
             total_avg_weight=total_weight,
             contains=aggregated_contains,
+            user_email=user_email
         )
 
         # Check if there's an existing entry for today
         existing_entry = (
             session.query(TotalForDay)
             .filter(TotalForDay.today == current_date())
+            .filter(TotalForDay.user_email == user_email)
             .first()
         )
         if existing_entry:
@@ -170,14 +178,20 @@ def write_to_dish_day(message=None, recalculate: Optional[bool] = False):
         session.close()
 
 
-def get_today_dishes():
+def get_today_dishes(user_email: str = None):
     try:
         session = Session()
-        latest_weight_entry = session.query(Weight).order_by(Weight.time.desc()).first()
+        latest_weight_entry = (
+            session.query(Weight)
+            .filter(Weight.user_email == user_email)
+            .order_by(Weight.time.desc())
+            .first()
+        )
 
         total_data = (
             session.query(TotalForDay)
             .filter(TotalForDay.today == current_date())
+            .filter(TotalForDay.user_email == user_email)
             .first()
         )
         if not total_data:
@@ -206,7 +220,10 @@ def get_today_dishes():
             "contains": total_data.contains,
         }
         dishes_today = (
-            session.query(DishesDay).filter(DishesDay.date == current_date()).all()
+            session.query(DishesDay)
+            .filter(DishesDay.date == current_date())
+            .filter(DishesDay.user_email == user_email)
+            .all()
         )
         dishes_list = [
             {
@@ -235,32 +252,45 @@ def get_today_dishes():
         return {}
 
 
-def delete_food(time):
+def delete_food(time, user_email: str = None):
     logger.info(f"Deleting food with time {time} from db")
     try:
         session = Session()
-        rows_deleted = session.query(DishesDay).filter(DishesDay.time == time).delete()
+        # Handle case where time is passed as a dictionary with time and user_email
+        if isinstance(time, dict) and 'time' in time:
+            time_value = time['time']
+            user_email = time.get('user_email', user_email)
+        else:
+            time_value = time
+        
+        rows_deleted = (
+            session.query(DishesDay)
+            .filter(DishesDay.time == time_value)
+            .filter(DishesDay.user_email == user_email)
+            .delete()
+        )
         session.commit()
         if rows_deleted > 0:
             logger.info(
-                f"Successfully deleted {rows_deleted} food entries with time {time} from database"
+                f"Successfully deleted {rows_deleted} food entries with time {time_value} from database"
             )
-            write_to_dish_day(recalculate=True)
+            write_to_dish_day(recalculate=True, user_email=user_email)
         else:
-            logger.info(f"No food entries found with time {time}")
+            logger.info(f"No food entries found with time {time_value}")
     except Exception as e:
         logger.error(f"Error deleting food from database: {e}")
     finally:
         session.close()
 
 
-def write_weight(weight):
+def write_weight(weight, user_email: str = None):
     try:
         session = Session()
         weight_entry = Weight(
             time=int(datetime.now().timestamp()),
             date=current_date(),
             weight=weight,
+            user_email=user_email
         )
         session.add(weight_entry)
         session.commit()
@@ -271,7 +301,7 @@ def write_weight(weight):
         session.close()
 
 
-def get_dishes(days):
+def get_dishes(days, user_email: str = None):
     try:
         logger.info(f"Starting get_dishes function with days={days}")
         session = Session()
@@ -281,6 +311,7 @@ def get_dishes(days):
         dishes = (
             session.query(DishesDay)
             .filter(DishesDay.date.between(start_date, today))
+            .filter(DishesDay.user_email == user_email)
             .all()
         )
 

@@ -21,8 +21,10 @@ public class Main {
             try {
                 String message = newConsumer.Consume();
                 if (message!=null &&!message.isEmpty()) {
-                    processMessage(message,visionProducer);
-                    responder(visionProducer, visionConsumer);
+                    JSONObject initialMessage = new JSONObject(message);
+                    String userEmail = initialMessage.getJSONObject("value").getString("user_email");
+                    processMessage(message, visionProducer, userEmail);
+                    responder(visionProducer, visionConsumer, userEmail);
                 }
             }
             catch (Exception e) {
@@ -32,7 +34,7 @@ public class Main {
             }
         }
     }
-    public static void processMessage(String message, KafkaProduce visionProducer) throws IOException, InterruptedException {
+    public static void processMessage(String message, KafkaProduce visionProducer, String userEmail) throws IOException, InterruptedException {
         String text;
         JSONObject jsonObject = new JSONObject(message);
         JSONObject valueObject = jsonObject.getJSONObject("value");
@@ -45,11 +47,12 @@ public class Main {
         String question = prompt + text;
         photoQuestion.put("key", uuid);
         JSONObject addressObject = new JSONObject();
-        addressObject.put("question",question);
+        addressObject.put("question", question);
+        addressObject.put("user_email", userEmail);
         photoQuestion.put("value", addressObject);
         visionProducer.SendMessage(photoQuestion.toString(), "gemini-send");
     }
-    public static void responder(KafkaProduce visionProducer, KafkaConsume visionConsumer) throws InterruptedException {
+    public static void responder(KafkaProduce visionProducer, KafkaConsume visionConsumer, String userEmail) throws InterruptedException {
         String message;
         String cleanedJson;
         logger.info("Chater vision responder");
@@ -64,13 +67,13 @@ public class Main {
                         .trim();
                 logger.info("Cleaned json: {}", cleanedJson);
                 JSONObject jsonObject = new JSONObject(cleanedJson);
-                String valueString = jsonObject.getString("value");
                 String uuid = jsonObject.getString("key");
+                JSONObject valueObject = jsonObject.getJSONObject("value");
 
                 JSONObject responseObject = new JSONObject();
                 responseObject.put("key", uuid);
-                responseObject.put("value", valueString);
-                logger.info("Response after weight processing" + responseObject);
+                responseObject.put("value", valueObject);
+                logger.info("Response after weight processing: {}", responseObject);
                 visionProducer.SendMessage(responseObject.toString(), "photo-analysis-response");
                 break;
             }
@@ -79,5 +82,5 @@ public class Main {
                 break;
             }
         }
-        }
+    }
 }

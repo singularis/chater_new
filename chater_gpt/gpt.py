@@ -114,9 +114,16 @@ def process_messages():
                     logging.info("Received message on 'eater-send-photo'.")
                     prompt = actual_value.get("prompt")
                     photo_base64 = actual_value.get("photo")
+                    user_email = actual_value.get("user_email")
                     if prompt and photo_base64:
                         photo_analysis_result = analyze_photo(prompt, photo_base64)
-                        kafka_message = {"key": key, "value": photo_analysis_result}
+                        kafka_message = {
+                            "key": key,
+                            "value": {
+                                "analysis": photo_analysis_result,
+                                "user_email": user_email
+                            }
+                        }
                         produce_message("photo-analysis-response", kafka_message)
                         logging.info(
                             f"Photo analyzed and result sent to Kafka: {kafka_message}"

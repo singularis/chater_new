@@ -6,6 +6,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,8 +31,11 @@ public abstract class KafkaProducerUtil {
 
     public void sendMessage(String topic, String key, Object message) {
         try {
-            String jsonMessage = objectMapper.writeValueAsString(new MessageWrapper(key, message));
-            ProducerRecord<String, String> record = new ProducerRecord<>(topic, key, jsonMessage);
+            JSONObject kafkaMessage = new JSONObject();
+            kafkaMessage.put("key", key);
+            kafkaMessage.put("value", message);
+            
+            ProducerRecord<String, String> record = new ProducerRecord<>(topic, key, kafkaMessage.toString());
             producer.send(record, (metadata, exception) -> {
                 if (exception != null) {
                     LOGGER.error("Failed to send message with key {} to topic {}: {}", key, topic, exception.getMessage());
@@ -39,7 +43,7 @@ public abstract class KafkaProducerUtil {
                     LOGGER.info("Sent message with key {} to topic {} partition {}", key, topic, metadata.partition());
                 }
             });
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             LOGGER.error("Failed to serialize message: {}", e.getMessage());
         }
     }
