@@ -23,7 +23,7 @@ def validate_user_data(message_data, expected_user_email=None):
         if isinstance(message_data, dict):
             # Get user_email from different possible locations
             message_user_email = None
-            
+
             # Check root level
             if "user_email" in message_data:
                 message_user_email = message_data.get("user_email")
@@ -38,15 +38,17 @@ def validate_user_data(message_data, expected_user_email=None):
                         message_user_email = value_dict.get("user_email")
                     except json.JSONDecodeError:
                         pass
-            
+
             if not message_user_email:
                 logger.warning("No user_email found in message")
                 return False
-                
+
             if expected_user_email and message_user_email != expected_user_email:
-                logger.warning(f"User email mismatch. Expected: {expected_user_email}, Got: {message_user_email}")
+                logger.warning(
+                    f"User email mismatch. Expected: {expected_user_email}, Got: {message_user_email}"
+                )
                 return False
-                
+
             return True
         else:
             logger.error(f"Unexpected message format: {type(message_data)}")
@@ -57,7 +59,9 @@ def validate_user_data(message_data, expected_user_email=None):
 
 
 def consume_messages(topics, expected_user_email=None):
-    logger.info(f"Starting Kafka consumer with topics: {topics} for user: {expected_user_email}")
+    logger.info(
+        f"Starting Kafka consumer with topics: {topics} for user: {expected_user_email}"
+    )
     if not isinstance(topics, list):
         logger.error("Expected list of topic unicode strings")
         raise TypeError("Expected list of topic unicode strings")
@@ -99,9 +103,11 @@ def consume_messages(topics, expected_user_email=None):
             if not validate_user_data(message_data, expected_user_email):
                 logger.warning(f"Skipping message for unexpected user: {message_data}")
                 continue
-                
+
             user_email = message_data.get("value", {}).get("user_email", "unknown")
-            logger.info(f"Consumed message for user {user_email}: {msg.key()} - {msg.value()}")
+            logger.info(
+                f"Consumed message for user {user_email}: {msg.key()} - {msg.value()}"
+            )
             yield msg, consumer
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse message as JSON: {str(e)}")

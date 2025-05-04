@@ -66,7 +66,9 @@ class Weight(Base):
 Session = sessionmaker(bind=engine)
 
 
-def write_to_dish_day(message=None, recalculate: Optional[bool] = False, user_email: str = None):
+def write_to_dish_day(
+    message=None, recalculate: Optional[bool] = False, user_email: str = None
+):
     try:
         session = Session()
         if not recalculate:
@@ -85,7 +87,7 @@ def write_to_dish_day(message=None, recalculate: Optional[bool] = False, user_em
                 ingredients=ingredients,
                 total_avg_weight=total_avg_weight,
                 contains=contains,
-                user_email=user_email
+                user_email=user_email,
             )
 
             session.add(dish_day)
@@ -144,7 +146,7 @@ def write_to_dish_day(message=None, recalculate: Optional[bool] = False, user_em
             dishes_of_day=all_dishes,
             total_avg_weight=total_weight,
             contains=aggregated_contains,
-            user_email=user_email
+            user_email=user_email,
         )
 
         # Check if there's an existing entry for today
@@ -257,12 +259,12 @@ def delete_food(time, user_email: str = None):
     try:
         session = Session()
         # Handle case where time is passed as a dictionary with time and user_email
-        if isinstance(time, dict) and 'time' in time:
-            time_value = time['time']
-            user_email = time.get('user_email', user_email)
+        if isinstance(time, dict) and "time" in time:
+            time_value = time["time"]
+            user_email = time.get("user_email", user_email)
         else:
             time_value = time
-        
+
         rows_deleted = (
             session.query(DishesDay)
             .filter(DishesDay.time == time_value)
@@ -290,7 +292,7 @@ def write_weight(weight, user_email: str = None):
             time=int(datetime.now().timestamp()),
             date=current_date(),
             weight=weight,
-            user_email=user_email
+            user_email=user_email,
         )
         session.add(weight_entry)
         session.commit()

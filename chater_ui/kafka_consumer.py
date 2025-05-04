@@ -4,7 +4,6 @@ import os
 from datetime import time
 
 from confluent_kafka import Consumer, KafkaError, KafkaException
-
 from logging_config import setup_logging
 
 setup_logging("kafka_consumer.log")
@@ -40,6 +39,7 @@ def create_consumer(topics):
         logger.error(f"Failed to create consumer: {str(e)}")
         raise
 
+
 def consume_messages(consumer, expected_user_email=None):
     try:
         while True:
@@ -62,17 +62,23 @@ def consume_messages(consumer, expected_user_email=None):
                 else:
                     logger.error(f"Consumer error: {msg.error()}")
                     continue
-            
+
             try:
-                message_data = json.loads(msg.value())                    
+                message_data = json.loads(msg.value())
                 value = message_data.get("value")
-                user_email = value.get("user_email", "unknown") if isinstance(value, dict) else "unknown"
-                logger.info(f"Consumed message for user {user_email}: {msg.key()} - {msg.value()}")
+                user_email = (
+                    value.get("user_email", "unknown")
+                    if isinstance(value, dict)
+                    else "unknown"
+                )
+                logger.info(
+                    f"Consumed message for user {user_email}: {msg.key()} - {msg.value()}"
+                )
                 yield msg
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse message as JSON: {str(e)}")
                 continue
-                
+
     except KafkaException as e:
         logger.error(f"Error while consuming messages: {str(e)}")
         raise

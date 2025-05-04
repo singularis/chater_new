@@ -66,7 +66,7 @@ def token_required(f):
             token = auth_header.split(" ")[1]
             decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
             logging.debug("Decoded token subject: %s", decoded_token.get("sub"))
-            kwargs['user_email'] = decoded_token.get("sub")
+            kwargs["user_email"] = decoded_token.get("sub")
         except jwt.ExpiredSignatureError:
             logging.debug("Token has expired")
             return jsonify({"message": "Token has expired"}), 401

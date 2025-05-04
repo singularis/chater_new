@@ -16,11 +16,15 @@ def proces_food(message, user_email):
         ingredients = message.get("ingredients")
         total_awg_weight = message.get("total_avg_weight")
         contains = message.get("contains")
-        
-        if not all([dish_name, estimated_avg_calories, ingredients, total_awg_weight, contains]):
-            logger.error(f"Missing required fields in food processing for user {user_email}")
+
+        if not all(
+            [dish_name, estimated_avg_calories, ingredients, total_awg_weight, contains]
+        ):
+            logger.error(
+                f"Missing required fields in food processing for user {user_email}"
+            )
             raise ValueError("Missing required fields in food processing")
-            
+
         logger.info(
             f"Found dish {dish_name} for user {user_email}, with {estimated_avg_calories} calories, "
             f"contains ingredients {ingredients}, weight {total_awg_weight}, and nutrients {contains}"
@@ -40,7 +44,7 @@ def process_weight(message, user_email):
         if not weight:
             logger.error(f"Missing weight in message for user {user_email}")
             raise ValueError("Missing weight in message")
-            
+
         logger.info(f"Processing weight {weight} for user {user_email}")
         write_weight(weight=weight, user_email=user_email)
         logger.info(f"Successfully processed weight for user {user_email}")
@@ -56,14 +60,16 @@ def get_recommendation(message, user_email):
     prompt = message.get("prompt", "")
     food_table = get_dishes(days=days, user_email=user_email)
     id = str(uuid.uuid4())
-    logger.info(f"Payload for user {user_email}: {days}, {prompt}, food table {food_table}")
+    logger.info(
+        f"Payload for user {user_email}: {days}, {prompt}, food table {food_table}"
+    )
     if food_table:
         try:
             payload = {
                 "key": id,
                 "value": {
                     "question": str(f"{prompt} Food Table: {food_table}"),
-                    "user_email": user_email
+                    "user_email": user_email,
                 },
             }
             produce_message(topic="gemini-send", message=payload)

@@ -5,12 +5,10 @@ import re
 
 from dlp_types import INFO_TYPES
 from google.cloud import dlp_v2
-from google.cloud.dlp_v2.types import (
-    DeidentifyConfig,
-    InfoTypeTransformations,
-    PrimitiveTransformation,
-    ReplaceValueConfig,
-)
+from google.cloud.dlp_v2.types import (DeidentifyConfig,
+                                       InfoTypeTransformations,
+                                       PrimitiveTransformation,
+                                       ReplaceValueConfig)
 from kafka_consumer import consume_messages
 from kafka_producer import produce_message
 

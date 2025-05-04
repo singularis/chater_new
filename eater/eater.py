@@ -24,26 +24,30 @@ def process_messages():
             try:
                 value = message.value().decode("utf-8")
                 value_dict = json.loads(value)
-                
+
                 # Extract user_email from the message
                 user_email = value_dict.get("value", {}).get("user_email")
                 if not user_email:
                     logger.warning("No user_email found in message, skipping")
                     continue
-                    
+
                 # Validate user data
                 if not validate_user_data(value_dict, user_email):
-                    logger.warning(f"Invalid user data in message for user {user_email}, skipping")
+                    logger.warning(
+                        f"Invalid user data in message for user {user_email}, skipping"
+                    )
                     continue
-                
+
                 # Get message key for tracking
                 message_key = value_dict.get("key")
                 if not message_key:
-                    logger.warning(f"No message key found for user {user_email}, skipping")
+                    logger.warning(
+                        f"No message key found for user {user_email}, skipping"
+                    )
                     continue
-                
+
                 consumer.commit(message)
-                
+
                 if message.topic() == "photo-analysis-response":
                     gpt_response = value_dict.get("value", {})
                     if isinstance(gpt_response, str):
@@ -51,7 +55,7 @@ def process_messages():
                         json_response = json.loads(gpt_response)
                     else:
                         json_response = gpt_response
-                    
+
                     if json_response.get("error"):
                         logging.error(f"Error for user {user_email}: {json_response}")
                         produce_message(
@@ -60,17 +64,21 @@ def process_messages():
                                 "key": message_key,
                                 "value": {
                                     "error": json_response.get("error"),
-                                    "user_email": user_email
-                                }
+                                    "user_email": user_email,
+                                },
                             },
                         )
                     else:
                         if "analysis" in json_response:
                             json_response = json.loads(json_response.get("analysis"))
                         type_of_processing = json_response.get("type")
-                        logger.info(f"Received food processing {type_of_processing} for user {user_email}")
+                        logger.info(
+                            f"Received food processing {type_of_processing} for user {user_email}"
+                        )
                         if type_of_processing == "food_processing":
-                            logger.info(f"Received food_process for user {user_email}: {json_response}")
+                            logger.info(
+                                f"Received food_process for user {user_email}: {json_response}"
+                            )
                             proces_food(json_response, user_email)
                         elif type_of_processing == "weight_processing":
                             process_weight(json_response, user_email)
@@ -81,8 +89,8 @@ def process_messages():
                                     "key": message_key,
                                     "value": {
                                         "error": "unknown request",
-                                        "user_email": user_email
-                                    }
+                                        "user_email": user_email,
+                                    },
                                 },
                             )
                         produce_message(
@@ -91,8 +99,8 @@ def process_messages():
                                 "key": message_key,
                                 "value": {
                                     "status": "Success",
-                                    "user_email": user_email
-                                }
+                                    "user_email": user_email,
+                                },
                             },
                         )
                 elif message.topic() == "get_today_data":
@@ -100,10 +108,7 @@ def process_messages():
                     logger.info(f"Received request to get food for user {user_email}")
                     message = {
                         "key": message_key,
-                        "value": {
-                            "dishes": today_dishes,
-                            "user_email": user_email
-                        }
+                        "value": {"dishes": today_dishes, "user_email": user_email},
                     }
                     produce_message(topic="send_today_data", message=message)
                 elif message.topic() == "delete_food":
@@ -113,27 +118,23 @@ def process_messages():
                         topic="delete_food_response",
                         message={
                             "key": message_key,
-                            "value": {
-                                "status": "Success",
-                                "user_email": user_email
-                            }
-                        }
+                            "value": {"status": "Success", "user_email": user_email},
+                        },
                     )
                 elif message.topic() == "get_recommendation":
                     get_recommendation(value_dict.get("value"), user_email)
             except Exception as e:
-                logging.error(f"Failed to process message for user {user_email}: {e}, message {value_dict}")
+                logging.error(
+                    f"Failed to process message for user {user_email}: {e}, message {value_dict}"
+                )
                 # Send error response if we have a message key
                 if message_key:
                     produce_message(
                         topic="error_response",
                         message={
                             "key": message_key,
-                            "value": {
-                                "error": str(e),
-                                "user_email": user_email
-                            }
-                        }
+                            "value": {"error": str(e), "user_email": user_email},
+                        },
                     )
 
 

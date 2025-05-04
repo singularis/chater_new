@@ -121,8 +121,8 @@ def process_messages():
                             "key": key,
                             "value": {
                                 "analysis": photo_analysis_result,
-                                "user_email": user_email
-                            }
+                                "user_email": user_email,
+                            },
                         }
                         produce_message("photo-analysis-response", kafka_message)
                         logging.info(

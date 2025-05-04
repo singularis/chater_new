@@ -2,6 +2,7 @@ import kopf
 import kubernetes
 from kubernetes import client, config
 
+
 # Handler for when the CR is created
 @kopf.on.create("chater.example.com", "v1", "chatergpts")
 def create_chater_gpt(spec, **kwargs):
@@ -140,6 +141,7 @@ def create_chater_gpt(spec, **kwargs):
 
     return {"message": "chater-gpt Operator handling complete"}
 
+
 # New update handler to react to changes in the CRD's spec
 @kopf.on.update("chater.example.com", "v1", "chatergpts")
 def update_chater_gpt(spec, **kwargs):
@@ -164,7 +166,9 @@ def update_chater_gpt(spec, **kwargs):
         "data": {"OPENAI_API_KEY": openai_api_key_b64, "SECRET_KEY": secret_key_b64}
     }
     try:
-        core_api.patch_namespaced_secret(name="chater-gpt", namespace=namespace, body=secret_patch)
+        core_api.patch_namespaced_secret(
+            name="chater-gpt", namespace=namespace, body=secret_patch
+        )
         kopf.info(
             objs=kwargs["body"],
             reason="Updated",

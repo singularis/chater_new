@@ -2,20 +2,9 @@ import logging
 import os
 import time
 
-from sqlalchemy import (
-    ARRAY,
-    JSON,
-    Column,
-    Date,
-    Float,
-    Integer,
-    String,
-    create_engine,
-    text,
-    ForeignKey,
-    PrimaryKeyConstraint
-)
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import (ARRAY, JSON, Column, Date, Float, ForeignKey, Integer,
+                        PrimaryKeyConstraint, String, create_engine, text)
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -41,21 +30,18 @@ class Dishes(Base):
 class DishesDay(Base):
     __tablename__ = "dish_day"
     __table_args__ = (
-        PrimaryKeyConstraint('dish_id', 'date', 'user_email'),
-        {"schema": "public"}
+        PrimaryKeyConstraint("dish_id", "date", "user_email"),
+        {"schema": "public"},
     )
 
-    dish_id = Column(Integer, ForeignKey('public.dishes.id'), nullable=False)
+    dish_id = Column(Integer, ForeignKey("public.dishes.id"), nullable=False)
     date = Column(Date, nullable=False)
     user_email = Column(String, nullable=False)
 
 
 class TotalForDay(Base):
     __tablename__ = "total_for_day"
-    __table_args__ = (
-        PrimaryKeyConstraint('date', 'user_email'),
-        {"schema": "public"}
-    )
+    __table_args__ = (PrimaryKeyConstraint("date", "user_email"), {"schema": "public"})
 
     date = Column(Date, nullable=False)
     user_email = Column(String, nullable=False)
@@ -68,10 +54,7 @@ class TotalForDay(Base):
 
 class Weight(Base):
     __tablename__ = "weights"
-    __table_args__ = (
-        PrimaryKeyConstraint('date', 'user_email'),
-        {"schema": "public"}
-    )
+    __table_args__ = (PrimaryKeyConstraint("date", "user_email"), {"schema": "public"})
 
     date = Column(Date, nullable=False)
     user_email = Column(String, nullable=False)
@@ -88,8 +71,10 @@ def create_tables():
         if not all([db_user, db_password, db_host, db_name]):
             raise ValueError("Missing required database environment variables")
 
-        logger.info(f"Database configuration: host={db_host}, user={db_user}, db={db_name}")
-        
+        logger.info(
+            f"Database configuration: host={db_host}, user={db_user}, db={db_name}"
+        )
+
         db_url = f"postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}"
         logger.info(f"Attempting to connect to database at {db_host}")
 
@@ -106,9 +91,13 @@ def create_tables():
                     break
             except Exception as e:
                 if attempt == max_retries - 1:
-                    logger.error(f"Failed to connect to database after {max_retries} attempts: {str(e)}")
+                    logger.error(
+                        f"Failed to connect to database after {max_retries} attempts: {str(e)}"
+                    )
                     raise
-                logger.warning(f"Connection attempt {attempt + 1} failed: {str(e)}. Retrying in {retry_delay} seconds...")
+                logger.warning(
+                    f"Connection attempt {attempt + 1} failed: {str(e)}. Retrying in {retry_delay} seconds..."
+                )
                 time.sleep(retry_delay)
 
         Session = sessionmaker(bind=engine)
@@ -119,11 +108,11 @@ def create_tables():
                 # Create schema and set up user
                 connection.execute(text("CREATE SCHEMA IF NOT EXISTS public"))
                 logger.info("Schema created successfully")
-                
+
             except Exception as e:
                 logger.error(f"Error during schema/user setup: {str(e)}")
                 raise
-            
+
             # Create tables
             logger.info("Creating tables...")
             try:
@@ -136,7 +125,9 @@ def create_tables():
             # Ensure all required columns exist in each table
             logger.info("Checking and adding required columns...")
             try:
-                connection.execute(text("""
+                connection.execute(
+                    text(
+                        """
                     DO $$
                     BEGIN
                         -- Check and add columns to dishes table
@@ -167,7 +158,9 @@ def create_tables():
                             END IF;
                         END IF;
                     END $$;
-                """))
+                """
+                    )
+                )
                 logger.info("Column checks completed successfully")
             except Exception as e:
                 logger.error(f"Error during column checks: {str(e)}")
@@ -176,26 +169,26 @@ def create_tables():
             # Create indexes after ensuring columns exist
             logger.info("Creating indexes...")
             try:
-            #     connection.execute(text("""
-            #         DO $$
-            #         BEGIN
-            #             IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'dishes') THEN
-            #                 CREATE INDEX IF NOT EXISTS idx_dishes_user_email ON public.dishes (user_email);
-            #             END IF;
-                        
-            #             IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'dish_day') THEN
-            #                 CREATE INDEX IF NOT EXISTS idx_dish_day_user_email ON public.dish_day (user_email);
-            #             END IF;
-                        
-            #             IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'total_for_day') THEN
-            #                 CREATE INDEX IF NOT EXISTS idx_total_for_day_user_email ON public.total_for_day (user_email);
-            #             END IF;
-                        
-            #             IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'weights') THEN
-            #                 CREATE INDEX IF NOT EXISTS idx_weights_user_email ON public.weights (user_email);
-            #             END IF;
-            #         END $$;
-            #     """))
+                #     connection.execute(text("""
+                #         DO $$
+                #         BEGIN
+                #             IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'dishes') THEN
+                #                 CREATE INDEX IF NOT EXISTS idx_dishes_user_email ON public.dishes (user_email);
+                #             END IF;
+
+                #             IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'dish_day') THEN
+                #                 CREATE INDEX IF NOT EXISTS idx_dish_day_user_email ON public.dish_day (user_email);
+                #             END IF;
+
+                #             IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'total_for_day') THEN
+                #                 CREATE INDEX IF NOT EXISTS idx_total_for_day_user_email ON public.total_for_day (user_email);
+                #             END IF;
+
+                #             IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'weights') THEN
+                #                 CREATE INDEX IF NOT EXISTS idx_weights_user_email ON public.weights (user_email);
+                #             END IF;
+                #         END $$;
+                #     """))
                 logger.info("Indexes created successfully")
             except Exception as e:
                 logger.error(f"Error during index creation: {str(e)}")

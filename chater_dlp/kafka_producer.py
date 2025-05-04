@@ -29,7 +29,7 @@ def produce_message(topic, message):
         # Ensure message has a value field
         if "value" not in message:
             message["value"] = {}
-            
+
         # Ensure user_email is present in the value
         if "user_email" not in message["value"]:
             logger.warning("No user_email found in message value")

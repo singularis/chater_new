@@ -3,7 +3,6 @@ import logging
 import os
 
 from confluent_kafka import KafkaException, Producer
-
 from logging_config import setup_logging
 
 setup_logging("kafka_producer.log")
@@ -32,7 +31,9 @@ def delivery_report(err, msg):
     else:
         message_data = json.loads(msg.value())
         user_email = message_data.get("value", {}).get("user_email", "unknown")
-        logger.info(f"Message delivered to {msg.topic()} [{msg.partition()}] for user {user_email}")
+        logger.info(
+            f"Message delivered to {msg.topic()} [{msg.partition()}] for user {user_email}"
+        )
 
 
 def produce_message(producer, topic, message):
@@ -40,7 +41,7 @@ def produce_message(producer, topic, message):
         # Ensure message has a value field
         if "value" not in message:
             message["value"] = {}
-        
+
         # Add user_email to the message if not present
         if "user_email" not in message["value"]:
             logger.warning("No user_email found in message value")
@@ -53,7 +54,9 @@ def produce_message(producer, topic, message):
             callback=delivery_report,
         )
         producer.flush()
-        logger.info(f"Message produced to topic {topic} for user {message['value']['user_email']}")
+        logger.info(
+            f"Message produced to topic {topic} for user {message['value']['user_email']}"
+        )
     except KafkaException as e:
         logger.error(f"Failed to produce message: {str(e)}")
         raise
