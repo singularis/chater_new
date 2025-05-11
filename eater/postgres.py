@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import (ARRAY, JSON, Column, Float, Integer, String,
-                        create_engine, func)
+                        create_engine, func, PrimaryKeyConstraint)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -42,9 +42,12 @@ class DishesDay(Base):
 
 class TotalForDay(Base):
     __tablename__ = "total_for_day"
-    __table_args__ = {"schema": "public"}
+    __table_args__ = (
+        PrimaryKeyConstraint("today", "user_email"),
+        {"schema": "public"}
+    )
 
-    today = Column(String, primary_key=True)
+    today = Column(String)
     total_calories = Column(Integer)
     ingredients = Column(ARRAY(String))
     dishes_of_day = Column(ARRAY(String))

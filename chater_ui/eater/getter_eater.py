@@ -23,7 +23,7 @@ def eater_kafka_request(topic_send, topic_receive, payload, user_email):
         f"Listening for response on topic {topic_receive} for user {user_email}"
     )
     consumer = create_consumer([topic_receive])
-    max_retries = 3
+    max_retries = 30
     retry_count = 0
 
     while retry_count < max_retries:
