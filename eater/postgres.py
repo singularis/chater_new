@@ -15,7 +15,7 @@ db_password = os.environ.get("POSTGRES_PASSWORD")
 db_host = os.environ.get("POSTGRES_HOST")
 db_name = os.environ.get("POSTGRES_DB")
 
-DATABASE_URL = f"postgresql://postgres:{db_password}@{db_host}:5432/{db_name}"
+DATABASE_URL = f"postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}"
 
 engine = create_engine(DATABASE_URL)
 
