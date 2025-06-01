@@ -56,6 +56,11 @@ def process_messages():
                     else:
                         json_response = gpt_response
 
+                    # Parse nested analysis if present
+                    if "analysis" in json_response:
+                        json_response = json.loads(json_response.get("analysis"))
+
+                    # Check for errors after parsing
                     if json_response.get("error"):
                         logging.error(f"Error for user {user_email}: {json_response}")
                         produce_message(
@@ -69,8 +74,6 @@ def process_messages():
                             },
                         )
                     else:
-                        if "analysis" in json_response:
-                            json_response = json.loads(json_response.get("analysis"))
                         type_of_processing = json_response.get("type")
                         logger.info(
                             f"Received food processing {type_of_processing} for user {user_email}"

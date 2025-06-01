@@ -25,14 +25,18 @@ default_prompt: |
   "    }"
   "  }"
 weight_prompt: |
-  Response from Google Cloud Vision API of weight scale Phot text recognize. Find walid weight value:
-  - Respond only by JSON. No additional text.
-  - For JSON response, send only keys and values.
-  - If a weighing scale with a legible number, respond with:
-      type: weight_processing,
+  You receive the raw text returned by Google Cloud Vision for a photo of a weight scale. Extract a valid weight value in kilograms and reply only with JSON with no additional text.
+  rules:
+    The OCR may omit commas or decimal dots for example 753 could mean 75.3 Normalize any separator to a dot. If none is present treat the last digit as the decimal
+    Acceptable weights are from 30 to 150 kilograms and you responce should in this range
+    if weight is not in this range, respond with invalid_weight json structure
+    Output exactly one of these JSON structures
+  json_examples:
+    valid_weight:
+      type: weight_processing
       weight: numeric_value
-  - Otherwise, respond:
-      error: NOT A WEIGHT SCALE
+    invalid_weight:
+      error: INVALID_WEIGHT
 get_recommendation: |
   You received a table of various foods and nutritional data. Analyze the data and:
   - Give general food recommendations based on food data.
