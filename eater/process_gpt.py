@@ -63,8 +63,10 @@ def get_recommendation(message, user_email):
     logger.info(
         f"Payload for user {user_email}: {days}, {prompt}, food table {food_table}"
     )
-    if food_table:
-        try:
+    
+    try:
+        if food_table:
+            # User has food data, send normal recommendation request
             payload = {
                 "key": id,
                 "value": {
@@ -74,6 +76,18 @@ def get_recommendation(message, user_email):
             }
             produce_message(topic="gemini-send", message=payload)
             logger.info(f"formatted_payload for user {user_email}: {payload}")
-        except Exception as e:
-            logger.error(f"Error formatting payload for user {user_email}: {e}")
-            return
+        else:
+            # No food data found for user, send specific message
+            no_food_message = "Respond with exactly this message: 'NO FOOD RECORDS FOUND FOR USER. Please record your food before using this feature.' Do not provide any additional text, analysis, or recommendations. Only respond with this exact message."
+            payload = {
+                "key": id,
+                "value": {
+                    "question": no_food_message,
+                    "user_email": user_email,
+                },
+            }
+            produce_message(topic="gemini-send", message=payload)
+            logger.info(f"No food data found. Sent no-food message for user {user_email}: {payload}")
+    except Exception as e:
+        logger.error(f"Error formatting payload for user {user_email}: {e}")
+        return
