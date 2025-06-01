@@ -2,9 +2,10 @@ import json
 import logging
 import uuid
 from datetime import datetime
+import time
 
 from common import get_prompt, json_to_plain_text
-from kafka_consumer import consume_messages, create_consumer
+from kafka_consumer import consume_messages, create_consumer, consume_messages_with_timeout
 from kafka_producer import create_producer, produce_message
 
 from .proto import get_recomendation_pb2, today_food_pb2
@@ -23,44 +24,56 @@ def eater_kafka_request(topic_send, topic_receive, payload, user_email):
         f"Listening for response on topic {topic_receive} for user {user_email}"
     )
     consumer = create_consumer([topic_receive])
-    max_retries = 30
+    max_retries = 3  # Reduced retries since we now have proper timeout handling
     retry_count = 0
+    timeout_per_attempt = 10  # 10 seconds per attempt
 
     while retry_count < max_retries:
-        for message in consume_messages(consumer, expected_user_email=user_email):
-            try:
-                value = message.value().decode("utf-8")
-                value_dict = json.loads(value)
-                logger.info(f"Received message for user {user_email}: {value_dict}")
-                logger.info(
-                    f"Received key: {value_dict.get('key'), value_dict.get('value').get('user_email')}"
-                )
-
-                # Verify this is for our user
-                if value_dict.get("value", {}).get("user_email") != user_email:
+        try:
+            logger.info(f"Attempt {retry_count + 1}/{max_retries} for user {user_email}")
+            
+            # Use the new timeout-based consumer
+            for message in consume_messages_with_timeout(consumer, timeout_per_attempt, user_email):
+                try:
+                    value = message.value().decode("utf-8")
+                    value_dict = json.loads(value)
+                    logger.info(f"Received message for user {user_email}: {value_dict}")
                     logger.info(
-                        f"Skipping message for different user: {value_dict.get('value', {}).get('user_email')}"
+                        f"Received key: {value_dict.get('key'), value_dict.get('value').get('user_email')}"
                     )
+
+                    # Verify this is for our user
+                    if value_dict.get("value", {}).get("user_email") != user_email:
+                        logger.info(
+                            f"Skipping message for different user: {value_dict.get('value', {}).get('user_email')}"
+                        )
+                        continue
+
+                    consumer.commit(message)
+                    response_value = value_dict.get("value")
+
+                    if response_value.get("error"):
+                        logger.error(
+                            f"Error in response for user {user_email}: {response_value.get('error')}"
+                        )
+                        return None
+
+                    logger.info(f"Successfully received response for user {user_email}")
+                    return response_value
+
+                except Exception as e:
+                    logger.error(f"Failed to process message for user {user_email}: {e}")
                     continue
+                    
+        except Exception as e:
+            logger.error(f"Consumer error for user {user_email} on attempt {retry_count + 1}: {e}")
+            
+        retry_count += 1
+        if retry_count < max_retries:
+            logger.info(f"Retrying in 1 second for user {user_email}...")
+            time.sleep(1)
 
-                consumer.commit(message)
-                response_value = value_dict.get("value")
-
-                if response_value.get("error"):
-                    logger.error(
-                        f"Error in response for user {user_email}: {response_value.get('error')}"
-                    )
-                    return None
-
-                return response_value
-
-            except Exception as e:
-                logger.error(f"Failed to process message for user {user_email}: {e}")
-                retry_count += 1
-                if retry_count >= max_retries:
-                    return None
-                continue
-
+    logger.error(f"Max retries reached for user {user_email}, no response received")
     return None
 
 
