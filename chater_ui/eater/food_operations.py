@@ -3,7 +3,7 @@ import logging
 import uuid
 
 from flask import jsonify
-from kafka_consumer import consume_messages, create_consumer
+from kafka_consumer_service import get_user_message_response
 from kafka_producer import create_producer, produce_message
 
 from .proto import delete_food_pb2
@@ -32,74 +32,49 @@ def delete_food(request, user_email):
         produce_message(producer, topic="delete_food", message=message)
         logger.info(f"Sent message to Kafka for user {user_email}: {message}")
 
-        # Wait for confirmation
-        consumer = create_consumer(["delete_food_response"])
-        max_retries = 3
-        retry_count = 0
-
-        while retry_count < max_retries:
-            for response_message in consume_messages(
-                consumer, expected_user_email=user_email
-            ):
-                try:
-                    value = response_message.value().decode("utf-8")
-                    value_dict = json.loads(value)
-
-                    # Verify this is the response for our request
-                    if value_dict.get("key") != message_id:
-                        logger.info(
-                            f"Skipping message with different key for user {user_email}"
-                        )
-                        continue
-
-                    # Verify this is for our user
-                    if value_dict.get("value", {}).get("user_email") != user_email:
-                        logger.info(
-                            f"Skipping message for different user: {value_dict.get('value', {}).get('user_email')}"
-                        )
-                        continue
-
-                    consumer.commit(response_message)
-                    response_value = value_dict.get("value")
-
-                    if response_value.get("error"):
-                        logger.error(
-                            f"Error in response for user {user_email}: {response_value.get('error')}"
-                        )
-                        delete_food_response.success = False
-                        response_data = delete_food_response.SerializeToString()
-                        return (
-                            response_data,
-                            500,
-                            {"Content-Type": "application/grpc+proto"},
-                        )
-
-                    delete_food_response.success = True
+        logger.info(f"Waiting for delete confirmation for user {user_email} with message ID {message_id}")
+        
+        # Get response from Redis using the background consumer service
+        try:
+            response = get_user_message_response(message_id, user_email, timeout=30)
+            if response is not None:
+                logger.info(f"Retrieved delete confirmation for user {user_email}: {response}")
+                
+                if response.get("error"):
+                    logger.error(f"Error in delete response for user {user_email}: {response.get('error')}")
+                    delete_food_response.success = False
                     response_data = delete_food_response.SerializeToString()
                     return (
                         response_data,
-                        200,
+                        500,
                         {"Content-Type": "application/grpc+proto"},
                     )
-
-                except Exception as e:
-                    logger.error(
-                        f"Failed to process message for user {user_email}: {e}"
-                    )
-                    retry_count += 1
-                    if retry_count >= max_retries:
-                        delete_food_response.success = False
-                        response_data = delete_food_response.SerializeToString()
-                        return (
-                            response_data,
-                            500,
-                            {"Content-Type": "application/grpc+proto"},
-                        )
-                    continue
-
-        delete_food_response.success = False
-        response_data = delete_food_response.SerializeToString()
-        return response_data, 500, {"Content-Type": "application/grpc+proto"}
+                
+                delete_food_response.success = True
+                response_data = delete_food_response.SerializeToString()
+                return (
+                    response_data,
+                    200,
+                    {"Content-Type": "application/grpc+proto"},
+                )
+            else:
+                logger.warning(f"Timeout waiting for delete confirmation for user {user_email} with message ID {message_id}")
+                delete_food_response.success = False
+                response_data = delete_food_response.SerializeToString()
+                return (
+                    response_data,
+                    500,
+                    {"Content-Type": "application/grpc+proto"},
+                )
+        except Exception as e:
+            logger.error(f"Failed to get delete confirmation for user {user_email}: {e}")
+            delete_food_response.success = False
+            response_data = delete_food_response.SerializeToString()
+            return (
+                response_data,
+                500,
+                {"Content-Type": "application/grpc+proto"},
+            )
 
     except Exception as e:
         logger.error(f"Error in delete_food for user {user_email}: {str(e)}")

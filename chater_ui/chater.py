@@ -5,7 +5,7 @@ import uuid
 
 from common import sanitize_question
 from flask import flash, redirect, render_template, request, url_for
-from kafka_consumer import consume_messages, create_consumer
+from kafka_consumer_service import get_message_response
 from kafka_producer import create_producer, produce_message
 from logging_config import setup_logging
 
@@ -64,6 +64,11 @@ def chater(session, target):
             question_uuid, topics=target_config["receive_topic"]
         )
         log.info(f"Message response {json_response}")
+        try:
+            json_response = json_response.get("response")
+        except Exception as e:
+            log.error(f"Error getting json response: {e}")
+            json_response = json_response
         if session.get("switch_state", "off") == "on":
             session["context"] = (
                 (session.get("context") or "") + question + json_response
@@ -89,20 +94,21 @@ def chater(session, target):
 
 def get_messages(message_uuid, topics):
     log.info(
-        f"Starting message processing with topics: {topics}, looking for {message_uuid}"
+        f"Starting message processing for UUID: {message_uuid}, expected from topics: {topics}"
     )
-    consumer = create_consumer(topics)
-    log.info(f"message_uuid {message_uuid}")
-
-    for message in consume_messages(consumer):
-        try:
-            value = message.value().decode("utf-8")
-            value_dict = json.loads(value)
-            consumer.commit(message)
-            return value_dict.get("value")
-        except Exception as e:
-            log.error(f"Failed to process message: {e}")
-            return "Timeout"
+    
+    # Get response from Redis using the background consumer service
+    try:
+        response = get_message_response(message_uuid, timeout=30)
+        if response is not None:
+            log.info(f"Retrieved response for UUID {message_uuid}: {response}")
+            return response
+        else:
+            log.warning(f"Timeout waiting for response for UUID: {message_uuid}")
+            return "Timeout: No response received within 30 seconds"
+    except Exception as e:
+        log.error(f"Failed to get message response: {e}")
+        return "Error retrieving response"
 
 
 def format_script(json_response):

@@ -5,7 +5,7 @@ from datetime import datetime
 
 from common import encode_image, get_prompt, resize_image
 from flask import jsonify, request
-from kafka_consumer import consume_messages, create_consumer
+from kafka_consumer_service import get_user_message_response
 from kafka_producer import create_producer, produce_message
 
 from .proto import eater_photo_pb2
@@ -45,45 +45,25 @@ def eater_get_photo(user_email):
             message_id=message_id,
         )
 
-        # Create consumer with proper configuration
-        consumer = create_consumer(["photo-analysis-response-check"])
-        max_retries = 3
-        retry_count = 0
-
-        while retry_count < max_retries:
-            for message in consume_messages(consumer, expected_user_email=user_email):
-                try:
-                    value = message.value().decode("utf-8")
-                    value_dict = json.loads(value)
-
-                    # Verify this is for our user
-                    if value_dict.get("value", {}).get("user_email") != user_email:
-                        logger.info(
-                            f"Skipping message for different user: {value_dict.get('value', {}).get('user_email')}"
-                        )
-                        continue
-
-                    consumer.commit(message)
-                    response_value = value_dict.get("value")
-
-                    if response_value.get("error"):
-                        logger.error(
-                            f"Error in response for user {user_email}: {response_value.get('error')}"
-                        )
-                        return jsonify({"error": response_value.get("error")}), 400
-
-                    return response_value.get("status", "Success")
-
-                except Exception as e:
-                    logger.error(
-                        f"Failed to process message for user {user_email}: {e}"
-                    )
-                    retry_count += 1
-                    if retry_count >= max_retries:
-                        return "Timeout", 408
-                    continue
-
-        return "Timeout", 408
+        logger.info(f"Waiting for photo analysis response for user {user_email} with message ID {message_id}")
+        
+        # Get response from Redis using the background consumer service
+        try:
+            response = get_user_message_response(message_id, user_email, timeout=30)
+            if response is not None:
+                logger.info(f"Retrieved photo analysis response for user {user_email}: {response}")
+                
+                if response.get("error"):
+                    logger.error(f"Error in photo analysis response for user {user_email}: {response.get('error')}")
+                    return jsonify({"error": response.get("error")}), 400
+                
+                return response.get("status", "Success")
+            else:
+                logger.warning(f"Timeout waiting for photo analysis response for user {user_email} with message ID {message_id}")
+                return "Timeout", 408
+        except Exception as e:
+            logger.error(f"Failed to get photo analysis response for user {user_email}: {e}")
+            return "Timeout", 408
 
     except Exception as e:
         logger.error(f"Error processing request for user {user_email}: {str(e)}")

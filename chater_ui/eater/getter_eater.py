@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from common import get_prompt, json_to_plain_text
-from kafka_consumer import consume_messages, create_consumer
+from kafka_consumer_service import get_user_message_response
 from kafka_producer import create_producer, produce_message
 
 from .proto import get_recomendation_pb2, today_food_pb2
@@ -20,48 +20,26 @@ def eater_kafka_request(topic_send, topic_receive, payload, user_email):
     produce_message(producer, topic=topic_send, message=message)
 
     logger.info(
-        f"Listening for response on topic {topic_receive} for user {user_email}"
+        f"Waiting for response from topic {topic_receive} for user {user_email} with message ID {message_id}"
     )
-    consumer = create_consumer([topic_receive])
-    max_retries = 30
-    retry_count = 0
-
-    while retry_count < max_retries:
-        for message in consume_messages(consumer, expected_user_email=user_email):
-            try:
-                value = message.value().decode("utf-8")
-                value_dict = json.loads(value)
-                logger.info(f"Received message for user {user_email}: {value_dict}")
-                logger.info(
-                    f"Received key: {value_dict.get('key'), value_dict.get('value').get('user_email')}"
-                )
-
-                # Verify this is for our user
-                if value_dict.get("value", {}).get("user_email") != user_email:
-                    logger.info(
-                        f"Skipping message for different user: {value_dict.get('value', {}).get('user_email')}"
-                    )
-                    continue
-
-                consumer.commit(message)
-                response_value = value_dict.get("value")
-
-                if response_value.get("error"):
-                    logger.error(
-                        f"Error in response for user {user_email}: {response_value.get('error')}"
-                    )
-                    return None
-
-                return response_value
-
-            except Exception as e:
-                logger.error(f"Failed to process message for user {user_email}: {e}")
-                retry_count += 1
-                if retry_count >= max_retries:
-                    return None
-                continue
-
-    return None
+    
+    # Get response from Redis using the background consumer service
+    try:
+        response = get_user_message_response(message_id, user_email, timeout=30)
+        if response is not None:
+            logger.info(f"Retrieved response for user {user_email}: {response}")
+            
+            if response.get("error"):
+                logger.error(f"Error in response for user {user_email}: {response.get('error')}")
+                return None
+            
+            return response
+        else:
+            logger.warning(f"Timeout waiting for response for user {user_email} with message ID {message_id}")
+            return None
+    except Exception as e:
+        logger.error(f"Failed to get message response for user {user_email}: {e}")
+        return None
 
 
 def eater_get_today_kafka(user_email):

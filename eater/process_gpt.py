@@ -54,12 +54,12 @@ def process_weight(message, user_email):
         raise
 
 
-def get_recommendation(message, user_email):
+def get_recommendation(message_key, message, user_email):
     logger.info(f"Received request to get recommendation for user {user_email}")
     days = message.get("days")
     prompt = message.get("prompt", "")
     food_table = get_dishes(days=days, user_email=user_email)
-    id = str(uuid.uuid4())
+    id = message_key
     logger.info(
         f"Payload for user {user_email}: {days}, {prompt}, food table {food_table}"
     )

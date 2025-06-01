@@ -122,7 +122,7 @@ def process_messages():
                         },
                     )
                 elif message.topic() == "get_recommendation":
-                    get_recommendation(value_dict.get("value"), user_email)
+                    get_recommendation(message_key,value_dict.get("value"), user_email)
             except Exception as e:
                 logging.error(
                     f"Failed to process message for user {user_email}: {e}, message {value_dict}"

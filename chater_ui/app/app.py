@@ -1,5 +1,6 @@
 import logging
 import os
+import atexit
 
 import context
 import redis
@@ -10,6 +11,7 @@ from flask_cors import CORS
 from flask_session import Session
 from google_ops import create_google_blueprint, g_login
 from gphoto import gphoto
+from kafka_consumer_service import start_kafka_consumer_service, stop_kafka_consumer_service
 from logging_config import setup_logging
 from login import login, logout
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -37,6 +39,13 @@ google_bp = create_google_blueprint()
 app.register_blueprint(google_bp, url_prefix="/google_login")
 CORS(app)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
+# Start the background Kafka consumer service
+logger.info("Starting Kafka Consumer Service...")
+start_kafka_consumer_service()
+
+# Register cleanup function for graceful shutdown
+atexit.register(stop_kafka_consumer_service)
 
 
 @app.before_request
