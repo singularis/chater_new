@@ -64,6 +64,10 @@ def chater(session, target):
             question_uuid, topics=target_config["receive_topic"]
         )
         log.info(f"Message response {json_response}")
+        try:
+            json_response = json_response.get("response")
+        except Exception as e:
+            log.error(f"Failed to get response from json_response: {e}")
         if session.get("switch_state", "off") == "on":
             session["context"] = (
                 (session.get("context") or "") + question + json_response

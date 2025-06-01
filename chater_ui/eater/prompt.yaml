@@ -5,6 +5,7 @@ default_prompt: |
   "  - Estimate the average total calories based on a worst-case prediction (alweys be as realistic as possible)."
   "  - Break down the macronutrient content (proteins, fats, carbohydrates, sugar in grams)."
   "  - Respond only by JSON. No additional text. Do not use special characters in JSON response"
+  "  - Do not include any specical charactaers in to food name or ingredients"
   "  - For JSON response. Send only key and values. Do not add json keyword, or special characters "
   "  - If not a food, respond a JSON in the following format." "
   "   {"
@@ -27,6 +28,8 @@ default_prompt: |
 weight_prompt: |
   Response from Google Cloud Vision API of weight scale Phot text recognize. Find walid weight value:
   - Respond only by JSON. No additional text.
+  - Weight respocnce should be resoniable for aware person
+  - Vision api can have mistakes and miss commas and other special characters. So you need to be careful and check the response.
   - For JSON response, send only keys and values.
   - If a weighing scale with a legible number, respond with:
       type: weight_processing,
