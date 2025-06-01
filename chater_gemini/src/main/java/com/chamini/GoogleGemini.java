@@ -32,7 +32,7 @@ public class GoogleGemini {
         KafkaProducerUtil producer = new KafkaProducerUtil(BOOTSTRAP_SERVER) {
             @Override
             protected KafkaProducer<String, String> createProducer(Properties props) {
-                return null;
+                return new KafkaProducer<>(props);
             }
         };
 

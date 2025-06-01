@@ -46,12 +46,12 @@ def eater_get_photo(user_email):
         )
 
         # Create consumer with proper configuration
-        consumer = create_consumer(["photo-analysis-response-check"])
+        consumer = create_consumer(user_email, ["photo-analysis-response-check"])
         max_retries = 3
         retry_count = 0
 
         while retry_count < max_retries:
-            for message in consume_messages(consumer, expected_user_email=user_email):
+            for message in consume_messages(consumer, user_email):
                 try:
                     value = message.value().decode("utf-8")
                     value_dict = json.loads(value)

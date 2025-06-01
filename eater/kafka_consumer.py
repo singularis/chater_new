@@ -73,18 +73,32 @@ def consume_messages(topics, expected_user_email=None):
             "auto.offset.reset": "latest",
             "enable.auto.commit": False,
             "max.poll.interval.ms": 300000,
+            # Performance optimizations for confluent-kafka
+            "queued.min.messages": 10000,  # Pre-fetch messages for performance
+            "session.timeout.ms": 30000,  # 30 seconds
+            "heartbeat.interval.ms": 10000,  # 10 seconds
         }
     )
 
     consumer.subscribe(topics)
+    
+    # Batch processing variables
+    batch_size = 100
+    batch_timeout = 5.0  # seconds
+    message_batch = []
 
     while True:
-        msg = consumer.poll(1.0)
+        msg = consumer.poll(0.1)  # Reduced poll timeout for better responsiveness
         if msg is None:
+            # If we have messages in batch and timeout reached, yield them
+            if message_batch:
+                yield message_batch, consumer
+                message_batch = []
             continue
+            
         if msg.error():
             if msg.error().code() == KafkaError._PARTITION_EOF:
-                logger.info(f"End of partition reached for topic {msg.topic()}")
+                logger.debug(f"End of partition reached for topic {msg.topic()}")
                 continue
             elif msg.error().code() == KafkaError.BROKER_NOT_AVAILABLE:
                 logger.error("Broker not available. Retrying in 5 seconds...")
@@ -99,19 +113,36 @@ def consume_messages(topics, expected_user_email=None):
 
         try:
             message_data = json.loads(msg.value())
-            logger.info(f"Received message: {message_data}")
+            logger.debug(f"Received message: {message_data}")
             if not validate_user_data(message_data, expected_user_email):
                 logger.warning(f"Skipping message for unexpected user: {message_data}")
+                consumer.commit(message=msg)  # Commit skipped messages
                 continue
 
             user_email = message_data.get("value", {}).get("user_email", "unknown")
             logger.info(
                 f"Consumed message for user {user_email}: {msg.key()} - {msg.value()}"
             )
-            yield msg, consumer
+            
+            # Add to batch
+            message_batch.append(msg)
+            
+            # Yield batch if size reached
+            if len(message_batch) >= batch_size:
+                yield message_batch, consumer
+                message_batch = []
+                
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse message as JSON: {str(e)}")
+            consumer.commit(message=msg)  # Commit invalid messages
             continue
         except Exception as e:
             logger.error(f"Unexpected error: {str(e)}")
             continue
+
+
+def consume_messages_single(topics, expected_user_email=None):
+    """Legacy single message consumption for compatibility"""
+    for batch, consumer in consume_messages(topics, expected_user_email):
+        for msg in batch:
+            yield msg, consumer

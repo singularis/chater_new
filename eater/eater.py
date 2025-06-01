@@ -3,7 +3,7 @@ import logging
 import uuid
 
 from common import remove_markdown_fence
-from kafka_consumer import consume_messages, validate_user_data
+from kafka_consumer import consume_messages_single, validate_user_data
 from kafka_producer import produce_message
 from postgres import delete_food, get_today_dishes
 from process_gpt import get_recommendation, proces_food, process_weight
@@ -20,7 +20,7 @@ def process_messages():
     ]
     logging.info(f"Starting message processing with topics: {topics}")
     while True:
-        for message, consumer in consume_messages(topics):
+        for message, consumer in consume_messages_single(topics):
             try:
                 value = message.value().decode("utf-8")
                 value_dict = json.loads(value)

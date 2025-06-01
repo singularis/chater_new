@@ -23,7 +23,7 @@ def eater_kafka_request(topic_send, topic_receive, payload, user_email):
     logger.info(
         f"Listening for response on topic {topic_receive} for user {user_email}"
     )
-    consumer = create_consumer([topic_receive])
+    consumer = create_consumer(user_email, [topic_receive])
     max_retries = 3  # Reduced retries since we now have proper timeout handling
     retry_count = 0
     timeout_per_attempt = 10  # 10 seconds per attempt
@@ -33,7 +33,7 @@ def eater_kafka_request(topic_send, topic_receive, payload, user_email):
             logger.info(f"Attempt {retry_count + 1}/{max_retries} for user {user_email}")
             
             # Use the new timeout-based consumer
-            for message in consume_messages_with_timeout(consumer, timeout_per_attempt, user_email):
+            for message in consume_messages_with_timeout(consumer, user_email, timeout_per_attempt):
                 try:
                     value = message.value().decode("utf-8")
                     value_dict = json.loads(value)

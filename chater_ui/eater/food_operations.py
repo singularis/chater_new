@@ -33,13 +33,13 @@ def delete_food(request, user_email):
         logger.info(f"Sent message to Kafka for user {user_email}: {message}")
 
         # Wait for confirmation
-        consumer = create_consumer(["delete_food_response"])
+        consumer = create_consumer(user_email, ["delete_food_response"])
         max_retries = 3
         retry_count = 0
 
         while retry_count < max_retries:
             for response_message in consume_messages(
-                consumer, expected_user_email=user_email
+                consumer, user_email
             ):
                 try:
                     value = response_message.value().decode("utf-8")

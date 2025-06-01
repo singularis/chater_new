@@ -61,7 +61,7 @@ def chater(session, target):
         producer = create_producer()
         produce_message(producer, topic="dlp-source", message=message)
         json_response = get_messages(
-            question_uuid, topics=target_config["receive_topic"]
+            question_uuid, topics=target_config["receive_topic"], user_email=session.get("user_email")
         )
         log.info(f"Message response {json_response}")
         try:
@@ -91,14 +91,14 @@ def chater(session, target):
     return render_template("chater.html", responses=session.get("responses", []))
 
 
-def get_messages(message_uuid, topics):
+def get_messages(message_uuid, topics, user_email):
     log.info(
-        f"Starting message processing with topics: {topics}, looking for {message_uuid}"
+        f"Starting message processing with topics: {topics}, looking for {message_uuid} for user {user_email}"
     )
-    consumer = create_consumer(topics)
+    consumer = create_consumer(user_email, topics)
     log.info(f"message_uuid {message_uuid}")
 
-    for message in consume_messages(consumer):
+    for message in consume_messages(consumer, user_email):
         try:
             value = message.value().decode("utf-8")
             value_dict = json.loads(value)

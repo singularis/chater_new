@@ -24,8 +24,19 @@ public abstract class KafkaProducerUtil {
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 10000000);
+        
+        // Performance optimizations
+        props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
+        props.put(ProducerConfig.BATCH_SIZE_CONFIG, 65536); // 64KB batch
+        props.put(ProducerConfig.LINGER_MS_CONFIG, 20); // 20ms linger
+        props.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 134217728); // 128MB buffer
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+        props.put(ProducerConfig.RETRIES_CONFIG, 5);
+        props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
+        props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 300000); // 5 minutes
 
-        this.producer = new KafkaProducer<>(props);
+        this.producer = createProducer(props);
         this.objectMapper = new ObjectMapper();
     }
 
@@ -40,12 +51,20 @@ public abstract class KafkaProducerUtil {
                 if (exception != null) {
                     LOGGER.error("Failed to send message with key {} to topic {}: {}", key, topic, exception.getMessage());
                 } else {
-                    LOGGER.info("Sent message with key {} to topic {} partition {}", key, topic, metadata.partition());
+                    LOGGER.debug("Sent message with key {} to topic {} partition {} with offset {}", 
+                        key, topic, metadata.partition(), metadata.offset());
                 }
             });
+            
+            // Don't call flush here - let batching work
         } catch (Exception e) {
             LOGGER.error("Failed to serialize message: {}", e.getMessage());
         }
+    }
+    
+    public void flush() {
+        producer.flush();
+        LOGGER.debug("Producer flushed");
     }
 
     public void close() {

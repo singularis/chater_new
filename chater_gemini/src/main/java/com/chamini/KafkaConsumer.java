@@ -13,6 +13,8 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.List;
+import java.util.ArrayList;
 
 public class KafkaConsumer {
 
@@ -28,7 +30,14 @@ public class KafkaConsumer {
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        
+        // Performance optimizations
+        props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1024); // 1KB minimum
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 200); // Max 200ms wait
+        props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 2097152); // 2MB per partition
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 10000);
 
         this.consumer = new org.apache.kafka.clients.consumer.KafkaConsumer<>(props);
         this.consumer.subscribe(Collections.singletonList(topic));
@@ -37,12 +46,12 @@ public class KafkaConsumer {
     public String consumeMessage() {
         try {
             while (running.get()) {
-                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(2000));
+                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000)); // Reduced poll timeout
                 for (ConsumerRecord<String, String> record : records) {
-                    LOGGER.info("Consumed record with key {} and value {}", record.key(), record.value());
-                    // Manually commit offset after processing the message
-                    TopicPartition partition = new TopicPartition(record.topic(), record.partition());
-                    consumer.commitSync(Collections.singletonMap(partition, new org.apache.kafka.clients.consumer.OffsetAndMetadata(record.offset() + 1)));
+                    LOGGER.debug("Consumed record with key {} from partition {} with offset {}", 
+                        record.key(), record.partition(), record.offset());
+                    // Commit after processing
+                    consumer.commitSync();
                     return record.value();
                 }
             }
@@ -54,6 +63,34 @@ public class KafkaConsumer {
             }
         }
         return null;
+    }
+    
+    public List<String> consumeBatch(int maxBatchSize) {
+        List<String> messages = new ArrayList<>();
+        try {
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
+            int count = 0;
+            
+            for (ConsumerRecord<String, String> record : records) {
+                LOGGER.debug("Consumed record with key {} from partition {} with offset {}", 
+                    record.key(), record.partition(), record.offset());
+                messages.add(record.value());
+                count++;
+                
+                if (count >= maxBatchSize) {
+                    break;
+                }
+            }
+            
+            if (!messages.isEmpty()) {
+                consumer.commitSync(); // Batch commit
+                LOGGER.debug("Consumed and committed batch of {} messages", messages.size());
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error while consuming batch: {}", e.getMessage(), e);
+        }
+        
+        return messages;
     }
 
     public void close() {
