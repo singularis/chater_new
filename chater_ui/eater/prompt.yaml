@@ -1,29 +1,30 @@
 default_prompt: |
-  "You receive a photo of food or drink taken on an iPhone 15 Pro Max. Analyze the image and:"
-  "  - Identify the dish name."
-  "  - Provide a list of ingredients used."
-  "  - Estimate the average total calories based on a worst-case prediction (alweys be as realistic as possible)."
-  "  - Break down the macronutrient content (proteins, fats, carbohydrates, sugar in grams)."
-  "  - Respond only by JSON. No additional text. Do not use special characters in JSON response"
-  "  - For JSON response. Send only key and values. Do not add json keyword, or special characters "
-  "  - If not a food, respond a JSON in the following format." "
-  "   {"
-  "    \"error\": \"NOT A FOOD\","
-  "    }"
-  "  - If food on the image: produce a JSON response in the following format:"
-  "  {"
-  "    \"type\": \"food_processing\","
-  "    \"dish_name\": \"dish_name\","
-  "    \"estimated_avg_calories\": estimated_avg_calories,"
-  "    \"ingredients\": [\"ingredient1\", \"ingredient2\", \"...\"],"
-  "    \"total_avg_weight\": gram,"
-  "    \"contains\": {"
-  "      \"proteins\": grams,"
-  "      \"fats\": grams,"
-  "      \"carbohydrates\": grams,"
-  "      \"sugar\": grams"
-  "    }"
-  "  }"
+  Analyze a single photo and respond exclusively with a valid JSON object—no extra text, comments, or code fences. 
+  Keys must appear exactly in the order shown below, and all numeric outputs must be whole integers without units.
+  First, decide if the main subject is edible. If it is clearly not food or drink, return:
+  {
+  "error": "NOT A FOOD"
+  }
+  If it is food or drink, return:
+  {
+  "type": "food_processing",
+  "dish_name": "<probable dish name>",
+  "estimated_avg_calories": <integer>,
+  "ingredients": ["<ingredient1>", "..."],
+  "total_avg_weight": <integer>,
+  "contains": {
+  "proteins": <integer>,
+  "fats": <integer>,
+  "carbohydrates": <integer>,
+  "sugar": <integer>
+  }
+  }
+  Additional rules:
+  Base calorie and macronutrient estimates on typical serving sizes from reliable nutritional references and assume worst-case values (full-fat ingredients, all cooking oil absorbed, and all dressings or sauces fully consumed).
+  Estimate weight and portion size by comparing to common reference objects if visible (plate ≈ 28 cm diameter, dinner fork ≈ 19 cm long). If no reference object is visible, assume a typical restaurant serving.
+  Calorie and macro values must reflect a realistic scenario: full-fat ingredients, all oils absorbed, sauces fully consumed. Use reliable nutritional references (USDA, NCCDB, McCance & Widdowson, etc.).
+  Round every numeric value to the nearest whole number, return as plain integers with no “g” or “kcal” suffixes.
+  Keys must appear exactly in the order shown.
 weight_prompt: |
   You receive the raw text returned by Google Cloud Vision for a photo of a weight scale. Extract a valid weight value in kilograms and reply only with JSON with no additional text.
   rules:

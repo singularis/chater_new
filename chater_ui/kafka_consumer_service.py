@@ -256,11 +256,11 @@ def stop_kafka_consumer_service():
     kafka_service.stop_service()
 
 
-def get_message_response(message_uuid, timeout=30):
+def get_message_response(message_uuid, timeout=60):
     """Get message response from Redis"""
     return kafka_service.get_response_from_redis(message_uuid, timeout)
 
 
-def get_user_message_response(message_uuid, user_email, timeout=30):
+def get_user_message_response(message_uuid, user_email, timeout=60):
     """Get message response from Redis for a specific user"""
     return kafka_service.get_user_response_from_redis(message_uuid, user_email, timeout) 
