@@ -257,6 +257,89 @@ def get_today_dishes(user_email: str = None):
         return {}
 
 
+def get_custom_date_dishes(custom_date: str, user_email: str = None):
+    """
+    Get dishes for a specific date in dd-mm-yyyy format
+    """
+    try:
+        session = Session()
+        # Convert dd-mm-yyyy to yyyy-mm-dd format for database query
+        day, month, year = custom_date.split('-')
+        formatted_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+        
+        latest_weight_entry = (
+            session.query(Weight)
+            .filter(Weight.user_email == user_email)
+            .order_by(Weight.time.desc())
+            .first()
+        )
+
+        total_data = (
+            session.query(TotalForDay)
+            .filter(TotalForDay.today == formatted_date)
+            .filter(TotalForDay.user_email == user_email)
+            .first()
+        )
+        if not total_data:
+            logger.info(f"No data found in total_for_day for {formatted_date}")
+            total_for_day_data = {
+                "total_calories": 0,
+                "total_avg_weight": latest_weight_entry.weight
+                if latest_weight_entry
+                else 0,
+                "contains": {},
+            }
+            dishes_list = []
+            result = {
+                "total_for_day": total_for_day_data,
+                "dishes_today": dishes_list,
+            }
+            if latest_weight_entry:
+                result["latest_weight"] = {
+                    "time": latest_weight_entry.time,
+                    "weight": latest_weight_entry.weight,
+                }
+            return result
+        total_for_day_data = {
+            "total_calories": total_data.total_calories,
+            "total_avg_weight": total_data.total_avg_weight,
+            "contains": total_data.contains,
+        }
+        dishes_today = (
+            session.query(DishesDay)
+            .filter(DishesDay.date == formatted_date)
+            .filter(DishesDay.user_email == user_email)
+            .all()
+        )
+        dishes_list = [
+            {
+                "time": dish.time,
+                "dish_name": dish.dish_name,
+                "estimated_avg_calories": dish.estimated_avg_calories,
+                "total_avg_weight": dish.total_avg_weight,
+                "ingredients": dish.ingredients,
+            }
+            for dish in dishes_today
+        ]
+        result = {
+            "total_for_day": total_for_day_data,
+            "dishes_today": dishes_list,
+        }
+        if latest_weight_entry:
+            result["latest_weight"] = {
+                "time": latest_weight_entry.time,
+                "weight": latest_weight_entry.weight,
+            }
+
+        logger.info(f"Result of get_custom_date_dishes for {formatted_date}: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Error retrieving dishes for date {custom_date}: {e}")
+        return {}
+    finally:
+        session.close()
+
+
 def delete_food(time, user_email: str = None):
     logger.info(f"Deleting food with time {time} from db")
     try:

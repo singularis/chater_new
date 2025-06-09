@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package eater;
+
+message CustomDateFoodRequest {
+  string date = 1; // Format: dd-mm-yyyy
+}
+
+message CustomDateFoodResponse {
+  repeated Dish dishes_for_date = 1;
+  TotalForDay total_for_day = 2;
+  float person_weight = 3;
+}
+
+// Reuse the existing Dish and TotalForDay messages
+message Dish {
+  int64 time = 1;
+  string dish_name = 2;
+  int32 estimated_avg_calories = 3;
+  repeated string ingredients = 4;
+  int32 total_avg_weight = 5;
+}
+
+message Contains {
+  double carbohydrates = 1;
+  double fats = 2;
+  double proteins = 3;
+  double sugar = 4;
+}
+
+message TotalForDay {
+  Contains contains = 1;
+  int32 total_avg_weight = 2;
+  int32 total_calories = 3;
+} 

@@ -27,6 +27,7 @@ class KafkaConsumerService:
             "gpt-response": {"name": "gpt-response"},
             "gemini-response": {"name": "gemini-response"},
             "send_today_data": {"name": "send_today_data"},
+            "send_today_data_custom": {"name": "send_today_data_custom"},
             "photo-analysis-response-check": {"name": "photo-analysis-response-check"},
             "delete_food_response": {"name": "delete_food_response"},
             "modify_food_record_response": {"name": "modify_food_record_response"},

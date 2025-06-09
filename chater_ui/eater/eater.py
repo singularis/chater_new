@@ -1,7 +1,7 @@
 import logging
 
 from .food_operations import delete_food, modify_food_record
-from .getter_eater import eater_get_today, get_recommendation
+from .getter_eater import eater_get_today, eater_get_custom_date, get_recommendation
 from .process_photo import eater_get_photo
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,16 @@ def eater_today(user_email):
         logger.info(f"Exception {e}")
         return "Failed"
     return today_food
+
+
+def eater_custom_date(request, user_email):
+    logger.info(f"Returning food for custom date for user: {user_email}")
+    try:
+        custom_date_food = eater_get_custom_date(request=request, user_email=user_email)
+    except Exception as e:
+        logger.info(f"Exception {e}")
+        return "Failed"
+    return custom_date_food
 
 
 def delete_food_record(request, user_email):

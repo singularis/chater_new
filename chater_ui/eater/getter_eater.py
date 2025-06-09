@@ -7,7 +7,7 @@ from common import get_prompt, json_to_plain_text
 from kafka_consumer_service import get_user_message_response
 from kafka_producer import create_producer, produce_message
 
-from .proto import get_recomendation_pb2, today_food_pb2
+from .proto import get_recomendation_pb2, today_food_pb2, custom_date_food_pb2
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,13 @@ def eater_get_today_kafka(user_email):
         "date": datetime.now().strftime("%d-%m-%Y"),
     }
     return eater_kafka_request("get_today_data", "send_today_data", payload, user_email)
+
+
+def eater_get_custom_date_kafka(user_email, custom_date):
+    payload = {
+        "date": custom_date,
+    }
+    return eater_kafka_request("get_today_data_custom", "send_today_data_custom", payload, user_email)
 
 
 def eater_get_today(user_email):
@@ -134,6 +141,107 @@ def eater_get_today(user_email):
         logger.error(f"Exception in eater_get_today for user {user_email}: {e}")
         logger.error(
             f"Problematic message for user {user_email}: {today_food if 'today_food' in locals() else 'None'}"
+        )
+        return "Failed", 500
+
+
+def eater_get_custom_date(request, user_email):
+    try:
+        proto_request = custom_date_food_pb2.CustomDateFoodRequest()
+        proto_request.ParseFromString(request.data)
+        
+        custom_date = proto_request.date
+        if not custom_date:
+            logger.error(f"No date provided in custom date request for user {user_email}")
+            return "No date provided", 400
+            
+        custom_food = eater_get_custom_date_kafka(user_email, custom_date)
+        if not custom_food:
+            raise ValueError(f"No data received from Kafka for user {user_email} and date {custom_date}")
+
+        logger.info(
+            f"Received custom_food from Kafka for user {user_email} and date {custom_date}: {custom_food}"
+        )
+        
+        proto_message = custom_date_food_pb2.CustomDateFoodResponse()
+        tf = custom_food.get("dishes", {}).get("total_for_day", {})
+        logger.info(
+            f"Total_for_day content for user {user_email} and date {custom_date}: {tf} | Types: { {k: type(v) for k, v in tf.items()} }"
+        )
+        
+        total_avg_weight = tf.get("total_avg_weight", 0)
+        logger.info(
+            f"Assigning total_avg_weight for user {user_email}: {total_avg_weight} (type: {type(total_avg_weight)})"
+        )
+        proto_message.total_for_day.total_avg_weight = int(total_avg_weight)
+        
+        total_calories = tf.get("total_calories", 0)
+        logger.info(
+            f"Assigning total_calories for user {user_email}: {total_calories} (type: {type(total_calories)})"
+        )
+        proto_message.total_for_day.total_calories = total_calories
+        
+        contains_data = tf.get("contains", {})
+        if isinstance(contains_data, list):
+            logger.warning(
+                f"'contains' is a list instead of dict for user {user_email}: {contains_data}. Defaulting to empty."
+            )
+            contains_data = {}
+        elif not isinstance(contains_data, dict):
+            logger.warning(
+                f"'contains' is neither dict nor list for user {user_email}: {contains_data}. Defaulting to empty."
+            )
+            contains_data = {}
+
+        proto_message.total_for_day.contains.carbohydrates = int(
+            contains_data.get("carbohydrates", 0)
+        )
+        proto_message.total_for_day.contains.fats = int(contains_data.get("fats", 0))
+        proto_message.total_for_day.contains.proteins = int(
+            contains_data.get("proteins", 0)
+        )
+        proto_message.total_for_day.contains.sugar = int(contains_data.get("sugar", 0))
+
+        lw = custom_food.get("dishes", {}).get("latest_weight", {})
+        logger.info(
+            f"Latest weight for user {user_email}: {lw}, lw.get('weight'): {lw.get('weight')}"
+        )
+        proto_message.person_weight = lw.get("weight", 0)
+
+        dishes = custom_food.get("dishes", {}).get("dishes_today", [])
+        for dish in dishes:
+            logger.info(
+                f"Processing dish for user {user_email}: {dish} | "
+                f"Types: {{ { {k: type(v) for k, v in dish.items()} } }}"
+            )
+            dish_proto = proto_message.dishes_for_date.add()
+            dish_proto.time = dish.get("time", 0)
+            dish_proto.dish_name = dish.get("dish_name", "")
+            dish_proto.estimated_avg_calories = dish.get("estimated_avg_calories", 0)
+            dish_proto.total_avg_weight = int(dish.get("total_avg_weight", 0))
+
+            ingredients = dish.get("ingredients", [])
+            logger.info(
+                f"Raw ingredients for dish {dish.get('dish_name')}: {ingredients}"
+            )
+            if not isinstance(ingredients, list):
+                logger.warning(
+                    f"'ingredients' is not a list for user {user_email}: {ingredients}. Converting to empty list."
+                )
+                ingredients = []
+            dish_proto.ingredients.extend(ingredients)
+            logger.info(f"Processed dish proto: {dish_proto}")
+
+        proto_data = proto_message.SerializeToString()
+        logger.info(
+            f"Successfully processed custom date message for user {user_email} and date {custom_date}: {custom_food}"
+        )
+        return proto_data, 200, {"Content-Type": "application/protobuf"}
+
+    except Exception as e:
+        logger.error(f"Exception in eater_get_custom_date for user {user_email}: {e}")
+        logger.error(
+            f"Problematic message for user {user_email}: {custom_food if 'custom_food' in locals() else 'None'}"
         )
         return "Failed", 500
 

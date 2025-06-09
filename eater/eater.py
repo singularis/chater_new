@@ -5,7 +5,7 @@ import uuid
 from common import remove_markdown_fence
 from kafka_consumer import consume_messages, validate_user_data
 from kafka_producer import produce_message
-from postgres import delete_food, get_today_dishes, modify_food
+from postgres import delete_food, get_today_dishes, get_custom_date_dishes, modify_food
 from process_gpt import get_recommendation, proces_food, process_weight
 
 logger = logging.getLogger(__name__)
@@ -15,6 +15,7 @@ def process_messages():
     topics = [
         "photo-analysis-response",
         "get_today_data",
+        "get_today_data_custom",
         "delete_food",
         "modify_food_record",
         "get_recommendation",
@@ -115,6 +116,18 @@ def process_messages():
                         "value": {"dishes": today_dishes, "user_email": user_email},
                     }
                     produce_message(topic="send_today_data", message=message)
+                elif message.topic() == "get_today_data_custom":
+                    custom_date = value_dict.get("value", {}).get("date")
+                    if not custom_date:
+                        logger.warning(f"No date provided in custom date request for user {user_email}")
+                        continue
+                    custom_dishes = get_custom_date_dishes(custom_date, user_email)
+                    logger.info(f"Received request to get food for {custom_date} for user {user_email}")
+                    message = {
+                        "key": message_key,
+                        "value": {"dishes": custom_dishes, "user_email": user_email},
+                    }
+                    produce_message(topic="send_today_data_custom", message=message)
                 elif message.topic() == "delete_food":
                     delete_food(value_dict.get("value"), user_email)
                     # Send confirmation
