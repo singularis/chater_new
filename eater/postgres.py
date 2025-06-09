@@ -288,6 +288,56 @@ def delete_food(time, user_email: str = None):
         session.close()
 
 
+def modify_food(data, user_email: str = None):
+    logger.info(f"Modifying food record for user {user_email}")
+    try:
+        session = Session()
+        # Handle case where data is passed as a dictionary with time, user_email, and percentage
+        if isinstance(data, dict):
+            time_value = data.get("time")
+            user_email = data.get("user_email", user_email)
+            percentage = data.get("percentage", 100)
+        else:
+            logger.error(f"Invalid data format for modify_food: {data}")
+            return
+
+        # Find the food record to modify
+        food_record = (
+            session.query(DishesDay)
+            .filter(DishesDay.time == time_value)
+            .filter(DishesDay.user_email == user_email)
+            .first()
+        )
+
+        if food_record:
+            # Calculate the modification factor (percentage / 100)
+            factor = percentage / 100.0
+            
+            # Update the food record with the new percentage
+            food_record.estimated_avg_calories = int(food_record.estimated_avg_calories * factor)
+            food_record.total_avg_weight = int(food_record.total_avg_weight * factor)
+            
+            # Update nutritional values in the contains field
+            if food_record.contains:
+                for key in food_record.contains:
+                    if isinstance(food_record.contains[key], (int, float)):
+                        food_record.contains[key] = food_record.contains[key] * factor
+            
+            session.commit()
+            logger.info(
+                f"Successfully modified food record with time {time_value} for user {user_email} by {percentage}%"
+            )
+            
+            # Recalculate the totals for the day after modification
+            write_to_dish_day(recalculate=True, user_email=user_email)
+        else:
+            logger.info(f"No food record found with time {time_value} for user {user_email}")
+    except Exception as e:
+        logger.error(f"Error modifying food record: {e}")
+    finally:
+        session.close()
+
+
 def write_weight(weight, user_email: str = None):
     try:
         session = Session()

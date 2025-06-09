@@ -18,7 +18,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from chater import chater as chater_ui
 from eater.eater import (delete_food_record, eater_photo, eater_today,
-                         get_recommendations)
+                         get_recommendations, modify_food_record_data)
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -131,6 +131,12 @@ def eater_get_today(user_email):
 @token_required
 def delete_food(user_email):
     return delete_food_record(request=request, user_email=user_email)
+
+
+@app.route("/modify_food_record", methods=["POST"])
+@token_required
+def modify_food(user_email):
+    return modify_food_record_data(request=request, user_email=user_email)
 
 
 @app.route("/get_recommendation", methods=["POST"])

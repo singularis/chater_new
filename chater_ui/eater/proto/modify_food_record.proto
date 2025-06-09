@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package Eater;
+
+message ModifyFoodRecordRequest {
+  int64 time = 1;
+  string user_email = 2;
+  int32 percentage = 3;
+}
+
+message ModifyFoodRecordResponse {
+  bool success = 1;
+} 

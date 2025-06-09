@@ -1,6 +1,6 @@
 import logging
 
-from .food_operations import delete_food
+from .food_operations import delete_food, modify_food_record
 from .getter_eater import eater_get_today, get_recommendation
 from .process_photo import eater_get_photo
 
@@ -32,6 +32,15 @@ def delete_food_record(request, user_email):
     logger.info(f"Deleting food for user: {user_email}")
     try:
         return delete_food(request=request, user_email=user_email)
+    except Exception as e:
+        logger.info(f"Exception {e}")
+        return "Failed"
+
+
+def modify_food_record_data(request, user_email):
+    logger.info(f"Modifying food record for user: {user_email}")
+    try:
+        return modify_food_record(request=request, user_email=user_email)
     except Exception as e:
         logger.info(f"Exception {e}")
         return "Failed"

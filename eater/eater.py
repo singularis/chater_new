@@ -5,7 +5,7 @@ import uuid
 from common import remove_markdown_fence
 from kafka_consumer import consume_messages, validate_user_data
 from kafka_producer import produce_message
-from postgres import delete_food, get_today_dishes
+from postgres import delete_food, get_today_dishes, modify_food
 from process_gpt import get_recommendation, proces_food, process_weight
 
 logger = logging.getLogger(__name__)
@@ -16,6 +16,7 @@ def process_messages():
         "photo-analysis-response",
         "get_today_data",
         "delete_food",
+        "modify_food_record",
         "get_recommendation",
     ]
     logging.info(f"Starting message processing with topics: {topics}")
@@ -119,6 +120,16 @@ def process_messages():
                     # Send confirmation
                     produce_message(
                         topic="delete_food_response",
+                        message={
+                            "key": message_key,
+                            "value": {"status": "Success", "user_email": user_email},
+                        },
+                    )
+                elif message.topic() == "modify_food_record":
+                    modify_food(value_dict.get("value"), user_email)
+                    # Send confirmation
+                    produce_message(
+                        topic="modify_food_record_response",
                         message={
                             "key": message_key,
                             "value": {"status": "Success", "user_email": user_email},

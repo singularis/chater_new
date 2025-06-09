@@ -29,6 +29,7 @@ class KafkaConsumerService:
             "send_today_data": {"name": "send_today_data"},
             "photo-analysis-response-check": {"name": "photo-analysis-response-check"},
             "delete_food_response": {"name": "delete_food_response"},
+            "modify_food_record_response": {"name": "modify_food_record_response"},
         }
 
     def create_consumer(self, topics):
