@@ -15,30 +15,30 @@
     </properties>
 
     <dependencies>
-        <!-- JWT Library for token generation and verification -->
+        <!-- JWT Library for token generation and verification - SECURITY FIX: Updated to latest version -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
-            <version>0.12.3</version>
+            <version>0.12.6</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
-            <version>0.12.3</version>
+            <version>0.12.6</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
-            <version>0.12.3</version>
+            <version>0.12.6</version>
             <scope>runtime</scope>
         </dependency>
         
-        <!-- Google Auth Library for Google ID token verification -->
+        <!-- Google Auth Library for Google ID token verification - SECURITY FIX: Updated to latest version -->
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
-            <version>1.24.1</version>
+            <version>1.28.0</version>
         </dependency>
         
         <!-- HTTP Client for token verification -->
@@ -48,11 +48,11 @@
             <version>4.12.0</version>
         </dependency>
         
-        <!-- JSON Processing -->
+        <!-- JSON Processing - SECURITY FIX: Updated to latest secure version (CVE-2023-35116 and related) -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.16.1</version>
+            <version>2.18.2</version>
         </dependency>
         
         <!-- Logging -->
@@ -87,7 +87,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.4.1</version>
+                <version>3.6.0</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
