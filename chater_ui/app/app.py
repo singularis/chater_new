@@ -18,18 +18,39 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from chater import chater as chater_ui
 from eater.eater import (delete_food_record, eater_photo, eater_today, eater_custom_date,
-                         get_recommendations, modify_food_record_data)
+                         get_recommendations, modify_food_record_data, eater_auth_request)
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
 
+# Enable debug logging for personal development
+if os.getenv("FLASK_DEBUG", "true").lower() == "true":
+    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger("werkzeug").setLevel(logging.DEBUG)
+    logging.getLogger("flask").setLevel(logging.DEBUG)
+    logger.info("Debug logging enabled for personal development")
+
 redis_client = redis.StrictRedis(host=os.getenv("REDIS_ENDPOINT"), port=6379, db=0)
 app = Flask(__name__, static_url_path="/chater/static")
-app.secret_key = generate_session_secret()
-app.config["SESSION_TYPE"] = "redis"
-app.config["SESSION_REDIS"] = redis_client
+
+# Personal development configuration - secure but with debug logging
+app.config.update(
+    SECRET_KEY=os.getenv("SECRET_KEY", generate_session_secret()),
+    SESSION_TYPE="redis",
+    SESSION_REDIS=redis_client,
+    SESSION_PERMANENT=False,
+    SESSION_USE_SIGNER=True,
+    SESSION_KEY_PREFIX="chater_ui:",
+    # Security headers for personal app
+    SESSION_COOKIE_SECURE=True if os.getenv("HTTPS_ENABLED", "false").lower() == "true" else False,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    # Enable debug logging for personal development
+    DEBUG=os.getenv("FLASK_DEBUG", "true").lower() == "true",
+    TESTING=False
+)
+
 Session(app)
-app.secret_key = os.getenv("SECRET_KEY")
 
 picFolder = "/app/app/static/pics"
 SESSION_LIFETIME = int(os.getenv("SESSION_LIFETIME"))
@@ -152,6 +173,15 @@ def recommendations(user_email):
     return recommendation
 
 
+@app.route("/eater_auth", methods=["POST"])
+def eater_auth():
+    return eater_auth_request(request=request)
+
+
+# Personal development configuration
+# When run with gunicorn, this block won't execute
 if __name__ == "__main__":
-    logging.getLogger("werkzeug").setLevel(logging.INFO)
-    app.run(host="0.0.0.0")
+    # Local development with debug logging enabled
+    logging.getLogger("werkzeug").setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
+    app.run(host="0.0.0.0", debug=True)

@@ -42,9 +42,16 @@ def produce_message(producer, topic, message):
         if "value" not in message:
             message["value"] = {}
 
+        # Debug logging for auth topic
+        if topic == "auth_requires_token":
+            logger.info(f"AUTH DEBUG - Message before user_email check: {message}")
+            logger.info(f"AUTH DEBUG - Message value keys: {list(message.get('value', {}).keys())}")
+            logger.info(f"AUTH DEBUG - user_email in value: {'user_email' in message.get('value', {})}")
+
         # Add user_email to the message if not present
         if "user_email" not in message["value"]:
-            logger.warning("No user_email found in message value")
+            logger.warning(f"No user_email found in message value for topic {topic}")
+            logger.warning(f"Message structure: {message}")
             message["value"]["user_email"] = "unknown"
 
         producer.produce(

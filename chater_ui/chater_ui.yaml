@@ -38,7 +38,7 @@
               spec:
                 containers:
                   - name: chater-ui
-                    image: docker.io/singularis314/chater-ui:0.4
+                    image: docker.io/singularis314/chater-ui:0.5
                     imagePullPolicy: Always
                     ports:
                       - containerPort: 5000
@@ -84,6 +84,8 @@
                         value: "{{ vars.EATER_SECRET_KEY }}"
                       - name: REDIS_ENDPOINT
                         value: "{{ vars.REDIS_ENDPOINT }}"
+                      - name: FLASK_DEBUG
+                        value: "true"
                 volumes:
                   - name: chater-ui-pvc
                     persistentVolumeClaim:

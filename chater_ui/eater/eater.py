@@ -1,7 +1,7 @@
 import logging
 
 from .food_operations import delete_food, modify_food_record
-from .getter_eater import eater_get_today, eater_get_custom_date, get_recommendation
+from .getter_eater import eater_get_today, eater_get_custom_date, get_recommendation, eater_auth_token
 from .process_photo import eater_get_photo
 
 logger = logging.getLogger(__name__)
@@ -63,3 +63,13 @@ def get_recommendations(request, user_email):
     except Exception as e:
         logger.info(f"Exception {e}")
         return "Failed"
+
+
+def eater_auth_request(request):
+    logger.info("Processing eater authentication request")
+    try:
+        auth_response = eater_auth_token(request=request)
+    except Exception as e:
+        logger.info(f"Exception in auth request: {e}")
+        return "Failed"
+    return auth_response

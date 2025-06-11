@@ -31,6 +31,7 @@ class KafkaConsumerService:
             "photo-analysis-response-check": {"name": "photo-analysis-response-check"},
             "delete_food_response": {"name": "delete_food_response"},
             "modify_food_record_response": {"name": "modify_food_record_response"},
+            "add_auth_token": {"name": "add_auth_token"},
         }
 
     def create_consumer(self, topics):

@@ -14,3 +14,4 @@ protobuf
 pillow
 flask_session
 redis
+gunicorn==21.2.0

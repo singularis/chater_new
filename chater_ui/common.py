@@ -5,6 +5,7 @@ import os
 import re
 import secrets
 import string
+import hashlib
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -16,6 +17,28 @@ from PIL import Image
 log = logging.getLogger("main")
 SECRET_KEY = str(os.getenv("EATER_SECRET_KEY"))
 PROMPT_FILE = "eater/prompt.yaml"
+
+
+def get_jwt_secret_key():
+    """
+    Get the JWT secret key, deriving a 256-bit key if the original is too short.
+    This matches the logic used in the chater-auth service.
+    """
+    if not SECRET_KEY:
+        raise ValueError("EATER_SECRET_KEY environment variable not set")
+    
+    secret_bytes = SECRET_KEY.encode('utf-8')
+    
+    # If the secret is already 32+ bytes, use it directly
+    # Otherwise, derive a 256-bit key using SHA-256
+    if len(secret_bytes) >= 32:
+        return SECRET_KEY
+    else:
+        # Derive a 256-bit key from the secret using SHA-256
+        hash_obj = hashlib.sha256(secret_bytes)
+        derived_key = hash_obj.digest()
+        log.debug("Secret key was too short (%d bits), derived 256-bit key using SHA-256", len(secret_bytes) * 8)
+        return derived_key
 
 
 def before_request(session, app, SESSION_LIFETIME):
@@ -64,7 +87,8 @@ def token_required(f):
             return jsonify({"message": "Invalid token format"}), 401
         try:
             token = auth_header.split(" ")[1]
-            decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            jwt_secret = get_jwt_secret_key()
+            decoded_token = jwt.decode(token, jwt_secret, algorithms=["HS256"])
             logging.debug("Decoded token subject: %s", decoded_token.get("sub"))
             kwargs["user_email"] = decoded_token.get("sub")
         except jwt.ExpiredSignatureError:
