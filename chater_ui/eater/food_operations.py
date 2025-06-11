@@ -6,7 +6,7 @@ from flask import jsonify
 from kafka_consumer_service import get_user_message_response
 from kafka_producer import create_producer, produce_message
 
-from .proto import delete_food_pb2, modify_food_record_pb2
+from .proto import delete_food_pb2, modify_food_record_pb2, manual_weight_pb2
 
 logger = logging.getLogger(__name__)
 
@@ -153,4 +153,49 @@ def modify_food_record(request, user_email):
         logger.error(f"Error in modify_food_record for user {user_email}: {str(e)}")
         modify_food_response.success = False
         response_data = modify_food_response.SerializeToString()
+        return response_data, 500, {"Content-Type": "application/grpc+proto"}
+
+
+def manual_weight(request, user_email):
+    manual_weight_response = manual_weight_pb2.ManualWeightResponse()
+    manual_weight_request = manual_weight_pb2.ManualWeightRequest()
+    try:
+        proto_data = request.data
+        if not proto_data:
+            logger.error(
+                f"No Protobuf data found in the request from user: {user_email}"
+            )
+            return jsonify({"success": False, "error": "Invalid Protobuf data"}), 400
+
+        manual_weight_request.ParseFromString(proto_data)
+        weight = manual_weight_request.weight
+        user_email_from_proto = manual_weight_request.user_email
+        logger.info(f"Extracted weight from Protobuf for user {user_email}: {weight}")
+
+        producer = create_producer()
+        message_id = str(uuid.uuid4())
+        message = {
+            "key": message_id,
+            "value": {
+                "user_email": user_email_from_proto,
+                "weight": weight,
+                "type": "weight_processing"
+            }
+        }
+        produce_message(producer, topic="manual_weight", message=message)
+        logger.info(f"Sent manual weight message to Kafka manual_weight topic for user {user_email}: {message}")
+
+        # Return success immediately after sending the message
+        manual_weight_response.success = True
+        response_data = manual_weight_response.SerializeToString()
+        return (
+            response_data,
+            200,
+            {"Content-Type": "application/grpc+proto"},
+        )
+
+    except Exception as e:
+        logger.error(f"Error in manual_weight for user {user_email}: {str(e)}")
+        manual_weight_response.success = False
+        response_data = manual_weight_response.SerializeToString()
         return response_data, 500, {"Content-Type": "application/grpc+proto"}

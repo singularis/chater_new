@@ -18,7 +18,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from chater import chater as chater_ui
 from eater.eater import (delete_food_record, eater_photo, eater_today, eater_custom_date,
-                         get_recommendations, modify_food_record_data, eater_auth_request)
+                         get_recommendations, modify_food_record_data, eater_auth_request, manual_weight_record)
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -176,6 +176,12 @@ def recommendations(user_email):
 @app.route("/eater_auth", methods=["POST"])
 def eater_auth():
     return eater_auth_request(request=request)
+
+
+@app.route("/manual_weight", methods=["POST"])
+@token_required
+def manual_weight(user_email):
+    return manual_weight_record(request=request, user_email=user_email)
 
 
 # Personal development configuration

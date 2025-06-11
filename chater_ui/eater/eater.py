@@ -1,6 +1,6 @@
 import logging
 
-from .food_operations import delete_food, modify_food_record
+from .food_operations import delete_food, modify_food_record, manual_weight
 from .getter_eater import eater_get_today, eater_get_custom_date, get_recommendation, eater_auth_token
 from .process_photo import eater_get_photo
 
@@ -73,3 +73,12 @@ def eater_auth_request(request):
         logger.info(f"Exception in auth request: {e}")
         return "Failed"
     return auth_response
+
+
+def manual_weight_record(request, user_email):
+    logger.info(f"Processing manual weight for user: {user_email}")
+    try:
+        return manual_weight(request=request, user_email=user_email)
+    except Exception as e:
+        logger.info(f"Exception {e}")
+        return "Failed"

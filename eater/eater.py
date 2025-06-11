@@ -19,6 +19,7 @@ def process_messages():
         "delete_food",
         "modify_food_record",
         "get_recommendation",
+        "manual_weight",
     ]
     logging.info(f"Starting message processing with topics: {topics}")
     while True:
@@ -150,6 +151,17 @@ def process_messages():
                     )
                 elif message.topic() == "get_recommendation":
                     get_recommendation(message_key,value_dict.get("value"), user_email)
+                elif message.topic() == "manual_weight":
+                    # Handle messages from manual_weight endpoint
+                    response_data = value_dict.get("value", {})
+                    message_type = response_data.get("type")
+                    
+                    if message_type == "weight_processing":
+                        logger.info(f"Received manual weight processing for user {user_email}: {response_data}")
+                        process_weight(response_data, user_email)
+                        logger.info(f"Successfully processed manual weight for user {user_email}")
+                    else:
+                        logger.warning(f"Unknown message type '{message_type}' in manual_weight for user {user_email}")
             except Exception as e:
                 logging.error(
                     f"Failed to process message for user {user_email}: {e}, message {value_dict}"
