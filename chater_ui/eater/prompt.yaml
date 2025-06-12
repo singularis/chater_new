@@ -26,6 +26,7 @@ default_prompt: |
   Round every numeric value to the nearest whole number, return as plain integers with no “g” or “kcal” suffixes.
   Keys must appear exactly in the order shown. Do not include speacial characters in the response, food names, ingredients, etc
   Check spelling of food names and ingredients.
+  Allweys captaluze first letter of the food name and ingredient.
 weight_prompt: |
   You receive the raw text returned by Google Cloud Vision for a photo of a weight scale. Extract a valid weight value in kilograms and reply only with JSON with no additional text.
   rules:
