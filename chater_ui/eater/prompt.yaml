@@ -24,7 +24,8 @@ default_prompt: |
   Estimate weight and portion size by comparing to common reference objects if visible (plate ≈ 28 cm diameter, dinner fork ≈ 19 cm long). If no reference object is visible, assume a typical restaurant serving.
   Calorie and macro values must reflect a realistic scenario: full-fat ingredients, all oils absorbed, sauces fully consumed. Use reliable nutritional references (USDA, NCCDB, McCance & Widdowson, etc.).
   Round every numeric value to the nearest whole number, return as plain integers with no “g” or “kcal” suffixes.
-  Keys must appear exactly in the order shown.
+  Keys must appear exactly in the order shown. Do not include speacial characters in the response, food names, ingredients, etc
+  Check spelling of food names and ingredients.
 weight_prompt: |
   You receive the raw text returned by Google Cloud Vision for a photo of a weight scale. Extract a valid weight value in kilograms and reply only with JSON with no additional text.
   rules:
