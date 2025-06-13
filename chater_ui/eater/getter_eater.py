@@ -101,9 +101,13 @@ def eater_get_today(user_email):
         )
         proto_message.total_for_day.contains.sugar = int(contains_data.get("sugar", 0))
 
+        # Handle both old and new weight field names for backward compatibility
         lw = today_food.get("dishes", {}).get("latest_weight", {})
+        if not lw:
+            lw = today_food.get("dishes", {}).get("closest_weight", {})
+        
         logger.info(
-            f"Latest weight for user {user_email}: {lw}, lw.get('weight'): {lw.get('weight')}"
+            f"Weight data for user {user_email}: {lw}, weight value: {lw.get('weight')}"
         )
         proto_message.person_weight = lw.get("weight", 0)
 
@@ -202,9 +206,13 @@ def eater_get_custom_date(request, user_email):
         )
         proto_message.total_for_day.contains.sugar = int(contains_data.get("sugar", 0))
 
-        lw = custom_food.get("dishes", {}).get("latest_weight", {})
+        # Handle both old and new weight field names for backward compatibility
+        lw = custom_food.get("dishes", {}).get("closest_weight", {})
+        if not lw:
+            lw = custom_food.get("dishes", {}).get("latest_weight", {})
+        
         logger.info(
-            f"Latest weight for user {user_email}: {lw}, lw.get('weight'): {lw.get('weight')}"
+            f"Weight data for user {user_email} and date {custom_date}: {lw}, weight value: {lw.get('weight')}"
         )
         proto_message.person_weight = lw.get("weight", 0)
 

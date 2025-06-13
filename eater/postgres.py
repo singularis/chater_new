@@ -267,12 +267,24 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
         day, month, year = custom_date.split('-')
         formatted_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
         
-        latest_weight_entry = (
+        # Get the timestamp for the requested date to find closest weight entry
+        requested_date = datetime.strptime(formatted_date, '%Y-%m-%d')
+        requested_timestamp = int(requested_date.timestamp())
+        
+        # Find weight entry closest to the requested date
+        # First try to get weight entries and find the one with minimum time difference
+        weight_entries = (
             session.query(Weight)
             .filter(Weight.user_email == user_email)
-            .order_by(Weight.time.desc())
-            .first()
+            .all()
         )
+        
+        closest_weight_entry = None
+        if weight_entries:
+            closest_weight_entry = min(
+                weight_entries,
+                key=lambda w: abs(w.time - requested_timestamp)
+            )
 
         total_data = (
             session.query(TotalForDay)
@@ -284,8 +296,8 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
             logger.info(f"No data found in total_for_day for {formatted_date}")
             total_for_day_data = {
                 "total_calories": 0,
-                "total_avg_weight": latest_weight_entry.weight
-                if latest_weight_entry
+                "total_avg_weight": closest_weight_entry.weight
+                if closest_weight_entry
                 else 0,
                 "contains": {},
             }
@@ -294,10 +306,11 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
                 "total_for_day": total_for_day_data,
                 "dishes_today": dishes_list,
             }
-            if latest_weight_entry:
-                result["latest_weight"] = {
-                    "time": latest_weight_entry.time,
-                    "weight": latest_weight_entry.weight,
+            if closest_weight_entry:
+                result["closest_weight"] = {
+                    "time": closest_weight_entry.time,
+                    "weight": closest_weight_entry.weight,
+                    "date": closest_weight_entry.date,
                 }
             return result
         total_for_day_data = {
@@ -325,10 +338,11 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
             "total_for_day": total_for_day_data,
             "dishes_today": dishes_list,
         }
-        if latest_weight_entry:
-            result["latest_weight"] = {
-                "time": latest_weight_entry.time,
-                "weight": latest_weight_entry.weight,
+        if closest_weight_entry:
+            result["closest_weight"] = {
+                "time": closest_weight_entry.time,
+                "weight": closest_weight_entry.weight,
+                "date": closest_weight_entry.date,
             }
 
         logger.info(f"Result of get_custom_date_dishes for {formatted_date}: {result}")
