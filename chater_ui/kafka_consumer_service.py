@@ -195,7 +195,7 @@ class KafkaConsumerService:
         self.threads.clear()
         logger.info("Kafka Consumer Service stopped")
 
-    def get_response_from_redis(self, message_uuid, timeout=30):
+    def get_response_from_redis(self, message_uuid, timeout=60):
         """Get response from Redis by message UUID"""
         start_time = time.time()
         while time.time() - start_time < timeout:
@@ -213,7 +213,7 @@ class KafkaConsumerService:
         logger.warning(f"Timeout waiting for response for UUID: {message_uuid}")
         return None
 
-    def get_user_response_from_redis(self, message_uuid, user_email, timeout=30):
+    def get_user_response_from_redis(self, message_uuid, user_email, timeout=60):
         """Get response from Redis by message UUID for a specific user"""
         start_time = time.time()
         while time.time() - start_time < timeout:
