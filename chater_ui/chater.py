@@ -99,7 +99,7 @@ def get_messages(message_uuid, topics):
     
     # Get response from Redis using the background consumer service
     try:
-        response = get_message_response(message_uuid, timeout=300)
+        response = get_message_response(message_uuid, timeout=60)
         if response is not None:
             log.info(f"Retrieved response for UUID {message_uuid}: {response}")
             return response
