@@ -1,7 +1,8 @@
 default_prompt: |
-  Analyze a single photo and respond exclusively with a valid JSON object—no extra text, comments, or code fences. 
-  Keys must appear exactly in the order shown below, and all numeric outputs must be whole integers without units.
-  First, decide if the main subject is edible. If it is clearly not food or drink, return:
+  Analyse a single photo and respond exclusively with a valid JSON object—no extra text, comments, or code fences. 
+  Keys must appear precisely in the order shown below, and all numeric outputs must be whole integers without units.
+  If the main subject **is** food or drink (including packaged items such as a Coca‑Cola can, wrapped candy bar, or bottled drinks)
+  First, decide if the main subject is edible. If it is not food or drink, return:
   {
   "error": "NOT A FOOD"
   }
@@ -20,13 +21,22 @@ default_prompt: |
   }
   }
   Additional rules:
-  Base calorie and macronutrient estimates on typical serving sizes from reliable nutritional references and assume worst-case values (full-fat ingredients, all cooking oil absorbed, and all dressings or sauces fully consumed).
-  Estimate weight and portion size by comparing to common reference objects if visible (plate ≈ 28 cm diameter, dinner fork ≈ 19 cm long). If no reference object is visible, assume a typical restaurant serving.
-  Calorie and macro values must reflect a realistic scenario: full-fat ingredients, all oils absorbed, sauces fully consumed. Use reliable nutritional references (USDA, NCCDB, McCance & Widdowson, etc.).
+  Base calorie and macronutrient estimates on typical serving sizes from reliable nutritional references, assuming worst-case values (full-fat ingredients, all cooking oil absorbed, and all dressings or sauces fully consumed).
+  Calorie and macro values must reflect a realistic scenario: full-fat ingredients, all oils absorbed, and sauces fully consumed. Use reliable nutritional references (USDA, NCCDB, McCance & Widdowson, etc.).
+  Keys must appear precisely in the order shown. Do not include special characters like @, #, $, %, ^, &, *, (, ), [, ], {, }, |, \, ' in the response, food names, ingredients, etc
+  Nutritional Logic:
+  Base all estimates on reliable nutritional references (e.g., USDA FoodData Central, NCCDB).
+  Assume a "worst-case" nutritional scenario: use full-fat and full-sugar ingredients, assume all cooking oil is absorbed, and that all visible dressings or sauces are consumed.
+  Portion Size Estimation Hierarchy:
+  Estimate weight and portion size using the following methods in order of priority:
+  Known Volume/Weight: If the item is a packaged product with a visible label (e.g., "330ml can," "50g chocolate bar"), use that as the primary source for its weight.
+  Visible Reference Objects: If visible, compare the food's size to everyday objects. Use the following standard dimensions: dinner plate (≈approximately 28 cm), dinner fork (≈approximately 19 cm), human hand (width ≈approximately 9 cm), and credit card (≈approximately 8.5 cm).
+  Implied Culinary Standards: If no reference object is visible, estimate based on typical culinary standards for the identified dish (e.g., a standard single-serving pizza is ~250-350g, a restaurant steak serving is ~225g, a can of soda is 330g).
+  Formatting and Character Rules:
+  Numeric Values: Round every numeric value to the nearest whole number. Return as a plain integer without any units (e.g., "g" or "kcal"). The keys `total_avg_weight_g` and `contains_g` are named to clarify the unit without including it in the value.
+  String Content: All strings (`dish_name` and `ingredients`) must only contain lowercase alphanumeric characters (a-z, 0-9) and spaces. Capitalize first letter of first word of dish_name and ingredients. Remove all other characters, such as punctuation, hyphens, or symbols.
+  Spelling: Ensure all food and ingredient names are spelt correctly before applying formatting rules.
   Round every numeric value to the nearest whole number, return as plain integers with no “g” or “kcal” suffixes.
-  Keys must appear exactly in the order shown. Do not include speacial characters in the response, food names, ingredients, etc
-  Check spelling of food names and ingredients.
-  Allweys captaluze first letter of the food name, only first later of first word capitalize and ingredient.
 weight_prompt: |
   You receive the raw text returned by Google Cloud Vision for a photo of a weight scale. Extract a valid weight value in kilograms and reply only with JSON with no additional text.
   rules:
