@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package Eater;
+
+message FeedbackRequest {
+  string time = 1;
+  string userEmail = 2;
+  string feedback = 3;
+}
+
+message FeedbackResponse {
+  bool success = 1;
+}
+
+service FeedbackService {
+  rpc SubmitFeedback (FeedbackRequest) returns (FeedbackResponse);
+} 
