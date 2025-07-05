@@ -86,6 +86,8 @@
                         value: "{{ vars.REDIS_ENDPOINT }}"
                       - name: FLASK_DEBUG
                         value: "true"
+                      - name: DAILY_REQUEST_LIMIT
+                        value: "20"
                 volumes:
                   - name: chater-ui-pvc
                     persistentVolumeClaim:

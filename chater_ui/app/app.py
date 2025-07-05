@@ -5,7 +5,7 @@ import atexit
 import context
 import redis
 from common import (before_request, chater_clear, generate_session_secret,
-                    token_required)
+                    token_required, rate_limit_required)
 from flask import Flask, jsonify, render_template, request, session
 from flask_cors import CORS
 from flask_session import Session
@@ -138,6 +138,7 @@ def eater(user_email):
 
 @app.route("/eater_receive_photo", methods=["POST"])
 @token_required
+@rate_limit_required
 def eater_receive_photo(user_email):
     return eater_photo(user_email=user_email)
 
@@ -168,6 +169,7 @@ def modify_food(user_email):
 
 @app.route("/get_recommendation", methods=["POST"])
 @token_required
+@rate_limit_required
 def recommendations(user_email):
     recommendation = get_recommendations(request=request, user_email=user_email)
     return recommendation
@@ -184,8 +186,6 @@ def manual_weight(user_email):
     return manual_weight_record(request=request, user_email=user_email)
 
 
-# Personal development configuration
-# When run with gunicorn, this block won't execute
 if __name__ == "__main__":
     # Local development with debug logging enabled
     logging.getLogger("werkzeug").setLevel(logging.DEBUG)

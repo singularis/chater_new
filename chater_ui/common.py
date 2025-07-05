@@ -6,17 +6,21 @@ import re
 import secrets
 import string
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 import jwt
 import yaml
 from flask import flash, jsonify, redirect, request, url_for
 from PIL import Image
+import redis
 
 log = logging.getLogger("main")
 SECRET_KEY = str(os.getenv("EATER_SECRET_KEY"))
 PROMPT_FILE = "eater/prompt.yaml"
+
+# Redis client for rate limiting
+redis_client = redis.StrictRedis(host=os.getenv("REDIS_ENDPOINT"), port=6379, db=0)
 
 
 def get_jwt_secret_key():
@@ -101,6 +105,63 @@ def token_required(f):
         return f(*args, **kwargs)
 
     return wrapper
+
+
+def rate_limit_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        # Get user_email from kwargs (should be set by token_required decorator)
+        user_email = kwargs.get("user_email")
+        daily_limit = int(os.getenv("DAILY_REQUEST_LIMIT", "10"))
+        if not user_email:
+            logging.error("Rate limit check failed: no user_email found")
+            return jsonify({"message": "Authentication required"}), 401
+        
+        # Check rate limit
+        if not check_rate_limit(user_email):
+            logging.warning(f"Rate limit exceeded for user: {user_email}")
+            return jsonify({"error": f"Unfortuantly, you have reached your daily limit of {daily_limit} requests. Please try again tomorrow, be mingfull and eat healthy food."}), 400
+            
+        return f(*args, **kwargs)
+    
+    return wrapper
+
+
+def check_rate_limit(user_email):
+    """Check if user has exceeded daily rate limit"""
+    try:
+        # Get daily limit from environment variable
+        daily_limit = int(os.getenv("DAILY_REQUEST_LIMIT", "10"))
+        
+        # Get current UTC date as key
+        current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        redis_key = f"rate_limit:{user_email}:{current_date}"
+        
+        # Get current count
+        current_count = redis_client.get(redis_key)
+        if current_count is None:
+            current_count = 0
+        else:
+            current_count = int(current_count)
+        
+        # Check if limit exceeded
+        if current_count >= daily_limit:
+            logging.warning(f"Rate limit exceeded for user {user_email}: {current_count}/{daily_limit}")
+            return False
+        
+        # Increment counter
+        redis_client.incr(redis_key)
+        
+        next_day = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        expiry_seconds = int((next_day - datetime.now(timezone.utc)).total_seconds())
+        redis_client.expire(redis_key, expiry_seconds)
+        
+        logging.info(f"Rate limit check passed for user {user_email}: {current_count + 1}/{daily_limit}")
+        return True
+        
+    except Exception as e:
+        logging.error(f"Error checking rate limit for user {user_email}: {e}")
+        return True
 
 
 def get_prompt(key):
