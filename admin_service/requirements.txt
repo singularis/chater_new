@@ -1,0 +1,6 @@
+confluent_kafka
+psycopg2-binary
+flask
+flask-cors
+gunicorn
+python-dotenv 
