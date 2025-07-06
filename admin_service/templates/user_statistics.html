@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Eateria Admin Service - User Statistics{% endblock %}
+
+{% block extra_css %}
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stats-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid #3498db;
+}
+
+.stats-card.users {
+    border-left-color: #2ecc71;
+}
+
+.stats-card.active {
+    border-left-color: #f39c12;
+}
+
+.stats-card.records {
+    border-left-color: #e74c3c;
+}
+
+.stats-card.average {
+    border-left-color: #9b59b6;
+}
+
+.stats-card.constantly-active {
+    border-left-color: #e67e22;
+}
+
+h2 {
+    color: #2c3e50;
+    margin-top: 40px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #ecf0f1;
+}
+
+.engagement-summary {
+    background-color: #e8f5e8;
+    border: 1px solid #2ecc71;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.engagement-summary p {
+    margin: 0;
+    font-size: 1.1em;
+    color: #27ae60;
+}
+
+.stats-number {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.stats-label {
+    color: #7f8c8d;
+    font-size: 1.1em;
+    margin-bottom: 5px;
+}
+
+.stats-description {
+    color: #95a5a6;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.stats-icon {
+    font-size: 2em;
+    margin-bottom: 15px;
+}
+
+.email-list {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #ecf0f1;
+}
+
+.email-badge {
+    display: inline-block;
+    background-color: #3498db;
+    color: white;
+    padding: 4px 8px;
+    margin: 2px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-family: monospace;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>📊 User Statistics</h1>
+
+<!-- Overall Statistics -->
+<h2>📋 Overall Statistics</h2>
+
+<div class="engagement-summary">
+    <p><strong>User Engagement:</strong> 
+        {% if statistics.total_users > 0 %}
+            {{ ((statistics.active_users_30_days / statistics.total_users) * 100)|round(1) }}% of users were active in the last 30 days
+        {% else %}
+            No user activity data available
+        {% endif %}
+    </p>
+</div>
+
+<div class="stats-grid">
+    <div class="stats-card users">
+        <div class="stats-icon">👥</div>
+        <div class="stats-number">{{ statistics.total_users }}</div>
+        <div class="stats-label">Total Users</div>
+        <div class="stats-description">Unique users who have provided feedback</div>
+    </div>
+
+    <div class="stats-card records">
+        <div class="stats-icon">🍽️</div>
+        <div class="stats-number">{{ statistics.total_dishes_scanned }}</div>
+        <div class="stats-label">Total Dishes Scanned</div>
+        <div class="stats-description">Total number of food items scanned by all users</div>
+    </div>
+
+    <div class="stats-card average">
+        <div class="stats-icon">📈</div>
+        <div class="stats-number">{{ statistics.avg_dishes_per_user }}</div>
+        <div class="stats-label">Average Dishes per User</div>
+        <div class="stats-description">Average number of dishes scanned per user</div>
+    </div>
+
+    <div class="stats-card records">
+        <div class="stats-icon">📝</div>
+        <div class="stats-number">{{ statistics.total_feedback_records }}</div>
+        <div class="stats-label">Total Feedback Records</div>
+        <div class="stats-description">Total number of feedback submissions</div>
+    </div>
+</div>
+
+<!-- Active Users Section -->
+<h2>📱 Active Users (At Least One Scan)</h2>
+<div class="stats-grid">
+    <div class="stats-card active">
+        <div class="stats-icon">📱</div>
+        <div class="stats-number">{{ statistics.active_users_7_days }}</div>
+        <div class="stats-label">Active Users (7 days)</div>
+        <div class="stats-description">Users who scanned at least one food in the past 7 days</div>
+    </div>
+
+    <div class="stats-card active">
+        <div class="stats-icon">📅</div>
+        <div class="stats-number">{{ statistics.active_users_30_days }}</div>
+        <div class="stats-label">Active Users (30 days)</div>
+        <div class="stats-description">Users who scanned at least one food in the past 30 days</div>
+    </div>
+</div>
+
+<!-- Constantly Active Users Section -->
+<h2>🔥 Constantly Active Users (Every Day)</h2>
+<div class="stats-grid">
+    <div class="stats-card constantly-active">
+        <div class="stats-icon">🔥</div>
+        <div class="stats-number">{{ statistics.constantly_active_7_days }}</div>
+        <div class="stats-label">Constantly Active (7 days)</div>
+        <div class="stats-description">Users who scanned food EVERY DAY for 7 consecutive days</div>
+        {% if statistics.constantly_active_7_days_emails %}
+        <div class="email-list">
+            {% for email in statistics.constantly_active_7_days_emails %}
+                <span class="email-badge">{{ email }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="stats-card constantly-active">
+        <div class="stats-icon">🏆</div>
+        <div class="stats-number">{{ statistics.constantly_active_30_days }}</div>
+        <div class="stats-label">Constantly Active (30 days)</div>
+        <div class="stats-description">Users who scanned food EVERY DAY for 30 consecutive days</div>
+        {% if statistics.constantly_active_30_days_emails %}
+        <div class="email-list">
+            {% for email in statistics.constantly_active_30_days_emails %}
+                <span class="email-badge">{{ email }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="feedback-card">
+    <h3>📋 Statistics Summary</h3>
+    <p><strong>Food Scanning Activity:</strong>
+        {% if statistics.total_dishes_scanned > 0 %}
+            {{ statistics.total_dishes_scanned }} total dishes scanned by {{ statistics.total_users }} users
+        {% else %}
+            No food scanning activity yet
+        {% endif %}
+    </p>
+    <p><strong>Feedback Activity:</strong>
+        {% if statistics.total_feedback_records > 0 %}
+            {{ statistics.total_feedback_records }} feedback submissions received
+        {% else %}
+            No feedback submissions yet
+        {% endif %}
+    </p>
+</div>
+{% endblock %} 

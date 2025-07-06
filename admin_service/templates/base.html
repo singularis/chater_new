@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Eateria Admin Service{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="admin-container">
+        <div class="sidebar">
+            <h2>🤖 Eateria Admin</h2>
+            <div class="menu-item {% if request.endpoint == 'index' %}active{% endif %}" onclick="window.location.href='/'">
+                🏠 Home
+            </div>
+            <div class="menu-item {% if request.endpoint == 'user_statistics' %}active{% endif %}" onclick="window.location.href='/statistics'">
+                📊 User Statistics
+            </div>
+            <div class="menu-item {% if request.endpoint == 'feedbacks' %}active{% endif %}" onclick="window.location.href='/feedbacks'">
+                📝 Feedbacks
+            </div>
+        </div>
+        <div class="main-content{% if centered %} centered{% endif %}">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+</body>
+</html> 

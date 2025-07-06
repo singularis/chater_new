@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Eateria Admin Service - Home{% endblock %}
+
+{% set centered = true %}
+
+{% block content %}
+<div class="welcome-card">
+    <div class="welcome-title">Welcome to Eateria Admin Service</div>
+    <div class="welcome-subtitle">Your comprehensive administration dashboard</div>
+    
+    <div class="feature-grid">
+        <div class="feature-item" onclick="window.location.href='/statistics'">
+            <div class="feature-icon">📊</div>
+            <div class="feature-title">User Statistics</div>
+            <div class="feature-desc">View user engagement and activity statistics</div>
+        </div>
+        <div class="feature-item" onclick="window.location.href='/feedbacks'">
+            <div class="feature-icon">📝</div>
+            <div class="feature-title">User Feedbacks</div>
+            <div class="feature-desc">View and manage user feedback submissions</div>
+        </div>
+
+    </div>
+    
+    <div class="stats-overview">
+        <h3>Quick Stats Overview</h3>
+        <div class="quick-stats">
+            <div class="quick-stat">
+                <span class="stat-number">{{ statistics.total_users }}</span>
+                <span class="stat-label">Total Users</span>
+            </div>
+            <div class="quick-stat">
+                <span class="stat-number">{{ statistics.active_users_7_days }}</span>
+                <span class="stat-label">Active (7 days)</span>
+            </div>
+            <div class="quick-stat">
+                <span class="stat-number">{{ statistics.total_dishes_scanned }}</span>
+                <span class="stat-label">Total Dishes</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

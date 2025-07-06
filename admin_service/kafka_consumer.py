@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from datetime import time
+import time
 
 from confluent_kafka import Consumer, KafkaError, KafkaException
 from logging_config import setup_logging
@@ -11,6 +11,7 @@ logger = logging.getLogger("kafka_consumer")
 
 
 def create_consumer(topics):
+    """Create a Kafka consumer for specified topics."""
     if not isinstance(topics, list):
         logger.error("Expected list of topic unicode strings")
         raise TypeError("Expected list of topic unicode strings")
@@ -33,7 +34,6 @@ def create_consumer(topics):
             logger.info(f"Partitions revoked: {partitions}")
 
         consumer.subscribe(topics, on_assign=on_assign, on_revoke=on_revoke)
-        logger.info(f"Subscribed to topics: {topics}")
         return consumer
     except KafkaException as e:
         logger.error(f"Failed to create consumer: {str(e)}")
@@ -41,6 +41,7 @@ def create_consumer(topics):
 
 
 def consume_messages(consumer, expected_user_email=None):
+    """Consume messages from Kafka topics."""
     try:
         while True:
             msg = consumer.poll(1.0)
@@ -48,9 +49,6 @@ def consume_messages(consumer, expected_user_email=None):
                 continue
             if msg.error():
                 if msg.error().code() == KafkaError._PARTITION_EOF:
-                    logger.info(
-                        f"End of partition reached for topic {msg.topic()} partition {msg.partition()} offset {msg.offset()}"
-                    )
                     continue
                 elif msg.error().code() == KafkaError.BROKER_NOT_AVAILABLE:
                     logger.error("Broker not available. Retrying in 5 seconds...")
@@ -71,9 +69,6 @@ def consume_messages(consumer, expected_user_email=None):
                     if isinstance(value, dict)
                     else "unknown"
                 )
-                logger.info(
-                    f"Consumed message for user {user_email}: {msg.key()} - {msg.value()}"
-                )
                 yield msg
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse message as JSON: {str(e)}")
@@ -87,4 +82,3 @@ def consume_messages(consumer, expected_user_email=None):
         raise
     finally:
         consumer.close()
-        logger.info("Consumer closed")

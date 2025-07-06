@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Eateria Admin Service - Feedbacks{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/feedback.css') }}">
+{% endblock %}
+
+{% block content %}
+<h1>📝 User Feedbacks</h1>
+
+<div class="stats">
+    <strong>Total Feedbacks: {{ total_count }}</strong>
+</div>
+
+{% if feedback_data %}
+    {% for feedback in feedback_data %}
+    <div class="feedback-card">
+        <div class="feedback-header">
+            <div class="user-email">{{ feedback.user_email }}</div>
+            <div class="date">{{ feedback.date }}</div>
+        </div>
+        <div class="feedback-text">{{ feedback.feedback }}</div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="no-feedback">
+        <p>No feedback available yet.</p>
+    </div>
+{% endif %}
+{% endblock %} 
