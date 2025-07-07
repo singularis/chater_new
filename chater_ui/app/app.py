@@ -6,7 +6,7 @@ import context
 import redis
 from common import (before_request, chater_clear, generate_session_secret,
                     token_required, rate_limit_required)
-from flask import Flask, jsonify, render_template, request, session
+from flask import Flask, jsonify, render_template, request, session, redirect, url_for, flash
 from flask_cors import CORS
 from flask_session import Session
 from google_ops import create_google_blueprint, g_login
@@ -20,6 +20,7 @@ from chater import chater as chater_ui
 from eater.eater import (delete_food_record, eater_photo, eater_today, eater_custom_date,
                          get_recommendations, modify_food_record_data, eater_auth_request, manual_weight_record)
 from eater.feedback import submit_feedback_request
+from eater_admin import eater_admin_request
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -191,6 +192,11 @@ def manual_weight(user_email):
 @token_required
 def submit_feedback(user_email):
     return submit_feedback_request(user_email=user_email)
+
+
+@app.route("/eater_admin", methods=["GET", "POST"])
+def eater_admin():
+    return eater_admin_request(session)
 
 
 if __name__ == "__main__":
