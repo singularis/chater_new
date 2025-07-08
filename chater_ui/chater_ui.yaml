@@ -26,6 +26,10 @@
             namespace: chater-ui
           spec:
             replicas: 1
+            strategy:
+              type: RollingUpdate
+              rollingUpdate:
+                maxUnavailable: 1
             selector:
               matchLabels:
                 app: chater-ui
@@ -88,6 +92,17 @@
                         value: "true"
                       - name: DAILY_REQUEST_LIMIT
                         value: "20"
+                      - name: POSTGRES_USER
+                        value: "{{ vars.EATER.DB_NAME }}"
+                      - name: POSTGRES_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: "{{ vars.EATER.DB_PASSWORD }}"
+                            key: password
+                      - name: POSTGRES_DB
+                        value: "{{ vars.EATER.DB_NAME }}"
+                      - name: POSTGRES_HOST
+                        value: "{{ vars.EATER.POSTGRES_HOST }}"
                 volumes:
                   - name: chater-ui-pvc
                     persistentVolumeClaim:

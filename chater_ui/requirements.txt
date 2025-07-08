@@ -15,3 +15,5 @@ pillow==11.0.0
 flask_session==0.8.0
 redis==5.2.0
 gunicorn==23.0.0
+sqlalchemy
+psycopg2-binary

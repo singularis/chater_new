@@ -14,6 +14,7 @@ import yaml
 from flask import flash, jsonify, redirect, request, url_for
 from PIL import Image
 import redis
+from user import update_user_activity
 
 log = logging.getLogger("main")
 SECRET_KEY = str(os.getenv("EATER_SECRET_KEY"))
@@ -95,6 +96,8 @@ def token_required(f):
             decoded_token = jwt.decode(token, jwt_secret, algorithms=["HS256"])
             logging.debug("Decoded token subject: %s", decoded_token.get("sub"))
             kwargs["user_email"] = decoded_token.get("sub")
+            if kwargs["user_email"]:
+                update_user_activity(kwargs["user_email"])
         except jwt.ExpiredSignatureError:
             logging.debug("Token has expired")
             return jsonify({"message": "Token has expired"}), 401
