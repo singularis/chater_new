@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+websockets
+sqlalchemy
+asyncpg
+psycopg2-binary
+pyjwt
+python-multipart
+python-jose[cryptography]
+python-dotenv
+pydantic
+typing-extensions
+databases[postgresql]

@@ -447,11 +447,9 @@ def create_tables():
                 
                 logger.info("Index creation completed")
                 
-                # Verify indexes were created
                 logger.info("Verifying index creation...")
                 verify_indexes(connection)
                 
-                # Update table statistics for better query planning
                 logger.info("Updating table statistics...")
                 for table_name in existing_tables:
                     try:
