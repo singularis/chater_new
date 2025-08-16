@@ -23,11 +23,9 @@ def get_jwt_secret_key():
     
     secret_bytes = SECRET_KEY.encode('utf-8')
     
-    # If the secret is already 32+ bytes, use it directly
     if len(secret_bytes) >= 32:
         return SECRET_KEY
     
-    # Derive a 256-bit key from the secret using SHA-256
     hash_obj = hashlib.sha256(secret_bytes)
     derived_key = hash_obj.digest()
     log.debug(
