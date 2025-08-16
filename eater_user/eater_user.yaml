@@ -116,3 +116,23 @@
                 targetPort: 8000
                 name: http
             type: ClusterIP
+
+    - name: Create eater LoadBalancer Service for MetalLB
+      kubernetes.core.k8s:
+        state: present
+        namespace: eater
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: eater-users-lb
+            namespace: eater
+          spec:
+            selector:
+              app: eater-users
+            ports:
+              - protocol: TCP
+                port: 80
+                targetPort: 8000
+                name: http
+            type: LoadBalancer

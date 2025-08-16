@@ -10,23 +10,31 @@ from functools import wraps
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("main")
 
-SECRET_KEY = str(os.getenv("SECRET_KEY", "your-secret-key-here"))
+SECRET_KEY = os.getenv("EATER_SECRET_KEY")
 
 
 def get_jwt_secret_key():
     """
     Get the JWT secret key, deriving a 256-bit key if the original is too short.
+    This mirrors the logic used in the UI service for consistent token validation.
     """
     if not SECRET_KEY:
-        raise ValueError("SECRET_KEY environment variable not set")
+        raise ValueError("EATER_SECRET_KEY environment variable not set")
+    
     secret_bytes = SECRET_KEY.encode('utf-8')
+    
+    # If the secret is already 32+ bytes, use it directly
     if len(secret_bytes) >= 32:
         return SECRET_KEY
-    else:
-        hash_obj = hashlib.sha256(secret_bytes)
-        derived_key = hash_obj.digest()
-        log.debug("Secret key was too short (%d bits), derived 256-bit key using SHA-256", len(secret_bytes) * 8)
-        return derived_key
+    
+    # Derive a 256-bit key from the secret using SHA-256
+    hash_obj = hashlib.sha256(secret_bytes)
+    derived_key = hash_obj.digest()
+    log.debug(
+        "Secret key was too short (%d bits), derived 256-bit key using SHA-256",
+        len(secret_bytes) * 8,
+    )
+    return derived_key
 
 
 def verify_jwt_token(token: str):
