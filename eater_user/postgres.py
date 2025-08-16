@@ -53,46 +53,52 @@ async def autocomplete_query(query: str, limit: int, user_email: str):
     Optimized autocomplete query for email search (WebSocket only)
     Excludes current user from results
     """
-    # Sanitize and limit query length
-    query = query.strip()[:100]
-    if len(query) < 2:
-        return []
+    try:
+        # Sanitize and limit query length
+        query = query.strip()[:100]
+        if len(query) < 2:
+            return []
     
-    search_query = """
-        SELECT email, register_date, last_activity
-        FROM "user" 
-        WHERE email ILIKE $1
-        AND email != $5
-        ORDER BY 
-            CASE 
-                WHEN email ILIKE $2 THEN 1  -- Exact prefix match
-                WHEN email ILIKE $3 THEN 2  -- Domain match  
-                ELSE 3                      -- Contains match
-            END,
-            length(email),                  -- Shorter emails first
-            email                           -- Alphabetical consistency
-        LIMIT $4
-    """
-    
-    like_query = f"%{query}%"
-    starts_with_query = f"{query}%"
-    domain_query = f"%@{query}%"
-    
-    results = await database.fetch_all(
-        search_query,
-        like_query,
-        starts_with_query,
-        domain_query, 
-        limit,
-        user_email  # Exclude current user
-    )
-    
-    users = [
-        {
-            "email": row["email"],
-            "register_date": row["register_date"],
-            "last_activity": row["last_activity"]
-        }
-        for row in results
-    ]
-    return users
+        search_query = """
+            SELECT email, register_date, last_activity
+            FROM "user" 
+            WHERE email ILIKE :like_query
+            AND email != :user_email
+            ORDER BY 
+                CASE 
+                    WHEN email ILIKE :starts_with THEN 1  -- Exact prefix match
+                    WHEN email ILIKE :domain_query THEN 2  -- Domain match  
+                    ELSE 3                      -- Contains match
+                END,
+                length(email),                  -- Shorter emails first
+                email                           -- Alphabetical consistency
+            LIMIT :limit
+        """
+        
+        like_query = f"%{query}%"
+        starts_with_query = f"{query}%"
+        domain_query = f"%@{query}%"
+        
+        results = await database.fetch_all(
+            search_query,
+            values={
+                "like_query": like_query,
+                "starts_with": starts_with_query,
+                "domain_query": domain_query, 
+                "limit": limit,
+                "user_email": user_email
+            }
+        )
+        
+        users = []
+        for row in results:
+            user = {
+                "email": row["email"],
+                "register_date": row["register_date"].isoformat() if row["register_date"] else None,
+                "last_activity": row["last_activity"].isoformat() if row["last_activity"] else None
+            }
+            users.append(user)
+        return users
+    except Exception as e:
+        logger.error(f"Error in autocomplete_query: {str(e)}")
+        raise

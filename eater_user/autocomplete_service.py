@@ -34,14 +34,21 @@ manager = ConnectionManager()
 
 @app.on_event("startup")
 async def startup():
-    await database.connect()
-    logger.info("Database connected")
-    logger.info("Autocomplete service ready")
+    try:
+        await database.connect()
+        logger.info("Database connected")
+        logger.info("Autocomplete service ready")
+    except Exception as e:
+        logger.error(f"Failed to connect to database: {str(e)}")
+        raise
 
 @app.on_event("shutdown")
 async def shutdown():
-    await database.disconnect()
-    logger.info("Database disconnected")
+    try:
+        await database.disconnect()
+        logger.info("Database disconnected")
+    except Exception as e:
+        logger.error(f"Error disconnecting from database: {str(e)}")
 
 @app.get("/health")
 async def health_check():
@@ -108,31 +115,56 @@ async def websocket_autocomplete(websocket: WebSocket):
         while True:
             try:
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
-                message = json.loads(data)
+                if not data.strip():
+                    continue
+                    
+                try:
+                    message = json.loads(data)
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Invalid JSON received: {data[:100]}... Error: {str(e)}")
+                    await websocket.send_text(json.dumps({"error": "Invalid JSON format"}))
+                    continue
+                    
                 if message.get("type") == "search":
                     query = message.get("query", "").strip()
                     limit = min(message.get("limit", 10), 50)
                     if len(query) < 2:
-                        await websocket.send_text(json.dumps({
+                        response = {
                             "type": "results",
                             "results": [],
                             "query": query,
                             "message": "Query too short"
-                        }))
+                        }
+                        await websocket.send_text(json.dumps(response))
                         continue
-                    users = await autocomplete_query(query, limit, user_email)
-                    await websocket.send_text(json.dumps({
-                        "type": "results",
-                        "results": users,
-                        "query": query,
-                        "count": len(users)
-                    }))
+                        
+                    try:
+                        users = await autocomplete_query(query, limit, user_email)
+                        response = {
+                            "type": "results",
+                            "results": users,
+                            "query": query,
+                            "count": len(users)
+                        }
+                        await websocket.send_text(json.dumps(response))
+                    except Exception as e:
+                        logger.error(f"Database query error: {str(e)}")
+                        await websocket.send_text(json.dumps({
+                            "type": "error",
+                            "message": "Database query failed"
+                        }))
+                        
                 elif message.get("type") == "ping":
                     await websocket.send_text(json.dumps({"type": "pong"}))
+                    
             except asyncio.TimeoutError:
                 await websocket.send_text(json.dumps({"type": "ping"}))
-            except json.JSONDecodeError:
-                await websocket.send_text(json.dumps({"error": "Invalid JSON"}))
+            except Exception as e:
+                logger.error(f"Message processing error: {str(e)}")
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "message": "Message processing failed"
+                }))
     except WebSocketDisconnect:
         if user_email:
             manager.disconnect(websocket, user_email)
