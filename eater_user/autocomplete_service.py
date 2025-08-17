@@ -1,10 +1,10 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.responses import Response
 import uvicorn
 import asyncio
 import json
 from starlette.websockets import WebSocketState
-from common import get_current_user, validate_websocket_token
+from common import token_required, validate_websocket_token
 from postgres import database, autocomplete_query
 from neo4j_connection import neo4j_connection
 from proto import add_friend_pb2
@@ -68,7 +68,8 @@ async def readiness_check():
         raise HTTPException(status_code=503, detail="Service not ready")
 
 @app.post("/autocomplete/addfriend", responses={200: {"content": {"application/x-protobuf": {}}}})
-async def add_friend_endpoint(request: Request, user_email: str = Depends(get_current_user)):
+@token_required
+async def add_friend_endpoint(request: Request, user_email: str):
     try:
         body = await request.body()
         if not body:

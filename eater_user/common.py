@@ -2,6 +2,7 @@ import os
 import hashlib
 import jwt
 import json
+from functools import wraps
 from fastapi import HTTPException, Request
 
 SECRET_KEY = os.getenv("EATER_SECRET_KEY")
@@ -51,6 +52,15 @@ def validate_jwt_token(auth_header: str) -> str:
 async def get_current_user(request: Request) -> str:
     auth_header = request.headers.get("Authorization")
     return validate_jwt_token(auth_header)
+
+def token_required(f):
+    async def wrapper(request: Request):
+        auth_header = request.headers.get("Authorization")
+        user_email = validate_jwt_token(auth_header)
+        
+        return await f(request, user_email)
+    
+    return wrapper
 
 async def validate_websocket_token(websocket, auth_data: str) -> str:
     try:
