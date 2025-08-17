@@ -1,17 +1,18 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
-from fastapi.responses import Response
-import uvicorn
 import asyncio
 import json
-import uuid
 import logging
+import uuid
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
+from fastapi.responses import Response
 from starlette.websockets import WebSocketState
+
 from common import token_required, validate_websocket_token
-from postgres import database, autocomplete_query
 from neo4j_connection import neo4j_connection
+from postgres import database, autocomplete_query, get_food_record_by_time
 from proto import add_friend_pb2, get_friends_pb2, share_food_pb2
-from postgres import get_food_record_by_time
 from kafka_producer import produce_message
+import uvicorn
 
 app = FastAPI(title="Autocomplete Service", version="1.0.0")
 
@@ -24,7 +25,7 @@ async def safe_send_websocket_message(websocket: WebSocket, message: dict) -> bo
             await websocket.send_text(json.dumps(message))
             return True
         return False
-    except:
+    except Exception:
         return False
 
 class ConnectionManager:
@@ -42,9 +43,6 @@ class ConnectionManager:
         if user_email in self.user_connections:
             del self.user_connections[user_email]
 
-    async def send_personal_message(self, message: str, user_email: str):
-        if user_email in self.user_connections:
-            await self.user_connections[user_email].send_text(message)
 
 manager = ConnectionManager()
 
@@ -63,7 +61,7 @@ async def health_check():
     try:
         await database.fetch_one("SELECT 1")
         return {"status": "healthy", "service": "autocomplete-service"}
-    except:
+    except Exception:
         raise HTTPException(status_code=503, detail="Service unhealthy")
 
 @app.get("/ready")
@@ -71,7 +69,7 @@ async def readiness_check():
     try:
         await database.fetch_one("SELECT 1")
         return {"status": "ready", "service": "autocomplete-service"}
-    except:
+    except Exception:
         raise HTTPException(status_code=503, detail="Service not ready")
 
 @app.post("/autocomplete/addfriend", responses={200: {"content": {"application/x-protobuf": {}}}})
@@ -109,7 +107,7 @@ async def add_friend_endpoint(request: Request, user_email: str):
         
     except HTTPException:
         raise
-    except:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/autocomplete/getfriend", responses={200: {"content": {"application/x-protobuf": {}}}})
@@ -129,7 +127,7 @@ async def get_friends_endpoint(request: Request, user_email: str):
         
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/autocomplete/sharefood", responses={200: {"content": {"application/x-protobuf": {}}}})
@@ -153,9 +151,7 @@ async def share_food_endpoint(request: Request, user_email: str):
         from_email = share_request.from_email.strip()
         to_email = share_request.to_email.strip()
         percentage = int(share_request.percentage)
-        logger.info(
-            f"/autocomplete/sharefood: parsed time={time_value}, from={from_email}, to={to_email}, percentage={percentage}"
-        )
+        logger.info("/autocomplete/sharefood: parsed request")
 
         if not from_email or not to_email:
             logger.warning("/autocomplete/sharefood: missing from_email or to_email")
@@ -167,16 +163,14 @@ async def share_food_endpoint(request: Request, user_email: str):
             logger.warning(f"/autocomplete/sharefood: invalid percentage={percentage}")
             raise HTTPException(status_code=400, detail="percentage must be between 1 and 99")
 
-        # 1) Fetch original food record
+        # Fetch original food record
         food_record = await get_food_record_by_time(time_value, from_email)
         if not food_record:
             logger.warning(f"/autocomplete/sharefood: food record not found time={time_value} user={from_email}")
             raise HTTPException(status_code=404, detail="Food record not found")
-        logger.info(
-            f"/autocomplete/sharefood: found record dish={food_record.get('dish_name')} weight={food_record.get('total_avg_weight')} calories={food_record.get('estimated_avg_calories')}"
-        )
+        # Found source record
 
-        # 2) Build message for friend (to_email)
+        # Build message for friend (to_email)
         friend_factor = percentage / 100.0
         raw_contains = food_record.get("contains")
         parsed_contains = {}
@@ -191,7 +185,7 @@ async def share_food_endpoint(request: Request, user_email: str):
         else:
             parsed_contains = {}
 
-        # Scale only top-level numeric values, mirror eater.modify_food logic
+        # Scale only top-level numeric values
         scaled_contains = {}
         for key, value in parsed_contains.items():
             if isinstance(value, (int, float)):
@@ -215,10 +209,10 @@ async def share_food_endpoint(request: Request, user_email: str):
                 "analysis": json.dumps(friend_message),
             },
         }
-        logger.info(f"/autocomplete/sharefood: sending friend payload to={to_email} key={friend_payload['key']}")
+        # Send friend payload
         produce_message(topic="photo-analysis-response", message=friend_payload)
 
-        # 3) Modify original record after sending friend message
+        # Modify original record after sending friend message
         remaining_percentage = 100 - percentage
         modify_payload = {
             "key": str(uuid.uuid4()),
@@ -228,12 +222,12 @@ async def share_food_endpoint(request: Request, user_email: str):
                 "percentage": remaining_percentage,
             },
         }
-        logger.info(f"/autocomplete/sharefood: sending modify payload for from={from_email} key={modify_payload['key']} remaining={remaining_percentage}")
+        # Send modify payload for remaining percentage
         produce_message(topic="modify_food_record", message=modify_payload)
 
         response = share_food_pb2.ShareFoodResponse()
         response.success = True
-        logger.info(f"/autocomplete/sharefood: success for user={user_email} time={time_value} -> to={to_email} percent={percentage}")
+        logger.info("/autocomplete/sharefood: success")
         return Response(content=response.SerializeToString(), media_type="application/x-protobuf")
     except HTTPException:
         raise

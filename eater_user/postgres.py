@@ -17,7 +17,7 @@ async def test_database_connection():
         result = await database.fetch_one("SELECT 1 as test")
         await database.disconnect()
         return bool(result)
-    except:
+    except Exception:
         return False
 
 async def autocomplete_query(query: str, limit: int, user_email: str):
@@ -66,7 +66,7 @@ async def autocomplete_query(query: str, limit: int, user_email: str):
             }
             users.append(user)
         return users
-    except Exception as e:
+    except Exception:
         raise
 
 async def get_food_record_by_time(time: int, user_email: str):

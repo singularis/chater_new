@@ -4,7 +4,6 @@ import os
 
 from confluent_kafka import Producer
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 conf = {

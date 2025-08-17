@@ -15,7 +15,7 @@ class Neo4jConnection:
         try:
             self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
             self.verify_connectivity()
-        except Exception as e:
+        except Exception:
             raise
     
     def close(self):
@@ -54,7 +54,7 @@ class Neo4jConnection:
                 record = result.single()
                 return bool(record)
                     
-            except:
+            except Exception:
                 return False
     
     def check_friendship_exists(self, user_email: str, friend_email: str) -> bool:
@@ -76,7 +76,7 @@ class Neo4jConnection:
                 record = result.single()
                 return record and record["count"] > 0
                 
-            except:
+            except Exception:
                 return False
     
     def get_user_friends(self, user_email: str) -> list:
@@ -99,7 +99,7 @@ class Neo4jConnection:
                 
                 return friends
                 
-            except:
+            except Exception:
                 return []
 
 neo4j_connection = Neo4jConnection()

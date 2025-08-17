@@ -1,9 +1,9 @@
 import json
 import logging
 import os
-from datetime import time
+import time as time_module
 
-from confluent_kafka import Consumer, KafkaError, KafkaException
+from confluent_kafka import Consumer, KafkaError
 
 logger = logging.getLogger("kafka_consumer")
 
@@ -59,9 +59,7 @@ def validate_user_data(message_data, expected_user_email=None):
 
 
 def consume_messages(topics, expected_user_email=None):
-    logger.info(
-        f"Starting Kafka consumer with topics: {topics} for user: {expected_user_email}"
-    )
+    logger.info(f"Starting Kafka consumer with topics: {topics} for user: {expected_user_email}")
     if not isinstance(topics, list):
         logger.error("Expected list of topic unicode strings")
         raise TypeError("Expected list of topic unicode strings")
@@ -88,7 +86,7 @@ def consume_messages(topics, expected_user_email=None):
                 continue
             elif msg.error().code() == KafkaError.BROKER_NOT_AVAILABLE:
                 logger.error("Broker not available. Retrying in 5 seconds...")
-                time.sleep(5)
+                time_module.sleep(5)
                 continue
             elif msg.error().code() == KafkaError.INVALID_MSG_SIZE:
                 logger.error(f"Message too large: {msg.error()}")
