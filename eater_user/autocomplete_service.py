@@ -1,4 +1,5 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+import uvicorn
 import asyncio
 import json
 import logging
@@ -72,7 +73,7 @@ async def readiness_check():
         logger.error(f"Readiness check failed: {str(e)}")
         raise HTTPException(status_code=503, detail="Service not ready")
 
-@app.websocket("/ws/autocomplete")
+@app.websocket("/autocomplete")
 async def websocket_autocomplete(websocket: WebSocket):
     user_email = None
     try:
@@ -174,5 +175,4 @@ async def websocket_autocomplete(websocket: WebSocket):
             manager.disconnect(websocket, user_email)
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000) 
