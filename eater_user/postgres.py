@@ -68,3 +68,24 @@ async def autocomplete_query(query: str, limit: int, user_email: str):
         return users
     except Exception as e:
         raise
+
+async def get_food_record_by_time(time: int, user_email: str):
+    try:
+        query = """
+            SELECT dish_name, estimated_avg_calories, ingredients, total_avg_weight, contains
+            FROM public.dishes_day
+            WHERE time = :time AND user_email = :user_email
+            LIMIT 1
+        """
+        row = await database.fetch_one(query, values={"time": time, "user_email": user_email})
+        if not row:
+            return None
+        return {
+            "dish_name": row["dish_name"],
+            "estimated_avg_calories": row["estimated_avg_calories"],
+            "ingredients": row["ingredients"],
+            "total_avg_weight": row["total_avg_weight"],
+            "contains": row["contains"],
+        }
+    except Exception:
+        return None

@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package Eater;
+
+message ShareFoodRequest {
+  int64 time = 1;           // time of the food
+  string from_email = 2;    // source email
+  string to_email = 3;      // target email
+  int32 percentage = 4;     // how much friend ate (e.g., 25, 50, 75, custom)
+}
+
+message ShareFoodResponse {
+  bool success = 1;
+}
+
+
