@@ -1,23 +1,12 @@
-
-import logging
 import os
 import hashlib
 import jwt
-from datetime import datetime, timedelta, timezone
-from functools import wraps
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger("main")
+import json
+from fastapi import HTTPException, Request
 
 SECRET_KEY = os.getenv("EATER_SECRET_KEY")
 
-
 def get_jwt_secret_key():
-    """
-    Get the JWT secret key, deriving a 256-bit key if the original is too short.
-    This mirrors the logic used in the UI service for consistent token validation.
-    """
     if not SECRET_KEY:
         raise ValueError("EATER_SECRET_KEY environment variable not set")
     
@@ -27,22 +16,72 @@ def get_jwt_secret_key():
         return SECRET_KEY
     
     hash_obj = hashlib.sha256(secret_bytes)
-    derived_key = hash_obj.digest()
-    log.debug(
-        "Secret key was too short (%d bits), derived 256-bit key using SHA-256",
-        len(secret_bytes) * 8,
-    )
-    return derived_key
-
+    return hash_obj.digest()
 
 def verify_jwt_token(token: str):
     jwt_secret = get_jwt_secret_key()
     try:
-        decoded_token = jwt.decode(token, jwt_secret, algorithms=["HS256"])
-        return decoded_token
+        return jwt.decode(token, jwt_secret, algorithms=["HS256"])
     except jwt.ExpiredSignatureError:
-        log.debug("Token has expired")
         raise
-    except jwt.InvalidTokenError as e:
-        log.debug(f"Invalid token: {str(e)}")
+    except jwt.InvalidTokenError:
         raise
+
+def validate_jwt_token(auth_header: str) -> str:
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Token is missing")
+    
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token format")
+    
+    try:
+        token = auth_header.split(" ")[1]
+        payload = verify_jwt_token(token)
+        user_email = payload.get("sub") or payload.get("email") or payload.get("user_email")
+        if not user_email:
+            raise HTTPException(status_code=401, detail="Invalid token - no email")
+        
+        return user_email
+        
+    except HTTPException:
+        raise
+    except:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+async def get_current_user(request: Request) -> str:
+    auth_header = request.headers.get("Authorization")
+    return validate_jwt_token(auth_header)
+
+async def validate_websocket_token(websocket, auth_data: str) -> str:
+    try:
+        auth_message = json.loads(auth_data)
+        if auth_message.get("type") != "auth":
+            await websocket.send_text(json.dumps({"error": "Authentication required"}))
+            await websocket.close()
+            return None
+            
+        token = auth_message.get("token")
+        if not token:
+            await websocket.send_text(json.dumps({"error": "Token required"}))
+            await websocket.close()
+            return None
+            
+        try:
+            payload = verify_jwt_token(token)
+            user_email = payload.get("sub") or payload.get("email") or payload.get("user_email")
+            if not user_email:
+                await websocket.send_text(json.dumps({"error": "Invalid token - no email"}))
+                await websocket.close()
+                return None
+                
+            return user_email
+            
+        except:
+            await websocket.send_text(json.dumps({"error": "Invalid token"}))
+            await websocket.close()
+            return None
+            
+    except:
+        await websocket.send_text(json.dumps({"error": "Invalid JSON format"}))
+        await websocket.close()
+        return None

@@ -1,15 +1,24 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, Depends
+from fastapi.responses import Response
 import uvicorn
 import asyncio
 import json
-import logging
-from common import verify_jwt_token
+from starlette.websockets import WebSocketState
+from common import get_current_user, validate_websocket_token
 from postgres import database, autocomplete_query
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from neo4j_connection import neo4j_connection
+from proto import add_friend_pb2
 
 app = FastAPI(title="Autocomplete Service", version="1.0.0")
+
+async def safe_send_websocket_message(websocket: WebSocket, message: dict) -> bool:
+    try:
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.send_text(json.dumps(message))
+            return True
+        return False
+    except:
+        return False
 
 class ConnectionManager:
     def __init__(self):
@@ -19,13 +28,12 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, user_email: str):
         self.active_connections.append(websocket)
         self.user_connections[user_email] = websocket
-        logger.info(f"User {user_email} connected via WebSocket")
 
     def disconnect(self, websocket: WebSocket, user_email: str):
-        self.active_connections.remove(websocket)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
         if user_email in self.user_connections:
             del self.user_connections[user_email]
-        logger.info(f"User {user_email} disconnected from WebSocket")
 
     async def send_personal_message(self, message: str, user_email: str):
         if user_email in self.user_connections:
@@ -35,84 +43,87 @@ manager = ConnectionManager()
 
 @app.on_event("startup")
 async def startup():
-    try:
-        await database.connect()
-        logger.info("Database connected")
-        logger.info("Autocomplete service ready")
-    except Exception as e:
-        logger.error(f"Failed to connect to database: {str(e)}")
-        raise
+    await database.connect()
+    neo4j_connection.connect()
 
 @app.on_event("shutdown")
 async def shutdown():
-    try:
-        await database.disconnect()
-        logger.info("Database disconnected")
-    except Exception as e:
-        logger.error(f"Error disconnecting from database: {str(e)}")
+    await database.disconnect()
+    neo4j_connection.close()
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for Kubernetes liveness probe"""
     try:
-        # Test database connection
         await database.fetch_one("SELECT 1")
         return {"status": "healthy", "service": "autocomplete-service"}
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
+    except:
         raise HTTPException(status_code=503, detail="Service unhealthy")
 
 @app.get("/ready")
 async def readiness_check():
-    """Readiness check endpoint for Kubernetes readiness probe"""
     try:
-        # Test database connection and basic functionality
         await database.fetch_one("SELECT 1")
         return {"status": "ready", "service": "autocomplete-service"}
-    except Exception as e:
-        logger.error(f"Readiness check failed: {str(e)}")
+    except:
         raise HTTPException(status_code=503, detail="Service not ready")
+
+@app.post("/autocomplete/addfriend", responses={200: {"content": {"application/x-protobuf": {}}}})
+async def add_friend_endpoint(request: Request, user_email: str = Depends(get_current_user)):
+    try:
+        body = await request.body()
+        if not body:
+            raise HTTPException(status_code=400, detail="Request body required")
+        
+        try:
+            add_friend_request = add_friend_pb2.AddFriendRequest()
+            add_friend_request.ParseFromString(body)
+        except:
+            raise HTTPException(status_code=400, detail="Invalid protobuf format")
+        
+        friend_email = add_friend_request.email.strip()
+        if not friend_email:
+            raise HTTPException(status_code=400, detail="Friend email is required")
+        
+        if friend_email == user_email:
+            raise HTTPException(status_code=400, detail="Cannot add yourself as a friend")
+        
+        friendship_exists = neo4j_connection.check_friendship_exists(user_email, friend_email)
+        if friendship_exists:
+            response = add_friend_pb2.AddFriendResponse()
+            response.success = True
+            return Response(content=response.SerializeToString(), media_type="application/x-protobuf")
+        
+        success = neo4j_connection.add_friend_relationship(user_email, friend_email)
+        response = add_friend_pb2.AddFriendResponse()
+        response.success = success
+        
+        return Response(content=response.SerializeToString(), media_type="application/x-protobuf")
+        
+    except HTTPException:
+        raise
+    except:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.websocket("/autocomplete")
 async def websocket_autocomplete(websocket: WebSocket):
     user_email = None
     try:
-        # Accept the WebSocket connection first
         await websocket.accept()
         
-        # Receive authentication data
         auth_data = await websocket.receive_text()
-        auth_message = json.loads(auth_data)
-        if auth_message.get("type") != "auth":
-            await websocket.send_text(json.dumps({"error": "Authentication required"}))
-            await websocket.close()
-            return
-        token = auth_message.get("token")
-        if not token:
-            await websocket.send_text(json.dumps({"error": "Token required"}))
-            await websocket.close()
-            return
-        try:
-            payload = verify_jwt_token(token)
-            user_email = payload.get("sub") or payload.get("email") or payload.get("user_email")
-            if not user_email:
-                await websocket.send_text(json.dumps({"error": "Invalid token - no email"}))
-                await websocket.close()
-                return
-        except Exception:
-            await websocket.send_text(json.dumps({"error": "Invalid token"}))
-            await websocket.close()
+        user_email = await validate_websocket_token(websocket, auth_data)
+        if not user_email:
             return
         
-        # Add to connection manager
         await manager.connect(websocket, user_email)
-        await websocket.send_text(json.dumps({
+        connection_success = await safe_send_websocket_message(websocket, {
             "type": "connection",
             "status": "connected",
             "user_email": user_email
-        }))
+        })
+        if not connection_success:
+            return
         
-        # Main message loop
         while True:
             try:
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
@@ -121,8 +132,7 @@ async def websocket_autocomplete(websocket: WebSocket):
                     
                 try:
                     message = json.loads(data)
-                except json.JSONDecodeError as e:
-                    logger.warning(f"Invalid JSON received: {data[:100]}... Error: {str(e)}")
+                except:
                     await websocket.send_text(json.dumps({"error": "Invalid JSON format"}))
                     continue
                     
@@ -136,7 +146,8 @@ async def websocket_autocomplete(websocket: WebSocket):
                             "query": query,
                             "message": "Query too short"
                         }
-                        await websocket.send_text(json.dumps(response))
+                        if not await safe_send_websocket_message(websocket, response):
+                            break
                         continue
                         
                     try:
@@ -147,32 +158,38 @@ async def websocket_autocomplete(websocket: WebSocket):
                             "query": query,
                             "count": len(users)
                         }
-                        await websocket.send_text(json.dumps(response))
-                    except Exception as e:
-                        logger.error(f"Database query error: {str(e)}")
-                        await websocket.send_text(json.dumps({
+                        if not await safe_send_websocket_message(websocket, response):
+                            break
+                    except:
+                        if not await safe_send_websocket_message(websocket, {
                             "type": "error",
                             "message": "Database query failed"
-                        }))
+                        }):
+                            break
                         
                 elif message.get("type") == "ping":
-                    await websocket.send_text(json.dumps({"type": "pong"}))
+                    if not await safe_send_websocket_message(websocket, {"type": "pong"}):
+                        break
                     
             except asyncio.TimeoutError:
-                await websocket.send_text(json.dumps({"type": "ping"}))
+                if not await safe_send_websocket_message(websocket, {"type": "ping"}):
+                    break
             except Exception as e:
-                logger.error(f"Message processing error: {str(e)}")
-                await websocket.send_text(json.dumps({
+                error_str = str(e)
+                if "(1001," in error_str or "WebSocket connection is closed" in error_str:
+                    break
+                
+                if not await safe_send_websocket_message(websocket, {
                     "type": "error",
                     "message": "Message processing failed"
-                }))
+                }):
+                    break
     except WebSocketDisconnect:
         if user_email:
             manager.disconnect(websocket, user_email)
-    except Exception as e:
-        logger.error(f"WebSocket error: {str(e)}")
+    except:
         if user_email:
             manager.disconnect(websocket, user_email)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    uvicorn.run(app, host="0.0.0.0", port=8000)
