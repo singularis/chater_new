@@ -7,7 +7,7 @@ from starlette.websockets import WebSocketState
 from common import token_required, validate_websocket_token
 from postgres import database, autocomplete_query
 from neo4j_connection import neo4j_connection
-from proto import add_friend_pb2
+from proto import add_friend_pb2, get_friends_pb2
 
 app = FastAPI(title="Autocomplete Service", version="1.0.0")
 
@@ -103,6 +103,26 @@ async def add_friend_endpoint(request: Request, user_email: str):
     except HTTPException:
         raise
     except:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/autocomplete/getfriend", responses={200: {"content": {"application/x-protobuf": {}}}})
+@token_required
+async def get_friends_endpoint(request: Request, user_email: str):
+    try:
+        friends_list = neo4j_connection.get_user_friends(user_email)
+        
+        response = get_friends_pb2.GetFriendsResponse()
+        response.count = len(friends_list)
+        
+        for friend_email in friends_list:
+            friend = response.friends.add()
+            friend.email = friend_email
+        
+        return Response(content=response.SerializeToString(), media_type="application/x-protobuf")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.websocket("/autocomplete")

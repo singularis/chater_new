@@ -78,5 +78,28 @@ class Neo4jConnection:
                 
             except:
                 return False
+    
+    def get_user_friends(self, user_email: str) -> list:
+        if not self.driver:
+            raise Exception("Neo4j driver not initialized")
+        
+        with self.driver.session() as session:
+            try:
+                query = """
+                MATCH (user:User {email: $user_email})-[:FRIEND]->(friend:User)
+                RETURN DISTINCT friend.email as friend_email
+                ORDER BY friend.email
+                """
+                
+                result = session.run(query, {"user_email": user_email})
+                
+                friends = []
+                for record in result:
+                    friends.append(record["friend_email"])
+                
+                return friends
+                
+            except:
+                return []
 
 neo4j_connection = Neo4jConnection()
