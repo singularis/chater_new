@@ -74,6 +74,15 @@
                         value: "{{ vars.EATER_SECRET_KEY }}"
                       - name: REDIS_ENDPOINT
                         value: "{{ vars.REDIS_ENDPOINT }}"
+                      - name: NEO4J_URI
+                        value: "bolt://neo4j.neo4j.svc.cluster.local:7687"
+                      - name: NEO4J_USER
+                        value: "neo4j"
+                      - name: NEO4J_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: neo4j-auth-eater
+                            key: NEO4J_PASSWORD
                     ports:
                       - containerPort: 8000
                         name: http
@@ -155,3 +164,17 @@
                 targetPort: 8000
                 name: http
             type: LoadBalancer
+
+    - name: Create Neo4j authentication secret for eater service
+      kubernetes.core.k8s:
+        state: present
+        namespace: eater
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: neo4j-auth-eater
+            namespace: eater
+          type: Opaque
+          data:
+            NEO4J_PASSWORD: Y250a212Zls=

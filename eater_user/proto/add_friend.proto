@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package Eater;
+
+message AddFriendRequest {
+  string email = 1;
+}
+
+message AddFriendResponse {
+  bool success = 1;
+}

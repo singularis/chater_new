@@ -11,3 +11,6 @@ python-dotenv
 pydantic
 typing-extensions
 databases[postgresql]
+neo4j
+protobuf
+grpcio-tools
