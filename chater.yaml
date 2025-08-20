@@ -19,3 +19,5 @@
   import_playbook: ./eater/eater_anisble.yaml
 - name: Setup feedback
   import_playbook: ./feedback_service/feedback.yaml
+- name: Setup eater_user
+  import_playbook: ./eater_user/eater_user.yaml
