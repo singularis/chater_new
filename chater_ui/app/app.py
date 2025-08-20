@@ -10,7 +10,7 @@ from flask import Flask, jsonify, render_template, request, session, redirect, u
 from flask_cors import CORS
 from flask_session import Session
 from google_ops import create_google_blueprint, g_login
-from gphoto import gphoto
+from gphoto import gphoto, gphoto_proxy
 from kafka_consumer_service import start_kafka_consumer_service, stop_kafka_consumer_service
 from logging_config import setup_logging
 from login import login, logout
@@ -20,7 +20,7 @@ from chater import chater as chater_ui
 from eater.eater import (delete_food_record, eater_photo, eater_today, eater_custom_date,
                          get_recommendations, modify_food_record_data, eater_auth_request, manual_weight_record)
 from eater.feedback import submit_feedback_request
-from eater_admin import eater_admin_request
+from eater_admin import eater_admin_request, eater_admin_proxy
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -122,6 +122,11 @@ def gphoto_ui():
     return gphoto(session, picFolder)
 
 
+@app.route("/gphoto_proxy/<path:resource_path>", methods=["GET"])
+def gphoto_proxy_route(resource_path):
+    return gphoto_proxy(resource_path)
+
+
 @app.route("/toggle-switch", methods=["POST"])
 def toggle_switch():
     return context.context_switch(session)
@@ -197,6 +202,11 @@ def submit_feedback(user_email):
 @app.route("/eater_admin", methods=["GET", "POST"])
 def eater_admin():
     return eater_admin_request(session)
+
+
+@app.route("/eater_admin_proxy/<path:resource_path>", methods=["GET"])
+def eater_admin_proxy_route(resource_path):
+    return eater_admin_proxy(resource_path)
 
 
 if __name__ == "__main__":

@@ -1,41 +1,81 @@
 import logging
 import os
-from datetime import date
+import requests
+from flask import jsonify, redirect, url_for, flash, Response, session as flask_session
 
-from flask import flash, redirect, render_template, request, url_for
-
-log = logging.getLogger("main")
+logger = logging.getLogger(__name__)
 
 
-def gphoto(session, pic_folder):
-    if "logged_in" in session:
-        if request.method == "GET":
-            media = {}
-            years = os.listdir(pic_folder)
-            logging.info(f"years {years}")
-            for year in years:
-                media_folder = os.path.join(pic_folder, str(year))
-                file_list = os.listdir(media_folder)
-                year_media = {"images": [], "videos": []}
-                for file in file_list:
-                    if file.lower().endswith(
-                        (".png", ".jpg", ".jpeg", ".gif", ".heic")
-                    ):
-                        year_media["images"].append(
-                            os.path.join("pics", str(year), file)
-                        )
-                    elif file.lower().endswith((".mp4", ".mov", ".avi")):
-                        year_media["videos"].append(
-                            os.path.join("pics", str(year), file)
-                        )
-                media[int(year)] = year_media
-            return render_template(
-                "gphoto.html",
-                years=[int(x) for x in years],
-                media=media,
-                date=date.today(),
-            )
-    else:
-        logging.warning("Unauthorized chater access attempt")
+BASE_GPHOTO_URL = os.getenv("GPHOTO_BASE_URL", "http://192.168.0.10:30500")
+
+
+def _rewrite_html_for_proxy(html_text: str) -> str:
+    """
+    Rewrite common resource URLs in HTML to go through our proxy endpoint so the
+    browser doesn't try to fetch them from our Flask app root.
+    """
+    if not html_text:
+        return html_text
+
+    replacements = [
+        ('src="/', 'src="/gphoto_proxy/'),
+        ("src='/", "src='/gphoto_proxy/"),
+        ('href="/', 'href="/gphoto_proxy/'),
+        ("href='/", "href='/gphoto_proxy/"),
+        ("srcset=\"/", "srcset=\"/gphoto_proxy/"),
+        ("srcset='/", "srcset='/gphoto_proxy/"),
+        ("url(/", "url(/gphoto_proxy/"),  # CSS url() refs
+    ]
+
+    rewritten = html_text
+    for src, dst in replacements:
+        rewritten = rewritten.replace(src, dst)
+    return rewritten
+
+
+def gphoto(session, _pic_folder=None):
+    """
+    Handle eater admin requests - check session authentication and fetch statistics page content
+    """
+    # Check if user is logged in via session (not token required)
+    if "logged_in" not in session:
+        logger.warning("Unauthorized eater_admin access attempt")
         flash("You need to log in to view this page")
         return redirect(url_for("chater_login"))
+    
+    try:
+        response = requests.get(BASE_GPHOTO_URL, timeout=10)
+        response.raise_for_status()
+        # Rewrite HTML so asset requests go through our proxy endpoint
+        html_text = _rewrite_html_for_proxy(response.text)
+        return html_text, response.status_code, {'Content-Type': response.headers.get('Content-Type', 'text/html')}
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching statistics page: {e}")
+        return jsonify({"error": "Failed to fetch statistics data", "details": str(e)}), 500 
+
+
+def gphoto_proxy(resource_path):
+    """
+    Proxy assets and sub-resources for the gphoto page to the remote server so the
+    browser can load images, CSS, JS without cross-origin or missing-route issues.
+    """
+    # Ensure session is authenticated just like the main page
+    if "logged_in" not in flask_session:
+        return redirect(url_for("chater_login"))
+
+    target_url = f"{BASE_GPHOTO_URL.rstrip('/')}/{resource_path}"
+    try:
+        proxied = requests.get(target_url, stream=True, timeout=15)
+        # Build a passthrough response preserving important headers
+        headers = {}
+        content_type = proxied.headers.get('Content-Type')
+        if content_type:
+            headers['Content-Type'] = content_type
+        cache_control = proxied.headers.get('Cache-Control')
+        if cache_control:
+            headers['Cache-Control'] = cache_control
+        return Response(proxied.content, status=proxied.status_code, headers=headers)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Proxy error fetching {target_url}: {e}")
+        return Response(status=502)
