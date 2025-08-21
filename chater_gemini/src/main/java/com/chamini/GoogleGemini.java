@@ -1,30 +1,27 @@
 package com.chamini;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.Properties;
-import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.json.JSONObject;
+import com.google.genai.Client;
+import com.google.genai.types.GenerateContentResponse;
 
 public class GoogleGemini {
 
     private static final Logger LOGGER = Logger.getLogger(GoogleGemini.class.getName());
     private static final String API_MODEL = System.getenv("GEMINI_MODEL");
-    private static final String API_KEY = System.getenv("API_KEY");
+    private static final String GOOGLE_API_KEY = System.getenv("GOOGLE_API_KEY");
     private static final String BOOTSTRAP_SERVER = System.getenv("BOOTSTRAP_SERVER");
     private static final String TOPIC = "gemini-send";
     private static final String GEMINI_THINK_MODEL = System.getenv("GEMINI_THINK_MODEL");
 
     public static void main(String[] args) {
-        if (API_KEY == null || API_KEY.isEmpty()) {
-            LOGGER.log(Level.SEVERE, "API_KEY environment variable is not set");
+        if (GOOGLE_API_KEY == null || GOOGLE_API_KEY.isEmpty()) {
+            LOGGER.log(Level.SEVERE, "GOOGLE_API_KEY environment variable is not set");
             return;
         }
 
@@ -87,54 +84,30 @@ public class GoogleGemini {
         }
 
         try {
-            HttpURLConnection connection = getHttpURLConnection(question, model);
+            GenerateContentResponse response = getHttpURLConnection(question, model);
 
-            int responseCode = connection.getResponseCode();
-            LOGGER.log(Level.INFO, "Response Code: {0}", responseCode);
+            String text = response.text();
+            LOGGER.log(Level.INFO, "Response Text: {0}", text);
+            if (text != null) {
+                String cleanedText = text.replace("```json", "").replace("```", "").trim();
 
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                try (Scanner scanner = new Scanner(connection.getInputStream())) {
-                    String responseBody = scanner.useDelimiter("\\A").next();
-                    LOGGER.log(Level.INFO, "Response Body: {0}", responseBody);
-
-                    String text = JsonParser.extractText(responseBody);
-                    if (text != null) {
-                        LOGGER.log(Level.INFO, "Extracted Text: {0}", text);
-                        String cleanedText = text.replace("```json", "").replace("```", "").trim();
-                        
-                        if (userEmail != null) {
-                            try {
-                                JSONObject valueResponse = new JSONObject(cleanedText);
-                                valueResponse.put("user_email", userEmail);
-                                producer.sendMessage("gemini-response", uuid, valueResponse);
-                            } catch (Exception e) {
-                                JSONObject valueResponse = new JSONObject();
-                                valueResponse.put("response", cleanedText);
-                                valueResponse.put("user_email", userEmail);
-                                producer.sendMessage("gemini-response", uuid, valueResponse);
-                            }
-                        } else {
-                            try {
-                                producer.sendMessage("gemini-response", uuid, new JSONObject(cleanedText));
-                            } catch (Exception e) {
-                                producer.sendMessage("gemini-response", uuid, cleanedText);
-                            }
-                        }
+                if (userEmail != null) {
+                    try {
+                        JSONObject valueResponse = new JSONObject(cleanedText);
+                        valueResponse.put("user_email", userEmail);
+                        producer.sendMessage("gemini-response", uuid, valueResponse);
+                    } catch (Exception e) {
+                        JSONObject valueResponse = new JSONObject();
+                        valueResponse.put("response", cleanedText);
+                        valueResponse.put("user_email", userEmail);
+                        producer.sendMessage("gemini-response", uuid, valueResponse);
                     }
-                }
-            } else {
-                try (Scanner scanner = new Scanner(connection.getErrorStream())) {
-                    String errorResponse = scanner.useDelimiter("\\A").next();
-                    LOGGER.log(Level.WARNING, "Request failed with response code: {0} and error: {1}", new Object[]{responseCode, errorResponse});
-                    JSONObject errorObject = new JSONObject();
-                    errorObject.put("key", uuid);
-                    JSONObject errorValue = new JSONObject();
-                    errorValue.put("error", errorResponse);
-                    if (userEmail != null) {
-                        errorValue.put("user_email", userEmail);
+                } else {
+                    try {
+                        producer.sendMessage("gemini-response", uuid, new JSONObject(cleanedText));
+                    } catch (Exception e) {
+                        producer.sendMessage("gemini-response", uuid, cleanedText);
                     }
-                    errorObject.put("value", errorValue);
-                    producer.sendMessage("gemini-response", uuid, errorObject.toString());
                 }
             }
         } catch (Exception e) {
@@ -142,20 +115,12 @@ public class GoogleGemini {
         }
     }
 
-    public static HttpURLConnection getHttpURLConnection(String question, String model) throws IOException {
-        URL url = new URL("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + API_KEY);
-
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setDoOutput(true);
-
-        String jsonInputString = String.format("{\"contents\":[{\"parts\":[{\"text\":\"%s\"}]}]}", question);
-
-        try (OutputStream os = connection.getOutputStream()) {
-            byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
-            os.write(input, 0, input.length);
-        }
-        return connection;
+    public static GenerateContentResponse getHttpURLConnection(String question, String model) throws IOException {
+        Client client = new Client();
+        GenerateContentResponse response = client.models.generateContent(
+            model,
+            question,
+            null);
+        return response;
     }
 }

@@ -41,11 +41,11 @@
                     image: singularis314/chater-gemini:0.3
                     imagePullPolicy: Always
                     env:
-                      - name: API_KEY
+                      - name: GOOGLE_API_KEY
                         valueFrom:
                           secretKeyRef:
                             name: chater-gemini
-                            key: OPENAI_API_KEY
+                            key: GOOGLE_API_KEY
                       - name: BOOTSTRAP_SERVER
                         value: "{{ vars.BOOTSTRAP_SERVER }}"
                       - name: GEMINI_MODEL
@@ -65,4 +65,4 @@
             name: chater-gemini
             namespace: chater-gemini
           data:
-            OPENAI_API_KEY: "{{ vars.GEMINI_API_KEY | b64encode }}"
+            GOOGLE_API_KEY: "{{ vars.GEMINI_API_KEY | b64encode }}"

@@ -12,7 +12,7 @@ from .proto import get_recomendation_pb2, today_food_pb2, custom_date_food_pb2
 logger = logging.getLogger(__name__)
 
 
-def eater_kafka_request(topic_send, topic_receive, payload, user_email):
+def eater_kafka_request(topic_send, topic_receive, payload, user_email, timeout_sec=30):
     producer = create_producer()
     message_id = str(uuid.uuid4())
     logger.info(f"Sending request to topic {topic_send} for user {user_email}")
@@ -25,7 +25,7 @@ def eater_kafka_request(topic_send, topic_receive, payload, user_email):
     
     # Get response from Redis using the background consumer service
     try:
-        response = get_user_message_response(message_id, user_email, timeout=30)
+        response = get_user_message_response(message_id, user_email, timeout=timeout_sec)
         if response is not None:
             logger.info(f"Retrieved response for user {user_email}: {response}")
             
@@ -372,9 +372,8 @@ def get_recommendation(request, user_email):
             "prompt": prompt,
             "type_of_processing": "get_recommendation",
         }
-
         recommendation_data = eater_kafka_request(
-            "get_recommendation", "gemini-response", payload, user_email
+            "get_recommendation", "gemini-response", payload, user_email, timeout_sec=90
         )
         logger.info(f"recommendation_data for user {user_email}: {recommendation_data}")
         if recommendation_data is None:
