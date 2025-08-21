@@ -8,21 +8,33 @@ from logging_config import setup_logging
 setup_logging("kafka_producer.log")
 logger = logging.getLogger(__name__)
 
+_producer_instance = None
+
 
 def create_producer():
-    try:
-        conf = {
-            "bootstrap.servers": os.getenv("BOOTSTRAP_SERVER"),
-            "message.max.bytes": 10000000,
-            "client.id": "python-producer",
-            "acks": "all",
-        }
-        producer = Producer(conf)
-        logger.info("Producer created successfully")
-        return producer
-    except KafkaException as e:
-        logger.error(f"Failed to create producer: {str(e)}")
-        raise
+    """
+    Returns a singleton Kafka producer instance.
+    Creates the producer only once on first call and reuses it for subsequent calls.
+    """
+    global _producer_instance
+    
+    if _producer_instance is None:
+        try:
+            conf = {
+                "bootstrap.servers": os.getenv("BOOTSTRAP_SERVER"),
+                "message.max.bytes": 10000000,
+                "client.id": "chater-ui-producer",
+                "acks": "all",
+            }
+            _producer_instance = Producer(conf)
+            logger.info("Producer created successfully (singleton)")
+        except KafkaException as e:
+            logger.error(f"Failed to create producer: {str(e)}")
+            raise
+    else:
+        logger.debug("Reusing existing producer instance")
+    
+    return _producer_instance
 
 
 def delivery_report(err, msg):
