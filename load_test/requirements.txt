@@ -1,0 +1,8 @@
+confluent_kafka
+PyJWT
+pyyaml
+protobuf
+pillow
+sqlalchemy
+psycopg2-binary
+locust
