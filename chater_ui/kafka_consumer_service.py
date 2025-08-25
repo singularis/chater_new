@@ -48,7 +48,7 @@ class KafkaConsumerService:
                     "auto.offset.reset": "earliest",
                     "enable.auto.commit": True,
                     "max.poll.interval.ms": 300000,
-                    "session.timeout.ms": 30000,
+                    "session.timeout.ms": 60000,
                     "heartbeat.interval.ms": 10000,
                 }
             )
@@ -195,7 +195,7 @@ class KafkaConsumerService:
         self.threads.clear()
         logger.info("Kafka Consumer Service stopped")
 
-    def get_response_from_redis(self, message_uuid, timeout=60):
+    def get_response_from_redis(self, message_uuid, timeout=120):
         """Get response from Redis by message UUID"""
         start_time = time.time()
         while time.time() - start_time < timeout:
@@ -213,7 +213,7 @@ class KafkaConsumerService:
         logger.warning(f"Timeout waiting for response for UUID: {message_uuid}")
         return None
 
-    def get_user_response_from_redis(self, message_uuid, user_email, timeout=60):
+    def get_user_response_from_redis(self, message_uuid, user_email, timeout=120):
         """Get response from Redis by message UUID for a specific user"""
         start_time = time.time()
         while time.time() - start_time < timeout:
@@ -259,11 +259,11 @@ def stop_kafka_consumer_service():
     kafka_service.stop_service()
 
 
-def get_message_response(message_uuid, timeout=60):
+def get_message_response(message_uuid, timeout=120):
     """Get message response from Redis"""
     return kafka_service.get_response_from_redis(message_uuid, timeout)
 
 
-def get_user_message_response(message_uuid, user_email, timeout=60):
+def get_user_message_response(message_uuid, user_email, timeout=120):
     """Get message response from Redis for a specific user"""
     return kafka_service.get_user_response_from_redis(message_uuid, user_email, timeout) 
