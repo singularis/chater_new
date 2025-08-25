@@ -6,7 +6,7 @@ from flask import jsonify
 from kafka_consumer_service import get_user_message_response
 from kafka_producer import create_producer, produce_message
 
-from .proto import delete_food_pb2, modify_food_record_pb2, manual_weight_pb2
+from .proto import delete_food_pb2, modify_food_record_pb2, manual_weight_pb2, alcohol_pb2
 
 logger = logging.getLogger(__name__)
 
@@ -199,3 +199,57 @@ def manual_weight(request, user_email):
         manual_weight_response.success = False
         response_data = manual_weight_response.SerializeToString()
         return response_data, 500, {"Content-Type": "application/grpc+proto"}
+
+
+def get_alcohol_latest(user_email):
+    response = alcohol_pb2.GetAlcoholLatestResponse()
+    try:
+        producer = create_producer()
+        message_id = str(uuid.uuid4())
+        message = {"key": message_id, "value": {"user_email": user_email}}
+        produce_message(producer, topic="get_alcohol_latest", message=message)
+
+        # Wait for response
+        kafka_response = get_user_message_response(message_id, user_email, timeout=30)
+        if not kafka_response:
+            return response.SerializeToString(), 500, {"Content-Type": "application/grpc+proto"}
+
+        alcohol = kafka_response.get("alcohol", {}) or {}
+        response.today_summary.total_drinks = int(alcohol.get("total_drinks", 0))
+        response.today_summary.total_calories = int(alcohol.get("total_calories", 0))
+        for d in alcohol.get("drinks_of_day", []) or []:
+            response.today_summary.drinks_of_day.append(d)
+        return response.SerializeToString(), 200, {"Content-Type": "application/grpc+proto"}
+    except Exception as e:
+        logger.error(f"Error in get_alcohol_latest for user {user_email}: {e}")
+        return response.SerializeToString(), 500, {"Content-Type": "application/grpc+proto"}
+
+
+def get_alcohol_range(request, user_email):
+    response = alcohol_pb2.GetAlcoholRangeResponse()
+    req = alcohol_pb2.GetAlcoholRangeRequest()
+    try:
+        req.ParseFromString(request.data)
+        start_date = req.start_date
+        end_date = req.end_date
+
+        producer = create_producer()
+        message_id = str(uuid.uuid4())
+        message = {"key": message_id, "value": {"user_email": user_email, "start_date": start_date, "end_date": end_date}}
+        produce_message(producer, topic="get_alcohol_range", message=message)
+
+        kafka_response = get_user_message_response(message_id, user_email, timeout=30)
+        if not kafka_response:
+            return response.SerializeToString(), 500, {"Content-Type": "application/grpc+proto"}
+
+        for ev in kafka_response.get("events", []) or []:
+            e = response.events.add()
+            e.time = int(ev.get("time", 0))
+            e.date = ev.get("date", "")
+            e.drink_name = ev.get("drink_name", "")
+            e.calories = int(ev.get("calories", 0))
+            e.quantity = int(ev.get("quantity", 0))
+        return response.SerializeToString(), 200, {"Content-Type": "application/grpc+proto"}
+    except Exception as e:
+        logger.error(f"Error in get_alcohol_range for user {user_email}: {e}")
+        return response.SerializeToString(), 500, {"Content-Type": "application/grpc+proto"}

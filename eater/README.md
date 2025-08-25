@@ -10,6 +10,7 @@ The Eater Service provides comprehensive food tracking functionality, including:
 - Meal history and data visualization
 - Personalized recommendations
 - Weight tracking and health metrics
+- Alcohol consumption tracking and summaries
 - Integration with vision processing services
 
 ## 🏗️ Architecture
@@ -53,7 +54,7 @@ NUTRITION_API_KEY=your-nutrition-api-key
 
 ### Kafka Topics
 - **Produces**: `photo-analysis-request`, `get-recommendations`
-- **Consumes**: `photo-analysis-response-check`, `send_today_data`, `delete_food_response`
+- **Consumes**: `photo-analysis-response-check`, `send_today_data`, `delete_food_response`, `send_alcohol_latest`, `send_alcohol_range`
 
 ## 🚀 Getting Started
 

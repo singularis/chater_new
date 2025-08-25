@@ -17,7 +17,8 @@ default_prompt: |
   "proteins": <integer>,
   "fats": <integer>,
   "carbohydrates": <integer>,
-  "sugar": <integer>
+  "sugar": <integer>,
+  "is_alcohol": <boolean>
   }
   }
   Additional rules:
@@ -37,6 +38,7 @@ default_prompt: |
   String Content: All strings (`dish_name` and `ingredients`) must only contain lowercase alphanumeric characters (a-z, 0-9) and spaces. Capitalize first letter of first word of dish_name and ingredients. Remove all other characters, such as punctuation, hyphens, or symbols.
   Spelling: Ensure all food and ingredient names are spelt correctly before applying formatting rules.
   Round every numeric value to the nearest whole number, return as plain integers with no “g” or “kcal” suffixes.
+  If the item is an alcoholic drink (beer, wine, spirits, cocktails, hard seltzer, etc.), set is_alcohol to true; otherwise set to false.
 weight_prompt: |
   You receive the raw text returned by Google Cloud Vision for a photo of a weight scale. Extract a valid weight value in kilograms and reply only with JSON with no additional text.
   rules:

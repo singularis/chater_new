@@ -32,6 +32,8 @@ class KafkaConsumerService:
             "delete_food_response": {"name": "delete_food_response"},
             "modify_food_record_response": {"name": "modify_food_record_response"},
             "add_auth_token": {"name": "add_auth_token"},
+            "send_alcohol_latest": {"name": "send_alcohol_latest"},
+            "send_alcohol_range": {"name": "send_alcohol_range"},
         }
 
     def create_consumer(self, topics):

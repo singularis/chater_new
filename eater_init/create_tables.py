@@ -77,12 +77,35 @@ class Weight(Base):
     user_email = Column(String, nullable=False)
 
 
+class AlcoholConsumption(Base):
+    __tablename__ = "alcohol_consumption"
+    __table_args__ = (PrimaryKeyConstraint("time"), {"schema": "public"})
+
+    time = Column(Integer, primary_key=True)
+    date = Column(Date, nullable=False)
+    drink_name = Column(String, nullable=False)
+    calories = Column(Integer, nullable=False)
+    quantity = Column(Integer, nullable=False)
+    user_email = Column(String, nullable=False)
+
+
+class AlcoholForDay(Base):
+    __tablename__ = "alcohol_for_day"
+    __table_args__ = (PrimaryKeyConstraint("date", "user_email"), {"schema": "public"})
+
+    date = Column(Date, nullable=False)
+    user_email = Column(String, nullable=False)
+    total_drinks = Column(Integer, nullable=False)
+    total_calories = Column(Integer, nullable=False)
+    drinks_of_day = Column(ARRAY(String), nullable=False)
+
+
 def verify_indexes(connection):
     """Verify that all expected indexes were created successfully"""
     try:
         # First check which tables exist
         existing_tables = []
-        for table_name in ['user', 'dishes_day', 'total_for_day', 'weight', 'dishes', 'admin_data', 'feedbacks']:
+        for table_name in ['user', 'dishes_day', 'total_for_day', 'weight', 'dishes', 'admin_data', 'feedbacks', 'alcohol_consumption', 'alcohol_for_day']:
             result = connection.execute(text(f"""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
@@ -165,6 +188,44 @@ def verify_indexes(connection):
             ]
             logger.info("Verifying weight table indexes...")
             for index_name in weight_indexes:
+                result = connection.execute(text(f"""
+                    SELECT indexname 
+                    FROM pg_indexes 
+                    WHERE indexname = '{index_name}'
+                """))
+                if result.fetchone():
+                    logger.info(f"✓ Index {index_name} verified")
+                else:
+                    logger.warning(f"⚠ Index {index_name} not found")
+
+        # Check Alcohol tables indexes
+        if 'alcohol_consumption' in existing_tables:
+            alcohol_consumption_indexes = [
+                "idx_alcohol_consumption_user_email",
+                "idx_alcohol_consumption_date",
+                "idx_alcohol_consumption_time",
+                "idx_alcohol_consumption_user_time",
+            ]
+            logger.info("Verifying alcohol_consumption table indexes...")
+            for index_name in alcohol_consumption_indexes:
+                result = connection.execute(text(f"""
+                    SELECT indexname 
+                    FROM pg_indexes 
+                    WHERE indexname = '{index_name}'
+                """))
+                if result.fetchone():
+                    logger.info(f"✓ Index {index_name} verified")
+                else:
+                    logger.warning(f"⚠ Index {index_name} not found")
+
+        if 'alcohol_for_day' in existing_tables:
+            alcohol_for_day_indexes = [
+                "idx_alcohol_for_day_user_email",
+                "idx_alcohol_for_day_date",
+                "idx_alcohol_for_day_user_date",
+            ]
+            logger.info("Verifying alcohol_for_day table indexes...")
+            for index_name in alcohol_for_day_indexes:
                 result = connection.execute(text(f"""
                     SELECT indexname 
                     FROM pg_indexes 
@@ -348,7 +409,7 @@ def create_tables():
                 # Check which tables actually exist before creating indexes
                 logger.info("Checking existing tables...")
                 existing_tables = []
-                for table_name in ['user', 'dishes_day', 'total_for_day', 'weight', 'dishes', 'admin_data', 'feedbacks']:
+                for table_name in ['user', 'dishes_day', 'total_for_day', 'weight', 'dishes', 'admin_data', 'feedbacks', 'alcohol_consumption', 'alcohol_for_day']:
                     result = connection.execute(text(f"""
                         SELECT EXISTS (
                             SELECT FROM information_schema.tables 
@@ -413,6 +474,31 @@ def create_tables():
                         logger.warning(f"Failed to create weight table indexes: {e}")
                 else:
                     logger.info("Skipping weight table indexes - table does not exist")
+
+                # AlcoholConsumption table indexes (if table exists)
+                if 'alcohol_consumption' in existing_tables:
+                    try:
+                        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_alcohol_consumption_user_email ON public.alcohol_consumption USING btree(user_email);"))
+                        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_alcohol_consumption_date ON public.alcohol_consumption USING btree(date);"))
+                        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_alcohol_consumption_time ON public.alcohol_consumption USING btree(time);"))
+                        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_alcohol_consumption_user_time ON public.alcohol_consumption USING btree(user_email, time);"))
+                        logger.info("AlcoholConsumption table indexes created successfully")
+                    except Exception as e:
+                        logger.warning(f"Failed to create alcohol_consumption table indexes: {e}")
+                else:
+                    logger.info("Skipping alcohol_consumption table indexes - table does not exist")
+
+                # AlcoholForDay table indexes (if table exists)
+                if 'alcohol_for_day' in existing_tables:
+                    try:
+                        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_alcohol_for_day_user_email ON public.alcohol_for_day USING btree(user_email);"))
+                        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_alcohol_for_day_date ON public.alcohol_for_day USING btree(date);"))
+                        connection.execute(text("CREATE INDEX IF NOT EXISTS idx_alcohol_for_day_user_date ON public.alcohol_for_day USING btree(user_email, date);"))
+                        logger.info("AlcoholForDay table indexes created successfully")
+                    except Exception as e:
+                        logger.warning(f"Failed to create alcohol_for_day table indexes: {e}")
+                else:
+                    logger.info("Skipping alcohol_for_day table indexes - table does not exist")
                 
                 # Dishes table indexes (if table exists)
                 if 'dishes' in existing_tables:
@@ -479,7 +565,7 @@ def test_query_performance(connection):
         
         # Check which tables exist
         existing_tables = []
-        for table_name in ['user', 'dishes_day', 'total_for_day', 'weight', 'dishes', 'admin_data', 'feedbacks']:
+        for table_name in ['user', 'dishes_day', 'total_for_day', 'weight', 'dishes', 'admin_data', 'feedbacks', 'alcohol_consumption', 'alcohol_for_day']:
             result = connection.execute(text(f"""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 

@@ -3,8 +3,8 @@ import os
 from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import (ARRAY, JSON, Column, Float, Integer, String,
-                        create_engine, func, PrimaryKeyConstraint)
+from sqlalchemy import (ARRAY, JSON, Column, Float, Integer, String, Date,
+                        create_engine, func, PrimaryKeyConstraint, cast)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
@@ -71,6 +71,32 @@ class Weight(Base):
     user_email = Column(String, nullable=False)
 
 
+class AlcoholConsumption(Base):
+    __tablename__ = "alcohol_consumption"
+    __table_args__ = {"schema": "public"}
+
+    time = Column(Integer, primary_key=True)
+    date = Column(Date)
+    drink_name = Column(String)
+    calories = Column(Integer)
+    quantity = Column(Integer)
+    user_email = Column(String, nullable=False)
+
+
+class AlcoholForDay(Base):
+    __tablename__ = "alcohol_for_day"
+    __table_args__ = (
+        PrimaryKeyConstraint("date", "user_email"),
+        {"schema": "public"}
+    )
+
+    date = Column(Date)
+    user_email = Column(String, nullable=False)
+    total_drinks = Column(Integer)
+    total_calories = Column(Integer)
+    drinks_of_day = Column(ARRAY(String))
+
+
 Session = sessionmaker(bind=engine)
 
 
@@ -114,6 +140,28 @@ def write_to_dish_day(
                 )
 
                 session.add(dish_day)
+
+                # If the dish is alcohol, record alcohol consumption
+                try:
+                    contains_obj = contains or {}
+                    is_alcohol = bool(contains_obj.get("is_alcohol", False))
+                except Exception:
+                    is_alcohol = False
+
+                if is_alcohol:
+                    drink_name = dish_name
+                    calories = estimated_avg_calories or 0
+                    quantity = total_avg_weight or 0
+                    alcohol_entry = AlcoholConsumption(
+                        time=int(datetime.now().timestamp()),
+                        date=current_date(),
+                        drink_name=drink_name,
+                        calories=int(calories),
+                        quantity=int(quantity),
+                        user_email=user_email,
+                    )
+                    session.add(alcohol_entry)
+                    logger.info(f"Recorded alcohol consumption for user {user_email}: {drink_name}, cal {calories}, qty {quantity}")
                 session.commit()
 
                 logger.info(f"Successfully wrote dish data to database: {dish_name}")
@@ -195,6 +243,47 @@ def write_to_dish_day(
             logger.info(
                 f"Successfully wrote aggregated data to total_for_day for {current_date()}"
             )
+
+            # Aggregate alcohol for the day
+            try:
+                alcohol_totals = (
+                    session.query(
+                        func.sum(AlcoholConsumption.calories).label("total_calories"),
+                        func.count(AlcoholConsumption.time).label("total_drinks"),
+                        func.array_agg(AlcoholConsumption.drink_name).label("drinks")
+                    )
+                    .filter(AlcoholConsumption.date == current_date())
+                    .filter(AlcoholConsumption.user_email == user_email)
+                    .one()
+                )
+
+                total_alcohol_cal = int(alcohol_totals.total_calories or 0)
+                total_drinks = int(alcohol_totals.total_drinks or 0)
+                drinks_list = alcohol_totals.drinks or []
+
+                existing_alcohol = (
+                    session.query(AlcoholForDay)
+                    .filter(AlcoholForDay.date == current_date())
+                    .filter(AlcoholForDay.user_email == user_email)
+                    .first()
+                )
+                if existing_alcohol:
+                    existing_alcohol.total_calories = total_alcohol_cal
+                    existing_alcohol.total_drinks = total_drinks
+                    existing_alcohol.drinks_of_day = drinks_list
+                else:
+                    alcohol_for_day = AlcoholForDay(
+                        date=current_date(),
+                        user_email=user_email,
+                        total_calories=total_alcohol_cal,
+                        total_drinks=total_drinks,
+                        drinks_of_day=drinks_list,
+                    )
+                    session.add(alcohol_for_day)
+                session.commit()
+                logger.info(f"Updated alcohol_for_day for {current_date()} user {user_email}")
+            except Exception as e:
+                logger.warning(f"Failed to aggregate alcohol_for_day: {e}")
     except Exception as e:
         logger.error(f"Error writing to database: {e}")
 
@@ -260,6 +349,22 @@ def get_today_dishes(user_email: str = None):
                 "total_for_day": total_for_day_data,
                 "dishes_today": dishes_list,
             }
+            # Include today's alcohol summary
+            try:
+                alcohol = (
+                    session.query(AlcoholForDay)
+                    .filter(AlcoholForDay.date == current_date())
+                    .filter(AlcoholForDay.user_email == user_email)
+                    .first()
+                )
+                if alcohol:
+                    result["alcohol_for_day"] = {
+                        "total_drinks": alcohol.total_drinks,
+                        "total_calories": alcohol.total_calories,
+                        "drinks_of_day": alcohol.drinks_of_day or [],
+                    }
+            except Exception as e:
+                logger.warning(f"Failed to fetch alcohol_for_day: {e}")
             if latest_weight_entry:
                 result["latest_weight"] = {
                     "time": latest_weight_entry.time,
@@ -354,6 +459,24 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
                 "total_for_day": total_for_day_data,
                 "dishes_today": dishes_list,
             }
+            # Include alcohol summary for date
+            try:
+                alcohol = (
+                    session.query(AlcoholForDay)
+                    .filter(AlcoholForDay.date == formatted_date)
+                    .filter(AlcoholForDay.user_email == user_email)
+                    .first()
+                )
+                if alcohol:
+                    result["alcohol_for_day"] = {
+                        "total_drinks": alcohol.total_drinks,
+                        "total_calories": alcohol.total_calories,
+                        "drinks_of_day": alcohol.drinks_of_day or [],
+                    }
+            except Exception as e:
+                logger.warning(f"Failed to fetch alcohol_for_day for {formatted_date}: {e}")
+
+            # Return raw alcohol events in range if asked later via separate function
             if closest_weight_entry:
                 result["closest_weight"] = {
                     "time": closest_weight_entry.time,
@@ -490,4 +613,50 @@ def get_dishes(days, user_email: str = None):
             return dishes_list
     except Exception as e:
         logger.error(f"Error retrieving dishes from database: {e}", exc_info=True)
+        return []
+
+
+def get_alcohol_events_in_range(start_date: str, end_date: str, user_email: str = None):
+    """
+    Get alcohol events for a date range where dates are provided in dd-mm-yyyy format
+    and converted to yyyy-mm-dd for DB filtering.
+    """
+    try:
+        # Convert dd-mm-yyyy to yyyy-mm-dd
+        def to_date(date_str: str):
+            day, month, year = date_str.split('-')
+            return datetime.strptime(f"{year}-{month.zfill(2)}-{day.zfill(2)}", "%Y-%m-%d").date()
+
+        start_sql = to_date(start_date)
+        end_sql = to_date(end_date)
+
+        with get_db_session() as session:
+            events_query = (
+                session.query(AlcoholConsumption)
+                .filter(AlcoholConsumption.user_email == user_email)
+                .filter(AlcoholConsumption.date.between(start_sql, end_sql))
+                .all()
+            )
+            if not events_query:
+                try:
+                    events_query = (
+                        session.query(AlcoholConsumption)
+                        .filter(AlcoholConsumption.user_email == user_email)
+                        .filter(cast(AlcoholConsumption.date, Date).between(start_sql, end_sql))
+                        .all()
+                    )
+                except Exception:
+                    pass
+            events = []
+            for ev in events_query:
+                events.append({
+                    "time": ev.time,
+                    "date": ev.date.strftime("%Y-%m-%d") if isinstance(ev.date, datetime) else str(ev.date),
+                    "drink_name": ev.drink_name,
+                    "calories": ev.calories,
+                    "quantity": ev.quantity,
+                })
+            return events
+    except Exception as e:
+        logger.error(f"Error retrieving alcohol events: {e}")
         return []

@@ -18,7 +18,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from chater import chater as chater_ui
 from eater.eater import (delete_food_record, eater_photo, eater_today, eater_custom_date,
-                         get_recommendations, modify_food_record_data, eater_auth_request, manual_weight_record)
+                         get_recommendations, modify_food_record_data, eater_auth_request, manual_weight_record,
+                         alcohol_latest, alcohol_range)
 from eater.feedback import submit_feedback_request
 from eater_admin import eater_admin_request, eater_admin_proxy
 
@@ -191,6 +192,17 @@ def eater_auth():
 @token_required
 def manual_weight(user_email):
     return manual_weight_record(request=request, user_email=user_email)
+@app.route("/alcohol_latest", methods=["GET"])
+@token_required
+def get_alcohol_latest_route(user_email):
+    return alcohol_latest(user_email=user_email)
+
+
+@app.route("/alcohol_range", methods=["POST"])
+@token_required
+def get_alcohol_range_route(user_email):
+    return alcohol_range(request=request, user_email=user_email)
+
 
 
 @app.route("/feedback", methods=["POST"])

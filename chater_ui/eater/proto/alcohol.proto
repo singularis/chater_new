@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package Eater;
+
+message AlcoholDaySummary {
+  int32 total_drinks = 1;
+  int32 total_calories = 2;
+  repeated string drinks_of_day = 3;
+}
+
+message AlcoholEvent {
+  int64 time = 1;
+  string date = 2; // dd-mm-yyyy for requests, yyyy-mm-dd in responses
+  string drink_name = 3;
+  int32 calories = 4;
+  int32 quantity = 5; // grams or ml as captured
+}
+
+// Request for latest alcohol summary
+message GetAlcoholLatestRequest {}
+
+message GetAlcoholLatestResponse {
+  AlcoholDaySummary today_summary = 1;
+}
+
+// Request for range query
+message GetAlcoholRangeRequest {
+  string start_date = 1; // dd-mm-yyyy
+  string end_date = 2;   // dd-mm-yyyy
+}
+
+message GetAlcoholRangeResponse {
+  repeated AlcoholEvent events = 1;
+}
+
+service EaterAlcoholService {
+  rpc GetAlcoholLatest(GetAlcoholLatestRequest) returns (GetAlcoholLatestResponse);
+  rpc GetAlcoholRange(GetAlcoholRangeRequest) returns (GetAlcoholRangeResponse);
+}
+
+

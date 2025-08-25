@@ -6,6 +6,7 @@ from common import remove_markdown_fence
 from kafka_consumer import consume_messages, validate_user_data
 from kafka_producer import produce_message
 from postgres import delete_food, get_today_dishes, get_custom_date_dishes, modify_food
+from postgres import AlcoholConsumption, AlcoholForDay, get_alcohol_events_in_range
 from process_gpt import get_recommendation, proces_food, process_weight
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,8 @@ def process_messages():
         "modify_food_record",
         "get_recommendation",
         "manual_weight",
+        "get_alcohol_latest",
+        "get_alcohol_range",
     ]
     logging.info(f"Starting message processing with topics: {topics}")
     while True:
@@ -129,6 +132,27 @@ def process_messages():
                         "value": {"dishes": custom_dishes, "user_email": user_email},
                     }
                     produce_message(topic="send_today_data_custom", message=message)
+                elif message.topic() == "get_alcohol_latest":
+                    today_dishes = get_today_dishes(user_email)
+                    alcohol = (today_dishes or {}).get("alcohol_for_day", {})
+                    resp = {"alcohol": alcohol, "user_email": user_email}
+                    produce_message(
+                        topic="send_alcohol_latest",
+                        message={"key": message_key, "value": resp},
+                    )
+                elif message.topic() == "get_alcohol_range":
+                    value = value_dict.get("value", {})
+                    start_date = value.get("start_date")
+                    end_date = value.get("end_date")
+                    if not start_date or not end_date:
+                        logger.warning(f"Invalid date range in alcohol request for user {user_email}")
+                        continue
+
+                    events = get_alcohol_events_in_range(start_date=start_date, end_date=end_date, user_email=user_email)
+                    produce_message(
+                        topic="send_alcohol_range",
+                        message={"key": message_key, "value": {"events": events, "user_email": user_email}},
+                    )
                 elif message.topic() == "delete_food":
                     delete_food(value_dict.get("value"), user_email)
                     # Send confirmation

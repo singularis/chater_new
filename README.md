@@ -15,6 +15,7 @@ A comprehensive microservices-based application that combines AI-powered chat fu
 - **Nutritional Insights**: Automated calorie and nutrient tracking
 - **Personalized Recommendations**: AI-driven meal suggestions
 - **Data Visualization**: Comprehensive food intake analytics
+ - **Alcohol Tracking**: Detect alcoholic drinks, log consumption, and query summaries/ranges
 
 ### 🔐 Enterprise Security
 - **Multi-Factor Authentication**: JWT tokens with Google OAuth integration
@@ -37,6 +38,7 @@ The system is composed of multiple specialized microservices, each handling spec
 - **admin_service**: Administrative functionality and feedback processing
 - **chater_auth**: Authentication and authorization service
 - **eater**: Food tracking and nutritional analysis service
+ - **eater_user**: User search (autocomplete), friendships, and food sharing service
 
 ### AI & Processing Services
 - **chater_gpt**: OpenAI GPT integration service
@@ -49,6 +51,7 @@ The system is composed of multiple specialized microservices, each handling spec
 - **Kafka**: Message broker for inter-service communication
 - **Redis**: Caching and session management
 - **PostgreSQL**: Primary data storage
+ - **Neo4j**: Graph database for social relationships
 
 ## 🛠️ Technology Stack
 
@@ -59,6 +62,7 @@ The system is composed of multiple specialized microservices, each handling spec
 - **Apache Kafka**: Event streaming and messaging
 - **PostgreSQL**: Relational database for persistent storage
 - **Redis**: In-memory caching and session store
+ - **Neo4j**: Graph database for user relationships
 
 ### AI & ML Services
 - **OpenAI GPT**: Advanced language model integration
@@ -188,6 +192,18 @@ The system is composed of multiple specialized microservices, each handling spec
 - Custom meal logging
 - Data visualization
 
+### 👥 eater_user
+**User Graph & Sharing Service**
+- Real-time user email autocomplete via WebSocket (`/autocomplete`)
+- Manage friendships using Neo4j (add/check/list friends)
+- Share food records/percentages between users
+- Produces Kafka events to `photo-analysis-response` and `modify_food_record`
+- JWT-protected protobuf endpoints
+  - `POST /autocomplete/addfriend`
+  - `GET /autocomplete/getfriend`
+  - `POST /autocomplete/sharefood`
+- Health/readiness endpoints: `GET /health`, `GET /ready`
+
 ### 🤖 chater_gpt
 **OpenAI Integration**
 - GPT model integration
@@ -258,6 +274,11 @@ BOOTSTRAP_SERVER: your-kafka-broker:port
 # Caching
 REDIS_ENDPOINT: your-redis-host
 
+# Graph Database
+NEO4J_URI: bolt://your-neo4j-host:7687
+NEO4J_USER: your-neo4j-username
+NEO4J_PASSWORD: your-neo4j-password
+
 # AI Services
 OPENAI_API_KEY: your-openai-api-key
 GEMINI_API_KEY: your-gemini-api-key
@@ -266,6 +287,9 @@ GEMINI_API_KEY: your-gemini-api-key
 JWT_SECRET_KEY: your-jwt-secret
 GOOGLE_OAUTH_CLIENT_ID: your-oauth-client-id
 GOOGLE_OAUTH_CLIENT_SECRET: your-oauth-client-secret
+
+# Eater User Service
+EATER_SECRET_KEY: secret-used-to-verify-jwt-in-eater_user
 ```
 
 ### Kubernetes Deployment
@@ -339,6 +363,7 @@ graph TB
         Kafka[Apache Kafka]
         Redis[Redis Cache]
         PostgreSQL[PostgreSQL Database]
+        Neo4j[Neo4j Graph Database]
     end
     
     subgraph "Core Services"
@@ -346,6 +371,7 @@ graph TB
         Admin[admin_service<br/>Admin Backend]
         Auth[chater_auth<br/>Authentication]
         Eater[eater<br/>Food Tracking]
+        EaterUser[eater_user<br/>User Graph & Sharing]
     end
     
     subgraph "AI Services"
@@ -368,6 +394,7 @@ graph TB
     UI --> Redis
     UI --> Auth
     UI --> Eater
+    UI --> EaterUser
     
     Admin --> Kafka
     Admin --> PostgreSQL
@@ -377,6 +404,11 @@ graph TB
     
     Eater --> Kafka
     Eater --> PostgreSQL
+    Eater --> |alcohol events| PostgreSQL
+    
+    EaterUser --> Kafka
+    EaterUser --> PostgreSQL
+    EaterUser --> Neo4j
     
     %% AI service interactions
     GPTService --> Kafka
@@ -407,6 +439,7 @@ graph TB
     K8s --> Admin
     K8s --> Auth
     K8s --> Eater
+    K8s --> EaterUser
     K8s --> GPTService
     K8s --> GeminiService
     K8s --> Vision
@@ -416,6 +449,8 @@ graph TB
     Redis --> UI
     PostgreSQL --> Admin
     PostgreSQL --> Eater
+    PostgreSQL --> |alcohol data| UI
+    Neo4j --> EaterUser
     
     %% External API connections
     GCP --> DLP
@@ -432,9 +467,9 @@ graph TB
     classDef mgmtClass fill:#f1f8e9,stroke:#558b2f,stroke-width:2px
     
     class User userClass
-    class UI,Admin,Auth,Eater coreClass
+    class UI,Admin,Auth,Eater,EaterUser coreClass
     class GPTService,GeminiService,Vision,DLP aiClass
-    class K8s,Kafka,Redis,PostgreSQL infraClass
+    class K8s,Kafka,Redis,PostgreSQL,Neo4j infraClass
     class OpenAI,Gemini,GCP,OAuth externalClass
     class Operators mgmtClass
 ```

@@ -134,6 +134,8 @@ python app/app.py
 - **POST** `/eater/weight` - Manual weight entry
 - **GET** `/eater/recommendations` - Get meal recommendations
 - **POST** `/eater/feedback` - Submit feedback
+- **GET** `/alcohol_latest` - Get today's alcohol summary (drinks count, calories, list)
+- **POST** `/alcohol_range` - Get alcohol events between start_date and end_date
 
 ### File Management
 - **POST** `/upload` - Upload files
