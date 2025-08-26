@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package Eater;
+
+message SetLanguageRequest {
+  string user_email = 1;
+  string language_code = 2; // ISO 639-1 like "en", "fr", etc.
+}
+
+message SetLanguageResponse {
+  bool success = 1;
+}
+
+

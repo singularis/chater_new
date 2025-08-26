@@ -63,3 +63,5 @@ get_recommendation: |
   - 1) foods_to_reduce_or_avoid(dish_name, reason) provide 3 most harmful options
   - 2) healthier_foods(dish_name, reason) provide 3 most healthier options
   - 3) general_recommendations(key:value) 3 most important recommendation
+respond_in_language: |
+  When generating any textual output fields, respond in the specified target language code provided as "respond_in_language" (ISO 639-1, e.g., en, fr). If not provided or unsupported, default to English (en). Keep JSON keys in English; translate only values where appropriate in the model output.

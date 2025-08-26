@@ -21,6 +21,7 @@ class User(Base):
     email = Column(String, primary_key=True)
     register_date = Column(String, nullable=True)
     last_activity = Column(String, nullable=True)
+    language = Column(String, nullable=True)
 
 
 class Dishes(Base):
@@ -363,6 +364,14 @@ def create_tables():
                         """
                     DO $$
                     BEGIN
+                        -- Check and add columns to user table
+                        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user') THEN
+                            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user' AND column_name = 'language') THEN
+                                ALTER TABLE public.user ADD COLUMN language VARCHAR;
+                                UPDATE public.user SET language = 'en' WHERE language IS NULL;
+                            END IF;
+                        END IF;
+
                         -- Check and add columns to dishes table
                         IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'dishes') THEN
                             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'dishes' AND column_name = 'user_email') THEN

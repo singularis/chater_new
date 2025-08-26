@@ -14,7 +14,7 @@ import yaml
 from flask import flash, jsonify, redirect, request, url_for
 from PIL import Image
 import redis
-from user import update_user_activity
+from user import update_user_activity, get_user_language
 
 log = logging.getLogger("main")
 SECRET_KEY = str(os.getenv("EATER_SECRET_KEY"))
@@ -189,6 +189,26 @@ def get_prompt(key):
     except Exception as e:
         logging.exception(f"An unexpected error occurred: {e}")
         raise RuntimeError(f"An unexpected error occurred: {e}")
+
+
+def get_respond_in_language(user_email: str) -> str:
+    try:
+        key = f"user_language:{user_email}"
+        cached = redis_client.get(key)
+        if cached:
+            return cached.decode("utf-8")
+    except Exception:
+        cached = None
+
+    try:
+        language = get_user_language(user_email) or "en"
+        try:
+            redis_client.setex(f"user_language:{user_email}", 7 * 24 * 3600, language)
+        except Exception:
+            pass
+        return language
+    except Exception:
+        return "en"
 
 
 def resize_image(image_data, max_size=(1024, 1024)):

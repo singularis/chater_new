@@ -1,6 +1,7 @@
 import logging
 
 from .food_operations import delete_food, modify_food_record, manual_weight
+from .language import set_language_handler
 from .food_operations import get_alcohol_latest, get_alcohol_range
 from .getter_eater import eater_get_today, eater_get_custom_date, get_recommendation, eater_auth_token
 from .process_photo import eater_get_photo
@@ -98,6 +99,15 @@ def alcohol_range(request, user_email):
     logger.info(f"Fetching alcohol range for user: {user_email}")
     try:
         return get_alcohol_range(request=request, user_email=user_email)
+    except Exception as e:
+        logger.info(f"Exception {e}")
+        return "Failed"
+
+
+def set_language(request, user_email):
+    logger.info(f"Setting language for user: {user_email}")
+    try:
+        return set_language_handler(request=request, user_email=user_email)
     except Exception as e:
         logger.info(f"Exception {e}")
         return "Failed"

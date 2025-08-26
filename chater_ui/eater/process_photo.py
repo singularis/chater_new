@@ -3,7 +3,7 @@ import logging
 import uuid
 from datetime import datetime
 
-from common import encode_image, get_prompt, resize_image
+from common import encode_image, get_prompt, resize_image, get_respond_in_language
 from flask import jsonify, request
 from kafka_consumer_service import get_user_message_response
 from kafka_producer import create_producer, produce_message
@@ -83,9 +83,19 @@ def send_kafka_message(
     producer = create_producer()
     photo_uuid = message_id or str(uuid.uuid4())
     prompt = get_prompt(type_of_processing)
+    try:
+        lang_instruction = get_prompt("respond_in_language")
+        user_lang = get_respond_in_language(user_email)
+        prompt = f"{prompt}\n{lang_instruction}\nTarget language: {user_lang}"
+    except Exception:
+        pass
     message = {
         "key": photo_uuid,
-        "value": {"prompt": prompt, "photo": photo_base64, "user_email": user_email},
+        "value": {
+            "prompt": prompt,
+            "photo": photo_base64,
+            "user_email": user_email,
+        },
     }
     logger.info(f"Food image {photo_uuid} sent for user {user_email}")
     if type_of_processing == "weight_prompt":
