@@ -185,12 +185,14 @@ The system is composed of multiple specialized microservices, each handling spec
 - Nutritional analysis
 - Meal tracking and history
 - Personalized recommendations
+ - Language preference management
 
 **Key Features:**
 - AI-powered food identification
 - Calorie and nutrition tracking
 - Custom meal logging
 - Data visualization
+ - JWT-protected endpoint to set user language: `POST /set_language`
 
 ### 👥 eater_user
 **User Graph & Sharing Service**
@@ -550,6 +552,15 @@ sequenceDiagram
         Admin->>DB: Check connectivity
         Auth->>Kafka: Check connectivity
     end
+
+    Note over User,DB: Language Change Flow
+    User->>UI: Select preferred language
+    UI->>Eater: POST /set_language {"language": "es"} + JWT
+    Eater->>Eater: Validate JWT, extract user email
+    Eater->>DB: UPDATE public."user" SET language, last_activity
+    DB-->>Eater: Update successful
+    Eater-->>UI: 200 OK
+    UI-->>User: Language updated
 ```
 
 ## 🙏 Acknowledgments
