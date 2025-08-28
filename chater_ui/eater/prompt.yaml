@@ -59,9 +59,64 @@ get_recommendation: |
   - Identify which foods should be reduced or avoided for better health.
   - Respond only by JSON. No additional text.
   - For JSON response, send only keys and values.
-  - Response should include 3 main fields in following order. Do not change order of fields in response:
+  - Response should include 4 main fields in following order. Do not change order of fields in response:
   - 1) foods_to_reduce_or_avoid(dish_name, reason) provide 3 most harmful options
   - 2) healthier_foods(dish_name, reason) provide 3 most healthier options
   - 3) general_recommendations(key:value) 3 most important recommendation
+  - 4) translation_keys: Provide a mapping of English keys to target language translations
+  
+  CRITICAL TRANSLATION REQUIREMENT
+  - You MUST translate ALL values to the target language specified in "respond_in_language"
+  - DO NOT leave any values in English or other languages
+  - EVERY dish_name, reason, and recommendation value must be in the target language
+  - If you cannot translate to the target language, use a similar language you know well
+  - The translation_keys section is MANDATORY and must contain proper translations
+  
+  EXAMPLE OUTPUT STRUCTURE (for Ukrainian target language):
+  {
+    "foods_to_reduce_or_avoid": [
+      {"dish_name": "Піца", "reason": "Високий вміст калорій та жирів"},
+      {"dish_name": "Гамбургер", "reason": "Багато насичених жирів"}
+    ],
+    "healthier_foods": [
+      {"dish_name": "Салат", "reason": "Багато вітамінів та мінералів"}
+    ],
+    "general_recommendations": {
+      "protein": "Споживайте більше білків",
+      "fiber": "Додайте більше клітковини"
+    },
+    "translation_keys": {
+      "foods_to_reduce_or_avoid": "Продукти для зменшення або уникнення",
+      "healthier_foods": "Більш здорові продукти",
+      "general_recommendations": "Загальні рекомендації"
+    }
+  }
+  
+  - IMPORTANT: Use the exact JSON keys provided above, but translate all values to the target language.
+  - The translation_keys section should map English keys to their natural translations in the target language.
 respond_in_language: |
-  When generating any textual output fields, respond in the specified target language code provided as "respond_in_language" (ISO 639-1, e.g., en, fr). If not provided or unsupported, default to English (en). Keep JSON keys in English; translate only values where appropriate in the model output.
+  When generating any textual output fields, respond in the specified target language code provided as "respond_in_language" (ISO 639-1, e.g., en, fr). If not provided or unsupported, default to English (en). 
+  
+  CRITICAL LOCALIZATION RULES - FOLLOW EXACTLY
+  1. Keep JSON keys in English (e.g., "foods_to_reduce_or_avoid", "healthier_foods", "general_recommendations")
+  2. TRANSLATE ALL VALUES TO THE TARGET LANGUAGE - NO EXCEPTIONS:
+     - dish_name values → MUST be in target language
+     - reason values → MUST be in target language  
+     - general_recommendations values → MUST be in target language
+     - ALL other text values → MUST be in target language
+  3. Maintain the exact JSON structure with English keys
+  4. Ensure all translated text is properly formatted and natural in the target language
+  5. Add a "translation_keys" section that maps English keys to target language translations
+  6. NEVER leave any content in English or other languages - ONLY the target language
+  7. If unsure about translation, use the most appropriate equivalent in the target language
+   COMMON MISTAKES TO AVOID:
+  - DO NOT leave dish names in English (e.g., "Pizza" instead of "Піца")
+  - DO NOT leave reasons in English (e.g., "High in calories" instead of "Високий вміст калорій")
+  - DO NOT leave recommendations in English (e.g., "Eat more protein" instead of "Споживайте більше білків")
+  - DO NOT mix languages in the same response
+  - DO NOT skip the translation_keys section
+  CORRECT APPROACH:
+  - Translate EVERY text value to the target language
+  - Use proper grammar and natural phrasing in the target language
+  - Ensure cultural appropriateness for the target language
+  - Provide complete translation_keys mapping

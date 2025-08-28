@@ -211,6 +211,31 @@ def get_respond_in_language(user_email: str) -> str:
         return "en"
 
 
+def create_multilingual_prompt(base_prompt_key: str, user_email: str) -> str:
+    """
+    Create a multilingual prompt by combining a base prompt with language instructions.
+    
+    Args:
+        base_prompt_key: The key for the base prompt in prompt.yaml
+        user_email: User email to determine language preference
+        
+    Returns:
+        Combined prompt with language instructions
+    """
+    try:
+        base_prompt = get_prompt(base_prompt_key)
+        lang_instruction = get_prompt("respond_in_language")
+        user_lang = get_respond_in_language(user_email)
+        
+        # Combine prompts with language instruction
+        combined_prompt = f"{base_prompt}\n{lang_instruction}\nTarget language: {user_lang}"
+        return combined_prompt
+    except Exception as e:
+        logging.warning(f"Failed to create multilingual prompt for {base_prompt_key}: {e}")
+        # Fallback to base prompt only
+        return get_prompt(base_prompt_key)
+
+
 def resize_image(image_data, max_size=(1024, 1024)):
     try:
         image = Image.open(io.BytesIO(image_data))
@@ -234,6 +259,39 @@ def encode_image(image_path):
 import json
 
 
+def sanitize_data_for_logging(data):
+    if isinstance(data, str):
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError:
+            return {"error": "Invalid JSON string"}
+    
+    if not isinstance(data, dict):
+        return {"error": "Data is not a dictionary"}
+    
+    sensitive_fields = {
+        "user_email", "userEmail", "email", "key", "value", 
+        "type_of_processing", "days", "prompt", "internal_id",
+        "session_id", "request_id", "timestamp", "created_at",
+        "password", "token", "secret", "api_key", "auth_token"
+    }
+    
+    sanitized = {}
+    for key, value in data.items():
+        if key not in sensitive_fields:
+            if isinstance(value, dict):
+                sanitized[key] = sanitize_data_for_logging(value)
+            elif isinstance(value, list):
+                sanitized[key] = [
+                    sanitize_data_for_logging(item) if isinstance(item, dict) else item 
+                    for item in value
+                ]
+            else:
+                sanitized[key] = value
+    
+    return sanitized
+
+
 def json_to_plain_text(json_data):
     if isinstance(json_data, str):
         cleaned_data = json_data.strip()
@@ -247,56 +305,86 @@ def json_to_plain_text(json_data):
         except json.JSONDecodeError:
             return "Invalid JSON input."
 
+    sensitive_fields = {
+        "user_email", "userEmail", "email", "key", "value", 
+        "type_of_processing", "days", "prompt", "internal_id",
+        "session_id", "request_id", "timestamp", "created_at"
+    }
+    
+    json_data = {k: v for k, v in json_data.items() if k not in sensitive_fields}
     output_text = ""
 
-    if "foods_to_reduce_or_avoid" in json_data:
-        output_text += "Foods to Reduce or Avoid:\n\n"
-        for food in json_data["foods_to_reduce_or_avoid"]:
-            dish_name = food.get("dish_name", "Unnamed Dish")
-            reason = food.get("reason", "")
-            output_text += f"- {dish_name}: {reason}\n"
-            output_text += "\n"
-        output_text += "\n"
+    translation_keys = json_data.get("translation_keys", {})
+    
+    default_headers = {
+        "foods_to_reduce_or_avoid": "Foods to Reduce or Avoid",
+        "healthier_foods": "Healthier Food Options",
+        "general_recommendations": "General Recommendations"
+    }
+    
+    section_headers = {key: translation_keys.get(key, default) for key, default in default_headers.items()}
 
-    if "healthier_foods" in json_data:
-        output_text += "Healthier Food Options:\n\n"
-        for food in json_data["healthier_foods"]:
-            dish_name = food.get("dish_name", "Unnamed Dish")
-            reason = food.get("reason", "")
-            output_text += f"- {dish_name}: {reason}\n"
-            output_text += "\n"
-        output_text += "\n"
+    def format_food_list(foods, header_key):
+        if not foods or not isinstance(foods, list):
+            return ""
+        
+        result = f"{section_headers[header_key]}:\n\n"
+        for food in foods:
+            if isinstance(food, dict):
+                dish_name = food.get("dish_name", "Unnamed Dish")
+                reason = food.get("reason", "")
+                result += f"- {dish_name}: {reason}\n"
+            else:
+                result += f"- {food}\n"
+        return result + "\n"
 
-    if "general_recommendations" in json_data:
-        output_text += "General Recommendations:\n\n"
-        if isinstance(json_data["general_recommendations"], dict):
-            for key, value in json_data["general_recommendations"].items():
-                output_text += f"- {value}\n"
+    def format_recommendations(recommendations):
+        if not recommendations:
+            return ""
+        
+        result = f"{section_headers['general_recommendations']}:\n\n"
+        if isinstance(recommendations, dict):
+            for value in recommendations.values():
+                result += f"- {value}\n"
+        elif isinstance(recommendations, list):
+            for rec in recommendations:
+                result += f"- {rec}\n"
         else:
-            output_text += f"{json_data['general_recommendations']}\n"
-        output_text += "\n"
+            result += f"{recommendations}\n"
+        return result + "\n"
 
+    output_text += format_food_list(json_data.get("foods_to_reduce_or_avoid"), "foods_to_reduce_or_avoid")
+    output_text += format_food_list(json_data.get("healthier_foods"), "healthier_foods")
+    output_text += format_recommendations(json_data.get("general_recommendations"))
+
+    excluded_fields = {"general_recommendations", "healthier_foods", "foods_to_reduce_or_avoid", "translation_keys"}
+    
     for key, value in json_data.items():
-        if key not in [
-            "general_recommendations",
-            "healthier_foods",
-            "foods_to_reduce_or_avoid",
-        ]:
-            display_key = key.replace("_", " ").title()
-            if isinstance(value, list):
-                output_text += f"{display_key}:\n"
-                for item in value:
+        if key in excluded_fields or key == "error":
+            continue
+            
+        display_key = translation_keys.get(key, key.replace("_", " ").title())
+        
+        if isinstance(value, list):
+            output_text += f"{display_key}:\n"
+            for item in value:
+                if isinstance(item, dict):
+                    for sub_key, sub_value in item.items():
+                        sub_display_key = translation_keys.get(sub_key, sub_key.replace("_", " ").title())
+                        output_text += f"  - {sub_display_key}: {sub_value}\n"
+                else:
                     output_text += f"- {item}\n"
-                output_text += "\n"
-            elif isinstance(value, str):
-                output_text += f"{display_key}:\n{value}\n\n"
-            elif isinstance(value, dict):
-                output_text += f"{display_key}:\n"
-                for sub_key, sub_value in value.items():
-                    output_text += (
-                        f"- {sub_key.replace('_', ' ').title()}: {sub_value}\n"
-                    )
-                output_text += "\n"
+            output_text += "\n"
+        elif isinstance(value, str):
+            output_text += f"{display_key}:\n{value}\n\n"
+        elif isinstance(value, dict):
+            output_text += f"{display_key}:\n"
+            for sub_key, sub_value in value.items():
+                sub_display_key = translation_keys.get(sub_key, sub_key.replace("_", " ").title())
+                output_text += f"- {sub_display_key}: {sub_value}\n"
+            output_text += "\n"
+        elif isinstance(value, (int, float)):
+            output_text += f"{display_key}: {value}\n\n"
 
     return output_text
 
