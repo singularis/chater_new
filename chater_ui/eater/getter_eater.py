@@ -3,7 +3,7 @@ import logging
 import uuid
 from datetime import datetime
 
-from common import get_prompt, json_to_plain_text, get_respond_in_language
+from common import get_prompt, json_to_plain_text, get_respond_in_language, create_multilingual_prompt
 from kafka_consumer_service import get_user_message_response, get_message_response
 from kafka_producer import create_producer, produce_message
 
@@ -365,13 +365,7 @@ def get_recommendation(request, user_email):
         proto_request.ParseFromString(request.data)
 
         days = proto_request.days
-        prompt = get_prompt("get_recommendation")
-        try:
-            lang_instruction = get_prompt("respond_in_language")
-            user_lang = get_respond_in_language(user_email)
-            prompt = f"{prompt}\n{lang_instruction}\nTarget language: {user_lang}"
-        except Exception:
-            pass
+        prompt = create_multilingual_prompt("get_recommendation", user_email)
         message_id = str(uuid.uuid4())
         payload = {
             "days": days,
