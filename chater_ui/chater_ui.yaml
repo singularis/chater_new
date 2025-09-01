@@ -91,7 +91,7 @@
                       - name: FLASK_DEBUG
                         value: "true"
                       - name: DAILY_REQUEST_LIMIT
-                        value: "20"
+                        value: "30"
                       - name: POSTGRES_USER
                         value: "{{ vars.EATER.DB_NAME }}"
                       - name: POSTGRES_PASSWORD
