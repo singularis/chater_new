@@ -190,6 +190,14 @@ def get_user_statistics():
         
         cursor.execute("SELECT COUNT(DISTINCT user_email) FROM public.total_for_day;")
         total_users = cursor.fetchone()[0] or 0
+
+        # Registered users from the main user table
+        try:
+            cursor.execute("SELECT COUNT(*) FROM public.\"user\";")
+            registered_users = cursor.fetchone()[0] or 0
+        except Exception:
+            # Fallback if table does not exist in some environments
+            registered_users = 0
         
         cursor.execute("""
             SELECT COUNT(DISTINCT user_email) 
@@ -244,6 +252,7 @@ def get_user_statistics():
         
         statistics = {
             "total_users": total_users,
+            "registered_users": registered_users,
             "active_users_7_days": active_users_7_days,
             "active_users_30_days": active_users_30_days,
             "constantly_active_7_days": constantly_active_7_days,
