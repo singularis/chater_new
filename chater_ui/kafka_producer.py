@@ -3,6 +3,7 @@ import logging
 import os
 
 from confluent_kafka import KafkaException, Producer
+
 from logging_config import setup_logging
 
 setup_logging("kafka_producer.log")
@@ -17,7 +18,7 @@ def create_producer():
     Creates the producer only once on first call and reuses it for subsequent calls.
     """
     global _producer_instance
-    
+
     if _producer_instance is None:
         try:
             conf = {
@@ -33,7 +34,7 @@ def create_producer():
             raise
     else:
         logger.debug("Reusing existing producer instance")
-    
+
     return _producer_instance
 
 
@@ -57,8 +58,12 @@ def produce_message(producer, topic, message):
         # Debug logging for auth topic
         if topic == "auth_requires_token":
             logger.info(f"AUTH DEBUG - Message before user_email check: {message}")
-            logger.info(f"AUTH DEBUG - Message value keys: {list(message.get('value', {}).keys())}")
-            logger.info(f"AUTH DEBUG - user_email in value: {'user_email' in message.get('value', {})}")
+            logger.info(
+                f"AUTH DEBUG - Message value keys: {list(message.get('value', {}).keys())}"
+            )
+            logger.info(
+                f"AUTH DEBUG - user_email in value: {'user_email' in message.get('value', {})}"
+            )
 
         # Add user_email to the message if not present
         if "user_email" not in message["value"]:

@@ -1,12 +1,13 @@
 import logging
 import os
 import atexit
+import time
 
 import context
 import redis
 from common import (before_request, chater_clear, generate_session_secret,
                     token_required, rate_limit_required)
-from flask import Flask, jsonify, render_template, request, session, redirect, url_for, flash
+from flask import Flask, jsonify, render_template, request, session, redirect, url_for, flash, g
 from flask_cors import CORS
 from flask_session import Session
 from google_ops import create_google_blueprint, g_login
@@ -22,6 +23,7 @@ from eater.eater import (delete_food_record, eater_photo, eater_today, eater_cus
                          alcohol_latest, alcohol_range, set_language)
 from eater.feedback import submit_feedback_request
 from eater_admin import eater_admin_request, eater_admin_proxy
+from .metrics import metrics_endpoint, record_http_metrics, track_eater_operation
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -75,6 +77,31 @@ atexit.register(stop_kafka_consumer_service)
 @app.before_request
 def before():
     return before_request(session=session, app=app, SESSION_LIFETIME=SESSION_LIFETIME)
+
+
+@app.before_request
+def metrics_before_request():
+    if request.path != "/metrics":
+        g._http_request_start_time = time.time()
+
+
+@app.after_request
+def metrics_after_request(response):
+    try:
+        if request.path != "/metrics":
+            start_time = getattr(g, "_http_request_start_time", time.time())
+            endpoint_label = request.endpoint or request.path
+            record_http_metrics(start_time=start_time, endpoint=endpoint_label, status=response.status_code)
+    finally:
+        return response
+
+
+@app.teardown_request
+def metrics_teardown_request(exc):
+    if exc is not None and request and request.path != "/metrics":
+        start_time = getattr(g, "_http_request_start_time", time.time())
+        endpoint_label = request.endpoint or request.path
+        record_http_metrics(start_time=start_time, endpoint=endpoint_label, status=500)
 
 
 @app.route("/chater_login", methods=["GET", "POST"])
@@ -145,6 +172,7 @@ def eater(user_email):
 
 
 @app.route("/eater_receive_photo", methods=["POST"])
+@track_eater_operation("receive_photo")
 @token_required
 @rate_limit_required
 def eater_receive_photo(user_email):
@@ -152,30 +180,35 @@ def eater_receive_photo(user_email):
 
 
 @app.route("/eater_get_today", methods=["GET"])
+@track_eater_operation("get_today")
 @token_required
 def eater_get_today(user_email):
     return eater_today(user_email=user_email)
 
 
 @app.route("/get_food_custom_date", methods=["POST"])
+@track_eater_operation("get_food_custom_date")
 @token_required
 def get_food_custom_date(user_email):
     return eater_custom_date(request=request, user_email=user_email)
 
 
 @app.route("/delete_food", methods=["POST"])
+@track_eater_operation("delete_food")
 @token_required
 def delete_food(user_email):
     return delete_food_record(request=request, user_email=user_email)
 
 
 @app.route("/modify_food_record", methods=["POST"])
+@track_eater_operation("modify_food_record")
 @token_required
 def modify_food(user_email):
     return modify_food_record_data(request=request, user_email=user_email)
 
 
 @app.route("/get_recommendation", methods=["POST"])
+@track_eater_operation("get_recommendation")
 @token_required
 @rate_limit_required
 def recommendations(user_email):
@@ -184,21 +217,25 @@ def recommendations(user_email):
 
 
 @app.route("/eater_auth", methods=["POST"])
+@track_eater_operation("eater_auth")
 def eater_auth():
     return eater_auth_request(request=request)
 
 
 @app.route("/manual_weight", methods=["POST"])
+@track_eater_operation("manual_weight")
 @token_required
 def manual_weight(user_email):
     return manual_weight_record(request=request, user_email=user_email)
 @app.route("/alcohol_latest", methods=["GET"])
+@track_eater_operation("alcohol_latest")
 @token_required
 def get_alcohol_latest_route(user_email):
     return alcohol_latest(user_email=user_email)
 
 
 @app.route("/alcohol_range", methods=["POST"])
+@track_eater_operation("alcohol_range")
 @token_required
 def get_alcohol_range_route(user_email):
     return alcohol_range(request=request, user_email=user_email)
@@ -206,6 +243,7 @@ def get_alcohol_range_route(user_email):
 
 
 @app.route("/feedback", methods=["POST"])
+@track_eater_operation("submit_feedback")
 @token_required
 def submit_feedback(user_email):
     return submit_feedback_request(user_email=user_email)
@@ -222,9 +260,15 @@ def eater_admin_proxy_route(resource_path):
 
 
 @app.route("/set_language", methods=["POST"])
+@track_eater_operation("set_language")
 @token_required
 def set_language_route(user_email):
     return set_language(request=request, user_email=user_email)
+
+
+@app.route("/metrics")
+def metrics():
+    return metrics_endpoint()
 
 
 if __name__ == "__main__":

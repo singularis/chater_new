@@ -1,20 +1,21 @@
 import base64
+import hashlib
 import io
 import logging
 import os
 import re
 import secrets
 import string
-import hashlib
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 import jwt
+import redis
 import yaml
 from flask import flash, jsonify, redirect, request, url_for
 from PIL import Image
-import redis
-from user import update_user_activity, get_user_language
+
+from user import get_user_language, update_user_activity
 
 log = logging.getLogger("main")
 SECRET_KEY = str(os.getenv("EATER_SECRET_KEY"))
@@ -31,9 +32,9 @@ def get_jwt_secret_key():
     """
     if not SECRET_KEY:
         raise ValueError("EATER_SECRET_KEY environment variable not set")
-    
-    secret_bytes = SECRET_KEY.encode('utf-8')
-    
+
+    secret_bytes = SECRET_KEY.encode("utf-8")
+
     # If the secret is already 32+ bytes, use it directly
     # Otherwise, derive a 256-bit key using SHA-256
     if len(secret_bytes) >= 32:
@@ -42,7 +43,10 @@ def get_jwt_secret_key():
         # Derive a 256-bit key from the secret using SHA-256
         hash_obj = hashlib.sha256(secret_bytes)
         derived_key = hash_obj.digest()
-        log.debug("Secret key was too short (%d bits), derived 256-bit key using SHA-256", len(secret_bytes) * 8)
+        log.debug(
+            "Secret key was too short (%d bits), derived 256-bit key using SHA-256",
+            len(secret_bytes) * 8,
+        )
         return derived_key
 
 
@@ -119,14 +123,21 @@ def rate_limit_required(f):
         if not user_email:
             logging.error("Rate limit check failed: no user_email found")
             return jsonify({"message": "Authentication required"}), 401
-        
+
         # Check rate limit
         if not check_rate_limit(user_email):
             logging.warning(f"Rate limit exceeded for user: {user_email}")
-            return jsonify({"error": f"Unfortuantly, you have reached your daily limit of {daily_limit} requests. Please try again tomorrow, be mingfull and eat healthy food."}), 400
-            
+            return (
+                jsonify(
+                    {
+                        "error": f"Unfortuantly, you have reached your daily limit of {daily_limit} requests. Please try again tomorrow, be mingfull and eat healthy food."
+                    }
+                ),
+                400,
+            )
+
         return f(*args, **kwargs)
-    
+
     return wrapper
 
 
@@ -135,33 +146,39 @@ def check_rate_limit(user_email):
     try:
         # Get daily limit from environment variable
         daily_limit = int(os.getenv("DAILY_REQUEST_LIMIT", "10"))
-        
+
         # Get current UTC date as key
         current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         redis_key = f"rate_limit:{user_email}:{current_date}"
-        
+
         # Get current count
         current_count = redis_client.get(redis_key)
         if current_count is None:
             current_count = 0
         else:
             current_count = int(current_count)
-        
+
         # Check if limit exceeded
         if current_count >= daily_limit:
-            logging.warning(f"Rate limit exceeded for user {user_email}: {current_count}/{daily_limit}")
+            logging.warning(
+                f"Rate limit exceeded for user {user_email}: {current_count}/{daily_limit}"
+            )
             return False
-        
+
         # Increment counter
         redis_client.incr(redis_key)
-        
-        next_day = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+
+        next_day = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ) + timedelta(days=1)
         expiry_seconds = int((next_day - datetime.now(timezone.utc)).total_seconds())
         redis_client.expire(redis_key, expiry_seconds)
-        
-        logging.info(f"Rate limit check passed for user {user_email}: {current_count + 1}/{daily_limit}")
+
+        logging.info(
+            f"Rate limit check passed for user {user_email}: {current_count + 1}/{daily_limit}"
+        )
         return True
-        
+
     except Exception as e:
         logging.error(f"Error checking rate limit for user {user_email}: {e}")
         return True
@@ -214,11 +231,11 @@ def get_respond_in_language(user_email: str) -> str:
 def create_multilingual_prompt(base_prompt_key: str, user_email: str) -> str:
     """
     Create a multilingual prompt by combining a base prompt with language instructions.
-    
+
     Args:
         base_prompt_key: The key for the base prompt in prompt.yaml
         user_email: User email to determine language preference
-        
+
     Returns:
         Combined prompt with language instructions
     """
@@ -226,12 +243,16 @@ def create_multilingual_prompt(base_prompt_key: str, user_email: str) -> str:
         base_prompt = get_prompt(base_prompt_key)
         lang_instruction = get_prompt("respond_in_language")
         user_lang = get_respond_in_language(user_email)
-        
+
         # Combine prompts with language instruction
-        combined_prompt = f"{base_prompt}\n{lang_instruction}\nTarget language: {user_lang}"
+        combined_prompt = (
+            f"{base_prompt}\n{lang_instruction}\nTarget language: {user_lang}"
+        )
         return combined_prompt
     except Exception as e:
-        logging.warning(f"Failed to create multilingual prompt for {base_prompt_key}: {e}")
+        logging.warning(
+            f"Failed to create multilingual prompt for {base_prompt_key}: {e}"
+        )
         # Fallback to base prompt only
         return get_prompt(base_prompt_key)
 
@@ -265,17 +286,31 @@ def sanitize_data_for_logging(data):
             data = json.loads(data)
         except json.JSONDecodeError:
             return {"error": "Invalid JSON string"}
-    
+
     if not isinstance(data, dict):
         return {"error": "Data is not a dictionary"}
-    
+
     sensitive_fields = {
-        "user_email", "userEmail", "email", "key", "value", 
-        "type_of_processing", "days", "prompt", "internal_id",
-        "session_id", "request_id", "timestamp", "created_at",
-        "password", "token", "secret", "api_key", "auth_token"
+        "user_email",
+        "userEmail",
+        "email",
+        "key",
+        "value",
+        "type_of_processing",
+        "days",
+        "prompt",
+        "internal_id",
+        "session_id",
+        "request_id",
+        "timestamp",
+        "created_at",
+        "password",
+        "token",
+        "secret",
+        "api_key",
+        "auth_token",
     }
-    
+
     sanitized = {}
     for key, value in data.items():
         if key not in sensitive_fields:
@@ -283,12 +318,12 @@ def sanitize_data_for_logging(data):
                 sanitized[key] = sanitize_data_for_logging(value)
             elif isinstance(value, list):
                 sanitized[key] = [
-                    sanitize_data_for_logging(item) if isinstance(item, dict) else item 
+                    sanitize_data_for_logging(item) if isinstance(item, dict) else item
                     for item in value
                 ]
             else:
                 sanitized[key] = value
-    
+
     return sanitized
 
 
@@ -306,28 +341,41 @@ def json_to_plain_text(json_data):
             return "Invalid JSON input."
 
     sensitive_fields = {
-        "user_email", "userEmail", "email", "key", "value", 
-        "type_of_processing", "days", "prompt", "internal_id",
-        "session_id", "request_id", "timestamp", "created_at"
+        "user_email",
+        "userEmail",
+        "email",
+        "key",
+        "value",
+        "type_of_processing",
+        "days",
+        "prompt",
+        "internal_id",
+        "session_id",
+        "request_id",
+        "timestamp",
+        "created_at",
     }
-    
+
     json_data = {k: v for k, v in json_data.items() if k not in sensitive_fields}
     output_text = ""
 
     translation_keys = json_data.get("translation_keys", {})
-    
+
     default_headers = {
         "foods_to_reduce_or_avoid": "Foods to Reduce or Avoid",
         "healthier_foods": "Healthier Food Options",
-        "general_recommendations": "General Recommendations"
+        "general_recommendations": "General Recommendations",
     }
-    
-    section_headers = {key: translation_keys.get(key, default) for key, default in default_headers.items()}
+
+    section_headers = {
+        key: translation_keys.get(key, default)
+        for key, default in default_headers.items()
+    }
 
     def format_food_list(foods, header_key):
         if not foods or not isinstance(foods, list):
             return ""
-        
+
         result = f"{section_headers[header_key]}:\n\n"
         for food in foods:
             if isinstance(food, dict):
@@ -341,7 +389,7 @@ def json_to_plain_text(json_data):
     def format_recommendations(recommendations):
         if not recommendations:
             return ""
-        
+
         result = f"{section_headers['general_recommendations']}:\n\n"
         if isinstance(recommendations, dict):
             for value in recommendations.values():
@@ -353,24 +401,33 @@ def json_to_plain_text(json_data):
             result += f"{recommendations}\n"
         return result + "\n"
 
-    output_text += format_food_list(json_data.get("foods_to_reduce_or_avoid"), "foods_to_reduce_or_avoid")
+    output_text += format_food_list(
+        json_data.get("foods_to_reduce_or_avoid"), "foods_to_reduce_or_avoid"
+    )
     output_text += format_food_list(json_data.get("healthier_foods"), "healthier_foods")
     output_text += format_recommendations(json_data.get("general_recommendations"))
 
-    excluded_fields = {"general_recommendations", "healthier_foods", "foods_to_reduce_or_avoid", "translation_keys"}
-    
+    excluded_fields = {
+        "general_recommendations",
+        "healthier_foods",
+        "foods_to_reduce_or_avoid",
+        "translation_keys",
+    }
+
     for key, value in json_data.items():
         if key in excluded_fields or key == "error":
             continue
-            
+
         display_key = translation_keys.get(key, key.replace("_", " ").title())
-        
+
         if isinstance(value, list):
             output_text += f"{display_key}:\n"
             for item in value:
                 if isinstance(item, dict):
                     for sub_key, sub_value in item.items():
-                        sub_display_key = translation_keys.get(sub_key, sub_key.replace("_", " ").title())
+                        sub_display_key = translation_keys.get(
+                            sub_key, sub_key.replace("_", " ").title()
+                        )
                         output_text += f"  - {sub_display_key}: {sub_value}\n"
                 else:
                     output_text += f"- {item}\n"
@@ -380,7 +437,9 @@ def json_to_plain_text(json_data):
         elif isinstance(value, dict):
             output_text += f"{display_key}:\n"
             for sub_key, sub_value in value.items():
-                sub_display_key = translation_keys.get(sub_key, sub_key.replace("_", " ").title())
+                sub_display_key = translation_keys.get(
+                    sub_key, sub_key.replace("_", " ").title()
+                )
                 output_text += f"- {sub_display_key}: {sub_value}\n"
             output_text += "\n"
         elif isinstance(value, (int, float)):

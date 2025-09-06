@@ -3,8 +3,9 @@ import logging
 import re
 import uuid
 
-from common import sanitize_question
 from flask import flash, redirect, render_template, request, url_for
+
+from common import sanitize_question
 from kafka_consumer_service import get_message_response
 from kafka_producer import create_producer, produce_message
 from logging_config import setup_logging
@@ -96,7 +97,7 @@ def get_messages(message_uuid, topics):
     log.info(
         f"Starting message processing for UUID: {message_uuid}, expected from topics: {topics}"
     )
-    
+
     # Get response from Redis using the background consumer service
     try:
         response = get_message_response(message_uuid, timeout=220)

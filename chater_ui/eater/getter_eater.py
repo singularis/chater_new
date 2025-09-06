@@ -3,11 +3,16 @@ import logging
 import uuid
 from datetime import datetime
 
-from common import get_prompt, json_to_plain_text, get_respond_in_language, create_multilingual_prompt
-from kafka_consumer_service import get_user_message_response, get_message_response
+from common import (
+    create_multilingual_prompt,
+    get_prompt,
+    get_respond_in_language,
+    json_to_plain_text,
+)
+from kafka_consumer_service import get_message_response, get_user_message_response
 from kafka_producer import create_producer, produce_message
 
-from .proto import get_recomendation_pb2, today_food_pb2, custom_date_food_pb2
+from .proto import custom_date_food_pb2, get_recomendation_pb2, today_food_pb2
 
 logger = logging.getLogger(__name__)
 
@@ -22,20 +27,26 @@ def eater_kafka_request(topic_send, topic_receive, payload, user_email, timeout_
     logger.info(
         f"Waiting for response from topic {topic_receive} for user {user_email} with message ID {message_id}"
     )
-    
+
     # Get response from Redis using the background consumer service
     try:
-        response = get_user_message_response(message_id, user_email, timeout=timeout_sec)
+        response = get_user_message_response(
+            message_id, user_email, timeout=timeout_sec
+        )
         if response is not None:
             logger.info(f"Retrieved response for user {user_email}: {response}")
-            
+
             if response.get("error"):
-                logger.error(f"Error in response for user {user_email}: {response.get('error')}")
+                logger.error(
+                    f"Error in response for user {user_email}: {response.get('error')}"
+                )
                 return None
-            
+
             return response
         else:
-            logger.warning(f"Timeout waiting for response for user {user_email} with message ID {message_id}")
+            logger.warning(
+                f"Timeout waiting for response for user {user_email} with message ID {message_id}"
+            )
             return None
     except Exception as e:
         logger.error(f"Failed to get message response for user {user_email}: {e}")
@@ -53,7 +64,9 @@ def eater_get_custom_date_kafka(user_email, custom_date):
     payload = {
         "date": custom_date,
     }
-    return eater_kafka_request("get_today_data_custom", "send_today_data_custom", payload, user_email)
+    return eater_kafka_request(
+        "get_today_data_custom", "send_today_data_custom", payload, user_email
+    )
 
 
 def eater_get_today(user_email):
@@ -105,7 +118,7 @@ def eater_get_today(user_email):
         lw = today_food.get("dishes", {}).get("latest_weight", {})
         if not lw:
             lw = today_food.get("dishes", {}).get("closest_weight", {})
-        
+
         logger.info(
             f"Weight data for user {user_email}: {lw}, weight value: {lw.get('weight')}"
         )
@@ -153,38 +166,42 @@ def eater_get_custom_date(request, user_email):
     try:
         proto_request = custom_date_food_pb2.CustomDateFoodRequest()
         proto_request.ParseFromString(request.data)
-        
+
         custom_date = proto_request.date
         if not custom_date:
-            logger.error(f"No date provided in custom date request for user {user_email}")
+            logger.error(
+                f"No date provided in custom date request for user {user_email}"
+            )
             return "No date provided", 400
-            
+
         custom_food = eater_get_custom_date_kafka(user_email, custom_date)
         if not custom_food:
-            raise ValueError(f"No data received from Kafka for user {user_email} and date {custom_date}")
+            raise ValueError(
+                f"No data received from Kafka for user {user_email} and date {custom_date}"
+            )
 
         logger.info(
             f"Received custom_food from Kafka for user {user_email} and date {custom_date}: {custom_food}"
         )
-        
+
         proto_message = custom_date_food_pb2.CustomDateFoodResponse()
         tf = custom_food.get("dishes", {}).get("total_for_day", {})
         logger.info(
             f"Total_for_day content for user {user_email} and date {custom_date}: {tf} | Types: { {k: type(v) for k, v in tf.items()} }"
         )
-        
+
         total_avg_weight = tf.get("total_avg_weight", 0)
         logger.info(
             f"Assigning total_avg_weight for user {user_email}: {total_avg_weight} (type: {type(total_avg_weight)})"
         )
         proto_message.total_for_day.total_avg_weight = int(total_avg_weight)
-        
+
         total_calories = tf.get("total_calories", 0)
         logger.info(
             f"Assigning total_calories for user {user_email}: {total_calories} (type: {type(total_calories)})"
         )
         proto_message.total_for_day.total_calories = total_calories
-        
+
         contains_data = tf.get("contains", {})
         if isinstance(contains_data, list):
             logger.warning(
@@ -210,7 +227,7 @@ def eater_get_custom_date(request, user_email):
         lw = custom_food.get("dishes", {}).get("closest_weight", {})
         if not lw:
             lw = custom_food.get("dishes", {}).get("latest_weight", {})
-        
+
         logger.info(
             f"Weight data for user {user_email} and date {custom_date}: {lw}, weight value: {lw.get('weight')}"
         )
@@ -259,104 +276,158 @@ def eater_auth_token(request):
     logger.info("=== ENTERING eater_auth_token function ===")
     try:
         import json
+
         from flask import jsonify
-        
+
         # Parse the request JSON
         request_data = request.get_json()
         if not request_data:
             logger.error("No JSON data in auth request")
-            return jsonify({"error": "invalid_request", "message": "No JSON data provided"}), 400
-        
+            return (
+                jsonify(
+                    {"error": "invalid_request", "message": "No JSON data provided"}
+                ),
+                400,
+            )
+
         # Extract required fields
         provider = request_data.get("provider")
         id_token = request_data.get("idToken")
         email = request_data.get("email")
         name = request_data.get("name")
         profile_picture_url = request_data.get("profilePictureURL")
-        
+
         # Validate required fields
         if not provider or not id_token or not email:
             logger.error("Missing required fields in auth request")
-            return jsonify({
-                "error": "invalid_request", 
-                "message": "Missing required fields: provider, idToken, email"
-            }), 400
-        
+            return (
+                jsonify(
+                    {
+                        "error": "invalid_request",
+                        "message": "Missing required fields: provider, idToken, email",
+                    }
+                ),
+                400,
+            )
+
         if provider not in ["google", "apple"]:
             logger.error(f"Invalid provider: {provider}")
-            return jsonify({
-                "error": "invalid_provider",
-                "message": "Provider must be google or apple"
-            }), 400
-        
+            return (
+                jsonify(
+                    {
+                        "error": "invalid_provider",
+                        "message": "Provider must be google or apple",
+                    }
+                ),
+                400,
+            )
+
         # Create payload for Kafka message
         payload = {
             "provider": provider,
             "idToken": id_token,
             "email": email,
             "name": name,
-            "profilePictureURL": profile_picture_url
+            "profilePictureURL": profile_picture_url,
         }
-        
+
         # Use the standard eater_kafka_request function like other endpoints
         logger.info(f"Sending auth request to Kafka for email: {email}")
-        
+
         # Create a temporary user email since this is before authentication
         temp_user_email = email  # Use the email from the request as user identifier
-        
+
         # Send to Kafka using the standard pattern
         message_id = str(uuid.uuid4())
-        message = {"key": message_id, "value": {**payload, "user_email": temp_user_email}}
-        
+        message = {
+            "key": message_id,
+            "value": {**payload, "user_email": temp_user_email},
+        }
+
         logger.info(f"AUTH DEBUG - Message created in auth function: {message}")
         logger.info(f"AUTH DEBUG - temp_user_email: {temp_user_email}")
         logger.info(f"AUTH DEBUG - payload: {payload}")
-        
+
         producer = create_producer()
         produce_message(producer, topic="auth_requires_token", message=message)
-        
-        logger.info(f"Waiting for auth response from topic add_auth_token with message ID {message_id}")
-        
+
+        logger.info(
+            f"Waiting for auth response from topic add_auth_token with message ID {message_id}"
+        )
+
         # Get response from Redis using the background consumer service
         try:
             response = get_message_response(message_id, timeout=30)
             if response is not None:
                 logger.info(f"Retrieved auth response for email {email}: {response}")
-                
+
                 if response.get("error"):
-                    logger.error(f"Error in auth response for email {email}: {response.get('error')}")
-                    return jsonify({
-                        "error": response.get("error"),
-                        "message": response.get("message", "Authentication failed")
-                    }), 401
-                
+                    logger.error(
+                        f"Error in auth response for email {email}: {response.get('error')}"
+                    )
+                    return (
+                        jsonify(
+                            {
+                                "error": response.get("error"),
+                                "message": response.get(
+                                    "message", "Authentication failed"
+                                ),
+                            }
+                        ),
+                        401,
+                    )
+
                 # Return successful response
-                return jsonify({
-                    "token": response.get("token"),
-                    "expiresIn": response.get("expiresIn", 86400),
-                    "userEmail": response.get("userEmail", email),
-                    "userName": response.get("userName", name),
-                    "profilePictureURL": response.get("profilePictureURL", profile_picture_url)
-                }), 200
+                return (
+                    jsonify(
+                        {
+                            "token": response.get("token"),
+                            "expiresIn": response.get("expiresIn", 86400),
+                            "userEmail": response.get("userEmail", email),
+                            "userName": response.get("userName", name),
+                            "profilePictureURL": response.get(
+                                "profilePictureURL", profile_picture_url
+                            ),
+                        }
+                    ),
+                    200,
+                )
             else:
-                logger.warning(f"Timeout waiting for auth response with message ID {message_id}")
-                return jsonify({
-                    "error": "timeout",
-                    "message": "Authentication request timed out"
-                }), 500
+                logger.warning(
+                    f"Timeout waiting for auth response with message ID {message_id}"
+                )
+                return (
+                    jsonify(
+                        {
+                            "error": "timeout",
+                            "message": "Authentication request timed out",
+                        }
+                    ),
+                    500,
+                )
         except Exception as e:
             logger.error(f"Failed to get auth message response: {e}")
-            return jsonify({
-                "error": "internal_error",
-                "message": "Failed to process authentication request"
-            }), 500
-            
+            return (
+                jsonify(
+                    {
+                        "error": "internal_error",
+                        "message": "Failed to process authentication request",
+                    }
+                ),
+                500,
+            )
+
     except Exception as e:
         logger.error(f"Exception in eater_auth_token: {e}")
-        return jsonify({
-            "error": "internal_error",
-            "message": "Authentication service temporarily unavailable"
-        }), 500
+        return (
+            jsonify(
+                {
+                    "error": "internal_error",
+                    "message": "Authentication service temporarily unavailable",
+                }
+            ),
+            500,
+        )
 
 
 def get_recommendation(request, user_email):

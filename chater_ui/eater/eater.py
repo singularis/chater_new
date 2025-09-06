@@ -1,9 +1,19 @@
 import logging
 
-from .food_operations import delete_food, modify_food_record, manual_weight
+from .food_operations import (
+    delete_food,
+    get_alcohol_latest,
+    get_alcohol_range,
+    manual_weight,
+    modify_food_record,
+)
+from .getter_eater import (
+    eater_auth_token,
+    eater_get_custom_date,
+    eater_get_today,
+    get_recommendation,
+)
 from .language import set_language_handler
-from .food_operations import get_alcohol_latest, get_alcohol_range
-from .getter_eater import eater_get_today, eater_get_custom_date, get_recommendation, eater_auth_token
 from .process_photo import eater_get_photo
 
 logger = logging.getLogger(__name__)

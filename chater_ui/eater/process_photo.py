@@ -3,8 +3,9 @@ import logging
 import uuid
 from datetime import datetime
 
-from common import encode_image, get_prompt, resize_image, get_respond_in_language
 from flask import jsonify, request
+
+from common import encode_image, get_prompt, get_respond_in_language, resize_image
 from kafka_consumer_service import get_user_message_response
 from kafka_producer import create_producer, produce_message
 
@@ -45,24 +46,34 @@ def eater_get_photo(user_email):
             message_id=message_id,
         )
 
-        logger.info(f"Waiting for photo analysis response for user {user_email} with message ID {message_id}")
-        
+        logger.info(
+            f"Waiting for photo analysis response for user {user_email} with message ID {message_id}"
+        )
+
         # Get response from Redis using the background consumer service
         try:
             response = get_user_message_response(message_id, user_email, timeout=30)
             if response is not None:
-                logger.info(f"Retrieved photo analysis response for user {user_email}: {response}")
-                
+                logger.info(
+                    f"Retrieved photo analysis response for user {user_email}: {response}"
+                )
+
                 if response.get("error"):
-                    logger.error(f"Error in photo analysis response for user {user_email}: {response.get('error')}")
+                    logger.error(
+                        f"Error in photo analysis response for user {user_email}: {response.get('error')}"
+                    )
                     return jsonify({"error": response.get("error")}), 400
-                
+
                 return response.get("status", "Success")
             else:
-                logger.warning(f"Timeout waiting for photo analysis response for user {user_email} with message ID {message_id}")
+                logger.warning(
+                    f"Timeout waiting for photo analysis response for user {user_email} with message ID {message_id}"
+                )
                 return "Timeout", 408
         except Exception as e:
-            logger.error(f"Failed to get photo analysis response for user {user_email}: {e}")
+            logger.error(
+                f"Failed to get photo analysis response for user {user_email}: {e}"
+            )
             return "Timeout", 408
 
     except Exception as e:

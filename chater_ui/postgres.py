@@ -1,4 +1,5 @@
 import os
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
@@ -9,12 +10,9 @@ DB_NAME = os.environ.get("POSTGRES_DB")
 
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:5432/{DB_NAME}"
 
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=1800
-)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=1800)
 Session = sessionmaker(bind=engine)
+
 
 def ensure_table_exists(table_sql):
     """Ensure a table exists by executing the provided CREATE TABLE IF NOT EXISTS statement."""

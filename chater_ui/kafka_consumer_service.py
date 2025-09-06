@@ -7,6 +7,7 @@ from datetime import datetime
 
 import redis
 from confluent_kafka import Consumer, KafkaError, KafkaException
+
 from logging_config import setup_logging
 
 setup_logging("kafka_consumer_service.log")
@@ -21,7 +22,7 @@ class KafkaConsumerService:
         self.consumers = {}
         self.is_running = False
         self.threads = []
-        
+
         # Topics to consume from based on target configurations
         self.topic_configs = {
             "gpt-response": {"name": "gpt-response"},
@@ -73,21 +74,21 @@ class KafkaConsumerService:
         try:
             # Store response for 10 minutes (600 seconds)
             self.redis_client.setex(
-                f"kafka_response:{message_uuid}", 
-                600, 
-                json.dumps(response_data)
+                f"kafka_response:{message_uuid}", 600, json.dumps(response_data)
             )
-            
+
             # Also store with user-specific key if user_email is provided
             if user_email:
                 self.redis_client.setex(
-                    f"kafka_response_user:{user_email}:{message_uuid}", 
-                    600, 
-                    json.dumps(response_data)
+                    f"kafka_response_user:{user_email}:{message_uuid}",
+                    600,
+                    json.dumps(response_data),
                 )
-            
-            logger.info(f"Stored response for message UUID: {message_uuid}" + 
-                       (f" and user: {user_email}" if user_email else ""))
+
+            logger.info(
+                f"Stored response for message UUID: {message_uuid}"
+                + (f" and user: {user_email}" if user_email else "")
+            )
         except Exception as e:
             logger.error(f"Failed to store response in Redis: {str(e)}")
 
@@ -95,13 +96,13 @@ class KafkaConsumerService:
         """Consume messages from specific topics continuously"""
         consumer = self.create_consumer(topics)
         logger.info(f"Starting consumer for topics: {topics}")
-        
+
         try:
             while self.is_running:
                 msg = consumer.poll(1.0)
                 if msg is None:
                     continue
-                    
+
                 if msg.error():
                     if msg.error().code() == KafkaError._PARTITION_EOF:
                         logger.debug(
@@ -122,40 +123,52 @@ class KafkaConsumerService:
 
                 try:
                     # Process the message
-                    message_data = json.loads(msg.value().decode('utf-8'))
-                    logger.info(f"Received message on topic {msg.topic()}: {message_data}")
-                    
+                    message_data = json.loads(msg.value().decode("utf-8"))
+                    logger.info(
+                        f"Received message on topic {msg.topic()}: {message_data}"
+                    )
+
                     # Extract message UUID from key or value
-                    message_uuid = msg.key().decode('utf-8') if msg.key() else None
+                    message_uuid = msg.key().decode("utf-8") if msg.key() else None
                     if not message_uuid and isinstance(message_data, dict):
-                        message_uuid = message_data.get('key')
-                    
+                        message_uuid = message_data.get("key")
+
                     if message_uuid:
                         # Store the response in Redis
-                        response_value = message_data.get('value') if isinstance(message_data, dict) else message_data
-                        
+                        response_value = (
+                            message_data.get("value")
+                            if isinstance(message_data, dict)
+                            else message_data
+                        )
+
                         # Extract user_email for user-specific storage
                         user_email = None
                         if isinstance(response_value, dict):
-                            user_email = response_value.get('user_email')
-                        
-                        self.store_response_in_redis(message_uuid, response_value, user_email)
-                        
-                        logger.info(f"Processed message UUID: {message_uuid} from topic: {msg.topic()}" +
-                                  (f" for user: {user_email}" if user_email else ""))
+                            user_email = response_value.get("user_email")
+
+                        self.store_response_in_redis(
+                            message_uuid, response_value, user_email
+                        )
+
+                        logger.info(
+                            f"Processed message UUID: {message_uuid} from topic: {msg.topic()}"
+                            + (f" for user: {user_email}" if user_email else "")
+                        )
                     else:
-                        logger.warning(f"No message UUID found in message: {message_data}")
-                    
+                        logger.warning(
+                            f"No message UUID found in message: {message_data}"
+                        )
+
                     # Commit the message
                     consumer.commit(msg)
-                    
+
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to parse message as JSON: {str(e)}")
                     continue
                 except Exception as e:
                     logger.error(f"Error processing message: {str(e)}")
                     continue
-                    
+
         except Exception as e:
             logger.error(f"Error in consumer loop: {str(e)}")
         finally:
@@ -167,33 +180,31 @@ class KafkaConsumerService:
         if self.is_running:
             logger.warning("Service is already running")
             return
-            
+
         self.is_running = True
         logger.info("Starting Kafka Consumer Service")
-        
+
         # Start consumers for different topic groups
         all_topics = list(self.topic_configs.keys())
-        
+
         # Create a single consumer thread for all response topics
         consumer_thread = threading.Thread(
-            target=self.consume_topic_messages,
-            args=(all_topics,),
-            daemon=True
+            target=self.consume_topic_messages, args=(all_topics,), daemon=True
         )
         consumer_thread.start()
         self.threads.append(consumer_thread)
-        
+
         logger.info("Kafka Consumer Service started successfully")
 
     def stop_service(self):
         """Stop the background consumer service"""
         logger.info("Stopping Kafka Consumer Service")
         self.is_running = False
-        
+
         # Wait for threads to finish
         for thread in self.threads:
             thread.join(timeout=5)
-        
+
         self.threads.clear()
         logger.info("Kafka Consumer Service stopped")
 
@@ -206,12 +217,12 @@ class KafkaConsumerService:
                 if response_data:
                     # Delete the response after retrieving it
                     self.redis_client.delete(f"kafka_response:{message_uuid}")
-                    return json.loads(response_data.decode('utf-8'))
+                    return json.loads(response_data.decode("utf-8"))
             except Exception as e:
                 logger.error(f"Error retrieving response from Redis: {str(e)}")
-            
+
             time.sleep(0.5)  # Poll every 500ms
-        
+
         logger.warning(f"Timeout waiting for response for UUID: {message_uuid}")
         return None
 
@@ -221,29 +232,38 @@ class KafkaConsumerService:
         while time.time() - start_time < timeout:
             try:
                 # Try user-specific key first
-                response_data = self.redis_client.get(f"kafka_response_user:{user_email}:{message_uuid}")
+                response_data = self.redis_client.get(
+                    f"kafka_response_user:{user_email}:{message_uuid}"
+                )
                 if response_data:
                     # Delete both user-specific and general keys
-                    self.redis_client.delete(f"kafka_response_user:{user_email}:{message_uuid}")
+                    self.redis_client.delete(
+                        f"kafka_response_user:{user_email}:{message_uuid}"
+                    )
                     self.redis_client.delete(f"kafka_response:{message_uuid}")
-                    return json.loads(response_data.decode('utf-8'))
-                
+                    return json.loads(response_data.decode("utf-8"))
+
                 # Fallback to general key
                 response_data = self.redis_client.get(f"kafka_response:{message_uuid}")
                 if response_data:
-                    parsed_data = json.loads(response_data.decode('utf-8'))
+                    parsed_data = json.loads(response_data.decode("utf-8"))
                     # Check if this response is for the correct user
-                    if isinstance(parsed_data, dict) and parsed_data.get('user_email') == user_email:
+                    if (
+                        isinstance(parsed_data, dict)
+                        and parsed_data.get("user_email") == user_email
+                    ):
                         # Delete the response after retrieving it
                         self.redis_client.delete(f"kafka_response:{message_uuid}")
                         return parsed_data
-                        
+
             except Exception as e:
                 logger.error(f"Error retrieving user response from Redis: {str(e)}")
-            
+
             time.sleep(0.5)  # Poll every 500ms
-        
-        logger.warning(f"Timeout waiting for response for UUID: {message_uuid} and user: {user_email}")
+
+        logger.warning(
+            f"Timeout waiting for response for UUID: {message_uuid} and user: {user_email}"
+        )
         return None
 
 
@@ -268,4 +288,4 @@ def get_message_response(message_uuid, timeout=120):
 
 def get_user_message_response(message_uuid, user_email, timeout=120):
     """Get message response from Redis for a specific user"""
-    return kafka_service.get_user_response_from_redis(message_uuid, user_email, timeout) 
+    return kafka_service.get_user_response_from_redis(message_uuid, user_email, timeout)

@@ -3,7 +3,9 @@ import os
 from urllib.parse import urlparse
 
 import requests
-from flask import jsonify, redirect, url_for, flash, Response, session as flask_session
+from flask import Response, flash, jsonify, redirect
+from flask import session as flask_session
+from flask import url_for
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ def _rewrite_html_for_proxy(html_text: str) -> str:
         ("src='/", "src='/eater_admin_proxy/"),
         ('href="/', 'href="/eater_admin_proxy/'),
         ("href='/", "href='/eater_admin_proxy/"),
-        ("srcset=\"/", "srcset=\"/eater_admin_proxy/"),
+        ('srcset="/', 'srcset="/eater_admin_proxy/'),
         ("srcset='/", "srcset='/eater_admin_proxy/"),
         ("url(/", "url(/eater_admin_proxy/"),
     ]
@@ -43,18 +45,25 @@ def eater_admin_request(session):
         logger.warning("Unauthorized eater_admin access attempt")
         flash("You need to log in to view this page")
         return redirect(url_for("chater_login"))
-    
+
     try:
         # Fetch content from the admin statistics page
         response = requests.get(ADMIN_PAGE_URL, timeout=10)
         response.raise_for_status()
         # Rewrite HTML so asset requests go through our proxy endpoint
         html_text = _rewrite_html_for_proxy(response.text)
-        return html_text, response.status_code, {'Content-Type': response.headers.get('Content-Type', 'text/html')}
-        
+        return (
+            html_text,
+            response.status_code,
+            {"Content-Type": response.headers.get("Content-Type", "text/html")},
+        )
+
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching statistics page: {e}")
-        return jsonify({"error": "Failed to fetch statistics data", "details": str(e)}), 500 
+        return (
+            jsonify({"error": "Failed to fetch statistics data", "details": str(e)}),
+            500,
+        )
 
 
 def eater_admin_proxy(resource_path):
@@ -66,12 +75,12 @@ def eater_admin_proxy(resource_path):
     try:
         proxied = requests.get(target_url, stream=True, timeout=15)
         headers = {}
-        content_type = proxied.headers.get('Content-Type')
+        content_type = proxied.headers.get("Content-Type")
         if content_type:
-            headers['Content-Type'] = content_type
-        cache_control = proxied.headers.get('Cache-Control')
+            headers["Content-Type"] = content_type
+        cache_control = proxied.headers.get("Cache-Control")
         if cache_control:
-            headers['Cache-Control'] = cache_control
+            headers["Cache-Control"] = cache_control
         return Response(proxied.content, status=proxied.status_code, headers=headers)
     except requests.exceptions.RequestException as e:
         logger.error(f"Proxy error fetching {target_url}: {e}")
