@@ -23,7 +23,7 @@ from eater.eater import (delete_food_record, eater_photo, eater_today, eater_cus
                          alcohol_latest, alcohol_range, set_language)
 from eater.feedback import submit_feedback_request
 from eater_admin import eater_admin_request, eater_admin_proxy
-from .metrics import metrics_endpoint, record_http_metrics, track_eater_operation
+from .metrics import metrics_endpoint, record_http_metrics, track_eater_operation, track_operation
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -87,7 +87,9 @@ def metrics_after_request(response):
     try:
         if request.path != "/metrics":
             start_time = getattr(g, "_http_request_start_time", time.time())
-            endpoint_label = request.endpoint or request.path
+            endpoint_label = (
+                request.url_rule.rule if getattr(request, "url_rule", None) else request.path
+            )
             record_http_metrics(start_time=start_time, endpoint=endpoint_label, status=response.status_code)
     finally:
         return response
@@ -97,67 +99,81 @@ def metrics_after_request(response):
 def metrics_teardown_request(exc):
     if exc is not None and request and request.path != "/metrics":
         start_time = getattr(g, "_http_request_start_time", time.time())
-        endpoint_label = request.endpoint or request.path
+        endpoint_label = (
+            request.url_rule.rule if getattr(request, "url_rule", None) else request.path
+        )
         record_http_metrics(start_time=start_time, endpoint=endpoint_label, status=500)
 
 
 @app.route("/chater_login", methods=["GET", "POST"])
+@track_operation("chater_login")
 def chater_login():
     return login(session=session)
 
 
 @app.route("/google_login")
+@track_operation("google_login")
 def google_login():
     return g_login(session=session, ALLOWED_EMAILS=ALLOWED_EMAILS)
 
 
 @app.route("/chater", methods=["GET", "POST"])
+@track_operation("chater")
 def chater():
     return chater_ui(session, target="chater")
 
 
 @app.route("/chamini", methods=["GET", "POST"])
+@track_operation("chamini")
 def chamini():
     return chater_ui(session, target="chamini")
 
 
 @app.route("/gempt", methods=["GET", "POST"])
+@track_operation("gempt")
 def gempt():
     return chater_ui(session, target="gempt")
 
 
 @app.route("/chater_clear_responses", methods=["GET"])
+@track_operation("chater_clear_responses")
 def chater_clear_responses():
     return chater_clear(session=session)
 
 
 @app.route("/chater_logout")
+@track_operation("chater_logout")
 def chater_logout():
     return logout(session=session)
 
 
 @app.route("/chater_wait")
+@track_operation("chater_wait")
 def chater_wait():
     logger.warning("Waiting for next chater_login attempt")
     return render_template("wait.html")
 
 
 @app.route("/gphoto", methods=["GET"])
+@track_operation("gphoto")
 def gphoto_ui():
     return gphoto(session, picFolder)
 
 
 @app.route("/gphoto_proxy/<path:resource_path>", methods=["GET"])
+@track_operation("gphoto_proxy")
 def gphoto_proxy_route(resource_path):
     return gphoto_proxy(resource_path)
 
 
 @app.route("/toggle-switch", methods=["POST"])
+@track_operation("toggle_switch")
 def toggle_switch():
     return context.context_switch(session)
 
 
 @app.route("/get-switch-state", methods=["GET"])
+@track_operation("get_switch_state")
 def get_switch_state():
     return context.use_switch_state(session)
 
@@ -247,11 +263,13 @@ def submit_feedback(user_email):
 
 
 @app.route("/eater_admin", methods=["GET", "POST"])
+@track_operation("eater_admin")
 def eater_admin():
     return eater_admin_request(session)
 
 
 @app.route("/eater_admin_proxy/<path:resource_path>", methods=["GET"])
+@track_operation("eater_admin_proxy")
 def eater_admin_proxy_route(resource_path):
     return eater_admin_proxy(resource_path)
 

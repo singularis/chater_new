@@ -69,6 +69,67 @@ eater_operation_latency_seconds = Histogram(
 )
 
 
+"""
+Generic operation metrics for non-eater endpoints
+"""
+operation_total = Counter(
+    "operation_total",
+    "Count of operations by name and outcome",
+    ["operation", "outcome"],
+    registry=metrics_registry,
+)
+
+operation_latency_seconds = Histogram(
+    "operation_latency_seconds",
+    "Latency of operations in seconds",
+    ["operation", "outcome"],
+    buckets=(
+        0.01,
+        0.025,
+        0.05,
+        0.1,
+        0.25,
+        0.5,
+        1.0,
+        2.5,
+        5.0,
+        10.0,
+    ),
+    registry=metrics_registry,
+)
+
+
+def track_operation(
+    operation_name: str,
+) -> Callable[[Callable[..., Response]], Callable[..., Response]]:
+    """Decorator to track generic operation success/failure and latency."""
+
+    def decorator(func: Callable[..., Response]) -> Callable[..., Response]:
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            try:
+                response = func(*args, **kwargs)
+                status_code = getattr(response, "status_code", 200)
+                outcome = "success" if 200 <= int(status_code) < 400 else "error"
+                elapsed = time.time() - start
+                operation_total.labels(operation=operation_name, outcome=outcome).inc()
+                operation_latency_seconds.labels(
+                    operation=operation_name, outcome=outcome
+                ).observe(elapsed)
+                return response
+            except Exception:
+                elapsed = time.time() - start
+                operation_total.labels(operation=operation_name, outcome="exception").inc()
+                operation_latency_seconds.labels(
+                    operation=operation_name, outcome="exception"
+                ).observe(elapsed)
+                raise
+
+        wrapper.__name__ = getattr(func, "__name__", f"wrapped_{operation_name}")
+        return wrapper
+
+    return decorator
+
 def metrics_endpoint() -> Response:
     """Return Prometheus metrics in text format."""
     return Response(generate_latest(metrics_registry), mimetype=CONTENT_TYPE_LATEST)
