@@ -122,14 +122,44 @@
           metadata:
             name: chater-ui
             namespace: chater-ui
+            labels:
+              app: chater-ui
           spec:
             ports:
               - port: 5000
                 targetPort: 5000
+                name: http
                 nodePort: 30600
             selector:
               app: chater-ui
             type: NodePort
+
+    - name: Create ServiceMonitor for chater-ui
+      tags:
+        - servicemonitor
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: monitoring.coreos.com/v1
+          kind: ServiceMonitor
+          metadata:
+            name: chater-ui-monitor
+            namespace: monitoring
+            labels:
+              app: gphoto-flask-prometheus
+          spec:
+            jobLabel: app
+            selector:
+              matchLabels:
+                app: chater-ui
+            namespaceSelector:
+              matchNames:
+                - chater-ui
+            endpoints:
+              - port: http
+                path: /metrics
+                interval: 30s
+                scheme: http
 
     - name: Create chater PersistentVolume
       kubernetes.core.k8s:
