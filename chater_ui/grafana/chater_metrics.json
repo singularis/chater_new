@@ -25,11 +25,11 @@
   "panels": [
     {
       "type": "stat",
-      "title": "HTTP RPS (All)",
+      "title": "HTTP Requests (All)",
       "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=~\"$job\"}[5m]))",
+          "expr": "sum(rate(http_requests_total{job=~\"$job\"}[1m]))",
           "legendFormat": "rps",
           "refId": "A"
         }
@@ -46,11 +46,11 @@
     },
     {
       "type": "stat",
-      "title": "HTTP Error Rate (non-2xx)",
+      "title": "HTTP Errors (non-2xx)",
       "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=~\"$job\",status!~\"2..\"}[5m]))",
+          "expr": "sum(rate(http_requests_total{job=~\"$job\",status!~\"2..\"}[1m]))",
           "legendFormat": "errors/s",
           "refId": "A"
         }
@@ -71,7 +71,7 @@
       "gridPos": {"h": 10, "w": 12, "x": 0, "y": 4},
       "targets": [
         {
-          "expr": "sum by (endpoint,status) (rate(http_requests_total{job=~\"$job\"}[5m]))",
+          "expr": "sum by (endpoint,status) (rate(http_requests_total{job=~\"$job\"}[1m]))",
           "legendFormat": "{{endpoint}} {{status}}",
           "refId": "A"
         }
@@ -105,11 +105,11 @@
     },
     {
       "type": "timeseries",
-      "title": "Eater Ops Rate by Outcome",
+      "title": "Eater Ops by Outcome",
       "gridPos": {"h": 10, "w": 12, "x": 0, "y": 14},
       "targets": [
         {
-          "expr": "sum by (operation,outcome) (rate(eater_operation_total{job=~\"$job\"}[5m]))",
+          "expr": "sum by (operation,outcome) (increase(eater_operation_total{job=~\"$job\"}[$__interval]))",
           "legendFormat": "{{operation}} {{outcome}}",
           "refId": "A"
         }

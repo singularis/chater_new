@@ -76,13 +76,10 @@ atexit.register(stop_kafka_consumer_service)
 
 @app.before_request
 def before():
-    return before_request(session=session, app=app, SESSION_LIFETIME=SESSION_LIFETIME)
-
-
-@app.before_request
-def metrics_before_request():
     if request.path != "/metrics":
         g._http_request_start_time = time.time()
+    return before_request(session=session, app=app, SESSION_LIFETIME=SESSION_LIFETIME)
+
 
 
 @app.after_request
