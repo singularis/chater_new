@@ -1,0 +1,106 @@
+{
+  "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}]},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Eater Success Rate",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "targets": [
+        {"expr": "sum(rate(eater_operation_total{outcome=\"success\",job=~\"$job\"}[5m])) / clamp_min(sum(rate(eater_operation_total{job=~\"$job\"}[5m])), 1)", "refId": "A"}
+      ],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "orientation": "auto", "textMode": "auto", "colorMode": "value", "graphMode": "none", "justifyMode": "auto"},
+      "datasource": {"type": "prometheus", "uid": "$datasource"}
+    },
+    {
+      "type": "timeseries",
+      "title": "Eater Ops Volume by Type",
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {"expr": "sum by (operation) (increase(eater_operation_total{job=~\"$job\"}[$__interval]))", "legendFormat": "{{operation}}", "refId": "A"}
+      ],
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
+      "datasource": {"type": "prometheus", "uid": "$datasource"}
+    },
+    {
+      "type": "timeseries",
+      "title": "Eater Errors by Type",
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 10},
+      "targets": [
+        {"expr": "sum by (operation,outcome) (increase(eater_operation_total{outcome!~\"success\",job=~\"$job\"}[$__interval]))", "legendFormat": "{{operation}} {{outcome}}", "refId": "A"}
+      ],
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
+      "datasource": {"type": "prometheus", "uid": "$datasource"}
+    },
+    {
+      "type": "timeseries",
+      "title": "Eater p90 Latency by Op",
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 10},
+      "targets": [
+        {"expr": "histogram_quantile(0.9, sum by (le,operation) (rate(eater_operation_latency_seconds_bucket{job=~\"$job\"}[5m])))", "legendFormat": "p90 {{operation}}", "refId": "A"}
+      ],
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
+      "datasource": {"type": "prometheus", "uid": "$datasource"}
+    },
+    {
+      "type": "timeseries",
+      "title": "Auth Outcomes",
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 20},
+      "targets": [
+        {"expr": "sum by (outcome) (increase(operation_total{operation=\"chater_login\",job=~\"$job\"}[$__interval]))", "legendFormat": "login {{outcome}}", "refId": "A"},
+        {"expr": "sum by (outcome) (increase(operation_total{operation=\"google_login\",job=~\"$job\"}[$__interval]))", "legendFormat": "google {{outcome}}", "refId": "B"}
+      ],
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
+      "datasource": {"type": "prometheus", "uid": "$datasource"}
+    },
+    {
+      "type": "timeseries",
+      "title": "Feedback Submissions",
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 20},
+      "targets": [
+        {"expr": "sum by (outcome) (increase(eater_operation_total{operation=\"submit_feedback\",job=~\"$job\"}[$__interval]))", "legendFormat": "{{outcome}}", "refId": "A"}
+      ],
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
+      "datasource": {"type": "prometheus", "uid": "$datasource"}
+    },
+    {
+      "type": "stat",
+      "title": "HTTP 5xx rate",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 30},
+      "targets": [
+        {"expr": "sum(rate(http_requests_total{status=~\"5..\",job=~\"$job\"}[5m]))", "legendFormat": "5xx/s", "refId": "A"}
+      ],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "datasource": {"type": "prometheus", "uid": "$datasource"}
+    },
+    {
+      "type": "timeseries",
+      "title": "Endpoint p99 Latency",
+      "gridPos": {"h": 10, "w": 12, "x": 6, "y": 30},
+      "targets": [
+        {"expr": "histogram_quantile(0.99, sum by (le,endpoint) (rate(http_request_latency_seconds_bucket{job=~\"$job\"}[5m])))", "legendFormat": "p99 {{endpoint}}", "refId": "A"}
+      ],
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
+      "datasource": {"type": "prometheus", "uid": "$datasource"}
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["chater", "business", "eater"],
+  "templating": {"list": [
+    {"name": "datasource", "type": "datasource", "query": "prometheus", "label": "Datasource", "hide": 0},
+    {"name": "job", "type": "query", "datasource": {"type": "prometheus", "uid": "$datasource"}, "query": "label_values(http_requests_total, job)", "refresh": 1, "hide": 0, "label": "job", "includeAll": true, "multi": true}
+  ]},
+  "time": {"from": "now-6h", "to": "now"},
+  "timepicker": {},
+  "timezone": "",
+  "title": "Chater Business Metrics",
+  "version": 1,
+  "weekStart": ""
+}
+
+

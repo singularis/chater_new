@@ -130,6 +130,34 @@
       ],
       "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
       "datasource": {"type": "prometheus", "uid": "$datasource"}
+    },
+    {
+      "type": "timeseries",
+      "title": "Ops by Outcome",
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 24},
+      "targets": [
+        {
+          "expr": "sum by (operation,outcome) (increase(operation_total{job=~\"$job\"}[$__interval]))",
+          "legendFormat": "{{operation}} {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
+      "datasource": {"type": "prometheus", "uid": "$datasource"}
+    },
+    {
+      "type": "timeseries",
+      "title": "Op Latency p90",
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 24},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.9, sum by (le,operation) (rate(operation_latency_seconds_bucket{job=~\"$job\"}[5m])))",
+          "legendFormat": "p90 {{operation}}",
+          "refId": "A"
+        }
+      ],
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}},
+      "datasource": {"type": "prometheus", "uid": "$datasource"}
     }
   ],
   "refresh": "30s",
