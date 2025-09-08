@@ -15,6 +15,27 @@
           metadata:
             name: eater
 
+    - name: Create mcpo-config ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        namespace: eater
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: mcpo-config
+            namespace: eater
+          data:
+            config.json: |-
+              {
+                "mcpServers": {
+                  "postgres-eater": {
+                    "type": "sse",
+                    "url": "http://eater-postgres-mcp/sse"
+                  }
+                }
+              }
+
     - name: Deploy mcpo-postgres Deployment
       kubernetes.core.k8s:
         state: present
@@ -44,28 +65,20 @@
                     command: ["/bin/sh", "-c"]
                     args:
                       - |
-                        pip install postgres-mcp && \
-                        mcpo --port 8001 -- postgres-mcp --access-mode=restricted
-                    env:
-                      - name: PGHOST
-                        value: "{{ vars.EATER.POSTGRES_HOST }}"
-                      - name: PGDATABASE
-                        value: "{{ vars.EATER.DB_NAME }}"
-                      - name: PGUSER
-                        valueFrom:
-                          secretKeyRef:
-                            name: "{{ vars.EATER.DB_PASSWORD }}"
-                            key: username
-                      - name: PGPASSWORD
-                        valueFrom:
-                          secretKeyRef:
-                            name: "{{ vars.EATER.DB_PASSWORD }}"
-                            key: password
-                      - name: DATABASE_URI
-                        value: "postgresql://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
+                        mcpo --host 0.0.0.0 --port 8001 --config /etc/mcpo/config.json --hot-reload
                     ports:
                       - containerPort: 8001
                         name: http
+                    volumeMounts:
+                      - name: mcpo-config
+                        mountPath: /etc/mcpo
+                volumes:
+                  - name: mcpo-config
+                    configMap:
+                      name: mcpo-config
+                      items:
+                        - key: config.json
+                          path: config.json
 
     - name: Create mcpo-postgres Service (LoadBalancer)
       kubernetes.core.k8s:
@@ -86,5 +99,4 @@
                 port: 80
                 targetPort: http
             type: LoadBalancer
-            loadBalancerIP: "{{ vars.MCPO_POSTGRES_LB_IP | default('192.168.0.115') }}"
-            sessionAffinity: ClientIP
+            loadBalancerIP: "{{ vars.MCPO_POSTGRES_LB_IP }}"
