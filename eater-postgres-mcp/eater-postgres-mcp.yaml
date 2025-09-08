@@ -35,16 +35,15 @@
                 labels:
                   app: eater-postgres-mcp
                 annotations:
-                  co.elastic.logs/enabled: "true"
+                  co.elastic.logs/enabled: "false"
               spec:
                 containers:
                   - name: eater-postgres-mcp
-                    image: "{{ vars.MCP_POSTGRES_IMAGE | default('crystaldba/postgres-mcp:latest') }}"
-                    imagePullPolicy: Always
+                    image: crystaldba/postgres-mcp:latest
                     args:
-                      - "--access-mode={{ vars.MCP_ACCESS_MODE | default('restricted') }}"
-                      - "--transport=sse"
-                      - "--sse-host=0.0.0.0"
+                      - --access-mode=restricted
+                      - --transport=sse
+                      - --sse-host=0.0.0.0
                     ports:
                       - containerPort: 8000
                         name: http
@@ -86,3 +85,4 @@
                 targetPort: http
             type: LoadBalancer
             loadBalancerIP: "{{ vars.MCP_POSTGRES_LB_IP | default('') }}"
+            sessionAffinity: ClientIP
