@@ -44,6 +44,7 @@
                     args:
                       - "--access-mode={{ vars.MCP_ACCESS_MODE | default('restricted') }}"
                       - "--transport=sse"
+                      - "--sse-host=0.0.0.0"
                     ports:
                       - containerPort: 8000
                         name: http
