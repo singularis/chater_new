@@ -10,6 +10,7 @@ from common import (before_request, chater_clear, generate_session_secret,
 from flask import Flask, jsonify, render_template, request, session, redirect, url_for, flash, g
 from flask_cors import CORS
 from flask_session import Session
+from minio_utils import get_minio_client
 from google_ops import create_google_blueprint, g_login
 from gphoto import gphoto, gphoto_proxy
 from kafka_consumer_service import start_kafka_consumer_service, stop_kafka_consumer_service
@@ -37,6 +38,12 @@ if os.getenv("FLASK_DEBUG", "true").lower() == "true":
 
 redis_client = redis.StrictRedis(host=os.getenv("REDIS_ENDPOINT"), port=6379, db=0)
 app = Flask(__name__, static_url_path="/chater/static")
+
+# Initialize shared MinIO client once at app startup
+try:
+    app.config["MINIO_CLIENT"] = get_minio_client()
+except Exception as e:
+    logger.error(f"Failed to initialize MinIO client: {e}")
 
 # Personal development configuration - secure but with debug logging
 app.config.update(

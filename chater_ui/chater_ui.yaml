@@ -25,7 +25,7 @@
             name: chater-ui
             namespace: chater-ui
           spec:
-            replicas: 1
+            replicas: 2
             strategy:
               type: RollingUpdate
               rollingUpdate:
@@ -47,13 +47,6 @@
                     ports:
                       - containerPort: 5000
                         name: chater-ui
-                    volumeMounts:
-                      - name: chater-ui-pvc
-                        mountPath: /app/data
-                      - name: gphoto-chater-ui-pvc
-                        mountPath: /app/app/static/
-                      - name: eater-ui-pvc
-                        mountPath: /app/eater_storage
                     env:
                       - name: USERNAME
                         valueFrom:
@@ -92,6 +85,18 @@
                         value: "true"
                       - name: DAILY_REQUEST_LIMIT
                         value: "30"
+                      - name: MINIO_ENDPOINT
+                        value: "http://{{ vars.minio.loadBalancerIP }}:9000"
+                      - name: MINIO_ACCESS_KEY
+                        value: "{{ vars.minio.root_user }}"
+                      - name: MINIO_SECRET_KEY
+                        value: "{{ vars.minio.root_password }}"
+                      - name: MINIO_BUCKET_EATER
+                        value: "eater"
+                      - name: MINIO_BUCKET_GPHOTO
+                        value: "gphoto"
+                      - name: MINIO_SECURE
+                        value: "false"
                       - name: POSTGRES_USER
                         value: "{{ vars.EATER.DB_NAME }}"
                       - name: POSTGRES_PASSWORD
@@ -103,16 +108,16 @@
                         value: "{{ vars.EATER.DB_NAME }}"
                       - name: POSTGRES_HOST
                         value: "{{ vars.EATER.POSTGRES_HOST }}"
-                volumes:
-                  - name: chater-ui-pvc
-                    persistentVolumeClaim:
-                      claimName: chater-ui-pvc
-                  - name: gphoto-chater-ui-pvc
-                    persistentVolumeClaim:
-                      claimName: gphoto-chater-ui-pvc
-                  - name: eater-ui-pvc
-                    persistentVolumeClaim:
-                      claimName: eater-ui-pvc
+                affinity:
+                  nodeAffinity:
+                    requiredDuringSchedulingIgnoredDuringExecution:
+                      nodeSelectorTerms:
+                        - matchExpressions:
+                            - key: kubernetes.io/hostname
+                              operator: In
+                              values:
+                                - "racoon"
+                                - "racoon-gpu"
     - name: Create chater Service
       kubernetes.core.k8s:
         state: present
@@ -161,113 +166,7 @@
                 interval: 30s
                 scheme: http
 
-    - name: Create chater PersistentVolume
-      kubernetes.core.k8s:
-        state: present
-        namespace: chater-ui
-        definition:
-          apiVersion: v1
-          kind: PersistentVolume
-          metadata:
-            name: chater-ui-pv
-            namespace: chater-ui
-          spec:
-            capacity:
-              storage: 5Gi
-            volumeMode: Filesystem
-            accessModes:
-              - ReadWriteMany
-            persistentVolumeReclaimPolicy: Recycle
-            storageClassName: local-storage
-            local:
-              path: /other/chater-ui
-            nodeAffinity:
-              required:
-                nodeSelectorTerms:
-                  - matchExpressions:
-                      - key: kubernetes.io/hostname
-                        operator: In
-                        values:
-                          - "racoon"
-
-    - name: Create chater PersistentVolumeClaim
-      kubernetes.core.k8s:
-        state: present
-        namespace: chater-ui
-        definition:
-          apiVersion: v1
-          kind: PersistentVolumeClaim
-          metadata:
-            name: chater-ui-pvc
-            namespace: chater-ui
-          spec:
-            storageClassName: local-storage
-            accessModes:
-              - ReadWriteMany
-            resources:
-              requests:
-                storage: 5Gi
-    - name: Create local directory for chater
-      ansible.builtin.file:
-        path: /other/chater-ui
-        state: directory
-        mode: '0755'
-      become: true
-      vars:
-        ansible_become_password: "{{ ansible_become_password_racoon }}"
-    - name: Create eater PersistentVolume
-      kubernetes.core.k8s:
-        state: present
-        definition:
-          apiVersion: v1
-          kind: PersistentVolume
-          metadata:
-            name: eater-ui-pv
-          spec:
-            capacity:
-              storage: 20Gi
-            volumeMode: Filesystem
-            accessModes:
-              - ReadWriteMany
-            persistentVolumeReclaimPolicy: Recycle
-            storageClassName: shared-storage
-            local:
-              path: /other/eater_storage
-            nodeAffinity:
-              required:
-                nodeSelectorTerms:
-                  - matchExpressions:
-                      - key: kubernetes.io/hostname
-                        operator: In
-                        values:
-                          - "racoon"
-
-    - name: Create eater PersistentVolumeClaim
-      kubernetes.core.k8s:
-        state: present
-        namespace: chater-ui
-        definition:
-          apiVersion: v1
-          kind: PersistentVolumeClaim
-          metadata:
-            name: eater-ui-pvc
-            namespace: chater-ui
-          spec:
-            storageClassName: shared-storage
-            accessModes:
-              - ReadWriteMany
-            resources:
-              requests:
-                storage: 20Gi
-            volumeName: eater-ui-pv
-    - name: Create local directory for eater
-      ansible.builtin.file:
-        path: /other/eater_storage
-        state: directory
-        mode: '0755'
-      become: true
-      vars:
-        ansible_become_password: "{{ ansible_become_password_racoon }}"
+    
     - name: Create secret for environment variables
       kubernetes.core.k8s:
         state: present
@@ -284,48 +183,4 @@
             USERNAME: "{{ vars.USER | b64encode }}"
             PASSWORD_HASH: "{{ vars.PASSWORD | b64encode }}"
             SECRET_KEY: "{{ vars.SECRET_KEY | b64encode }}"
-    - name: Create gphoto PersistentVolume
-      kubernetes.core.k8s:
-        state: present
-        namespace: chater-ui
-        definition:
-          apiVersion: v1
-          kind: PersistentVolume
-          metadata:
-            name: gphoto-chater-ui-pvc
-            namespace: chater-ui
-          spec:
-            capacity:
-              storage: 10Gi
-            volumeMode: Filesystem
-            accessModes:
-              - ReadWriteMany
-            persistentVolumeReclaimPolicy: Recycle
-            storageClassName: local-storage
-            local:
-              path: /other_hdd/gphoto
-            nodeAffinity:
-              required:
-                nodeSelectorTerms:
-                  - matchExpressions:
-                      - key: kubernetes.io/hostname
-                        operator: In
-                        values:
-                          - "racoon"
-    - name: Create chater PersistentVolumeClaim
-      kubernetes.core.k8s:
-        state: present
-        namespace: chater-ui
-        definition:
-          apiVersion: v1
-          kind: PersistentVolumeClaim
-          metadata:
-            name: gphoto-chater-ui-pvc
-            namespace: chater-ui
-          spec:
-            storageClassName: local-storage
-            accessModes:
-              - ReadWriteMany
-            resources:
-              requests:
-                storage: 10Gi
+    
