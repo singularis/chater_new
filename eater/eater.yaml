@@ -56,9 +56,6 @@
                   - name: eater
                     image: docker.io/singularis314/eater:0.1
                     imagePullPolicy: Always
-                    volumeMounts:
-                      - name: eater-pvc
-                        mountPath: /app/eater_storage
                     env:
                       - name: BOOTSTRAP_SERVER
                         value: "{{ vars.BOOTSTRAP_SERVER }}"
