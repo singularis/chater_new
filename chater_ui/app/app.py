@@ -81,6 +81,11 @@ start_kafka_consumer_service()
 atexit.register(stop_kafka_consumer_service)
 
 
+@app.route("/favicon.ico")
+def favicon_redirect():
+    return redirect(url_for("static", filename="images/favicon.ico"))
+
+
 @app.before_request
 def before():
     if request.path != "/metrics":
