@@ -19,6 +19,8 @@ def create_chater_gpt(spec, **kwargs):
     vision_model = spec.get("visionModel")
     openai_api_key_b64 = spec.get("openAIAPIKey")
     secret_key_b64 = spec.get("secretKey")
+    replicas = spec.get("replicas", 1)
+    affinity = spec.get("affinity")
 
     config.load_incluster_config()
     api_client = client.ApiClient()
@@ -98,16 +100,20 @@ def create_chater_gpt(spec, **kwargs):
         ],
     )
 
+    pod_spec = client.V1PodSpec(containers=[container])
+    if affinity is not None:
+        pod_spec.affinity = affinity
+
     pod_template = client.V1PodTemplateSpec(
         metadata=client.V1ObjectMeta(
             labels={"app": "chater-gpt"},
             annotations={"co.elastic.logs/enabled": "true"},
         ),
-        spec=client.V1PodSpec(containers=[container]),
+        spec=pod_spec,
     )
 
     deployment_spec = client.V1DeploymentSpec(
-        replicas=1,
+        replicas=replicas,
         selector=client.V1LabelSelector(match_labels={"app": "chater-gpt"}),
         template=pod_template,
     )
@@ -155,6 +161,8 @@ def update_chater_gpt(spec, **kwargs):
     vision_model = spec.get("visionModel")
     openai_api_key_b64 = spec.get("openAIAPIKey")
     secret_key_b64 = spec.get("secretKey")
+    replicas = spec.get("replicas", 1)
+    affinity = spec.get("affinity")
 
     config.load_incluster_config()
     api_client = client.ApiClient()
@@ -181,6 +189,7 @@ def update_chater_gpt(spec, **kwargs):
     # Here we patch the container within the Deployment template.
     deployment_patch = {
         "spec": {
+            "replicas": replicas,
             "template": {
                 "spec": {
                     "containers": [
@@ -215,6 +224,8 @@ def update_chater_gpt(spec, **kwargs):
             }
         }
     }
+    if affinity is not None:
+        deployment_patch["spec"]["template"]["spec"]["affinity"] = affinity
     try:
         apps_api.patch_namespaced_deployment(
             name="chater-gpt", namespace=namespace, body=deployment_patch
@@ -228,3 +239,146 @@ def update_chater_gpt(spec, **kwargs):
         raise
 
     return {"message": "Updated chater-gpt resources with new env variables."}
+
+
+# Ensure desired state after operator restarts
+@kopf.on.resume("chater.example.com", "v1", "chatergpts")
+def resume_chater_gpt(spec, **kwargs):
+    namespace = spec.get("namespace")
+    bootstrap_server = spec.get("bootstrapServer")
+    model = spec.get("model")
+    vision_model = spec.get("visionModel")
+    openai_api_key_b64 = spec.get("openAIAPIKey")
+    secret_key_b64 = spec.get("secretKey")
+    replicas = spec.get("replicas", 1)
+    affinity = spec.get("affinity")
+
+    config.load_incluster_config()
+    api_client = client.ApiClient()
+    core_api = client.CoreV1Api(api_client)
+    apps_api = client.AppsV1Api(api_client)
+
+    # Ensure Secret exists and matches desired state
+    secret_patch = {
+        "data": {"OPENAI_API_KEY": openai_api_key_b64, "SECRET_KEY": secret_key_b64}
+    }
+    try:
+        core_api.patch_namespaced_secret(
+            name="chater-gpt", namespace=namespace, body=secret_patch
+        )
+    except kubernetes.client.exceptions.ApiException as e:
+        if e.status == 404:
+            secret_body = client.V1Secret(
+                api_version="v1",
+                kind="Secret",
+                metadata=client.V1ObjectMeta(name="chater-gpt", namespace=namespace),
+                data={"OPENAI_API_KEY": openai_api_key_b64, "SECRET_KEY": secret_key_b64},
+            )
+            core_api.create_namespaced_secret(namespace=namespace, body=secret_body)
+        else:
+            raise
+
+    # Reconcile Deployment
+    deployment_patch = {
+        "spec": {
+            "replicas": replicas,
+            "template": {
+                "spec": {
+                    "containers": [
+                        {
+                            "name": "chater-gpt",
+                            "env": [
+                                {
+                                    "name": "OPENAI_API_KEY",
+                                    "valueFrom": {
+                                        "secretKeyRef": {
+                                            "name": "chater-gpt",
+                                            "key": "OPENAI_API_KEY",
+                                        }
+                                    },
+                                },
+                                {
+                                    "name": "SECRET_KEY",
+                                    "valueFrom": {
+                                        "secretKeyRef": {
+                                            "name": "chater-gpt",
+                                            "key": "SECRET_KEY",
+                                        }
+                                    },
+                                },
+                                {"name": "BOOTSTRAP_SERVER", "value": bootstrap_server},
+                                {"name": "MODEL", "value": model},
+                                {"name": "VISION_MODEL", "value": vision_model},
+                            ],
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    if affinity is not None:
+        deployment_patch["spec"]["template"]["spec"]["affinity"] = affinity
+
+    try:
+        apps_api.patch_namespaced_deployment(
+            name="chater-gpt", namespace=namespace, body=deployment_patch
+        )
+    except kubernetes.client.exceptions.ApiException as e:
+        if e.status == 404:
+            # Create Deployment from scratch if missing
+            container = client.V1Container(
+                name="chater-gpt",
+                image="singularis314/chater-gpt:0.3",
+                image_pull_policy="Always",
+                env=[
+                    client.V1EnvVar(
+                        name="OPENAI_API_KEY",
+                        value_from=client.V1EnvVarSource(
+                            secret_key_ref=client.V1SecretKeySelector(
+                                name="chater-gpt", key="OPENAI_API_KEY"
+                            )
+                        ),
+                    ),
+                    client.V1EnvVar(
+                        name="SECRET_KEY",
+                        value_from=client.V1EnvVarSource(
+                            secret_key_ref=client.V1SecretKeySelector(
+                                name="chater-gpt", key="SECRET_KEY"
+                            )
+                        ),
+                    ),
+                    client.V1EnvVar(name="BOOTSTRAP_SERVER", value=bootstrap_server),
+                    client.V1EnvVar(name="MODEL", value=model),
+                    client.V1EnvVar(name="VISION_MODEL", value=vision_model),
+                ],
+            )
+            pod_spec = client.V1PodSpec(containers=[container])
+            if affinity is not None:
+                pod_spec.affinity = affinity
+            pod_template = client.V1PodTemplateSpec(
+                metadata=client.V1ObjectMeta(
+                    labels={"app": "chater-gpt"},
+                    annotations={"co.elastic.logs/enabled": "true"},
+                ),
+                spec=pod_spec,
+            )
+            deployment_spec = client.V1DeploymentSpec(
+                replicas=replicas,
+                selector=client.V1LabelSelector(match_labels={"app": "chater-gpt"}),
+                template=pod_template,
+            )
+            deployment_body = client.V1Deployment(
+                api_version="apps/v1",
+                kind="Deployment",
+                metadata=client.V1ObjectMeta(name="chater-gpt", namespace=namespace),
+                spec=deployment_spec,
+            )
+            apps_api.create_namespaced_deployment(namespace=namespace, body=deployment_body)
+        else:
+            raise
+
+
+# Periodic reconciliation to constantly check and apply CR changes
+@kopf.timer("chater.example.com", "v1", "chatergpts", interval=60.0)
+def reconcile_timer(spec, **kwargs):
+    return resume_chater_gpt(spec, **kwargs)

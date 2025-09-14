@@ -25,7 +25,7 @@
             name: chater-gemini
             namespace: chater-gemini
           spec:
-            replicas: 1
+            replicas: 2
             selector:
               matchLabels:
                 app: chater-gemini
@@ -52,6 +52,16 @@
                         value: "{{ vars.GEMINI_MODEL }}"
                       - name: GEMINI_THINK_MODEL
                         value: "{{ vars.GEMINI_THINK_MODEL }}"
+                affinity:
+                  nodeAffinity:
+                    requiredDuringSchedulingIgnoredDuringExecution:
+                      nodeSelectorTerms:
+                        - matchExpressions:
+                            - key: kubernetes.io/hostname
+                              operator: In
+                              values:
+                                - racoon
+                                - racoon-gpu
     - name: Create secret for environment variables
       kubernetes.core.k8s:
         state: present

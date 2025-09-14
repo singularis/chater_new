@@ -45,6 +45,12 @@
                             type: string
                           secretKey:
                             type: string
+                          replicas:
+                            type: integer
+                            minimum: 1
+                          affinity:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
             scope: Namespaced
             names:
               plural: chatergpts

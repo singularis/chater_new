@@ -22,3 +22,14 @@
             visionModel: "{{ vars.VISION_MODEL }}"
             openAIAPIKey: "{{ vars.CAPI | b64encode }}"
             secretKey: "{{ vars.SECRET_KEY | b64encode }}"
+            replicas: 2
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: kubernetes.io/hostname
+                          operator: In
+                          values:
+                            - racoon
+                            - racoon-gpu

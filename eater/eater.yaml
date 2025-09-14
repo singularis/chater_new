@@ -14,50 +14,6 @@
           kind: Namespace
           metadata:
             name: eater
-    - name: Create eater PVC referencing the PVC in chater-ui namespace
-      kubernetes.core.k8s:
-        state: present
-        namespace: eater
-        definition:
-          apiVersion: v1
-          kind: PersistentVolumeClaim
-          metadata:
-            name: eater-pvc
-            namespace: eater
-          spec:
-            storageClassName: shared-storage
-            accessModes:
-              - ReadWriteMany
-            resources:
-              requests:
-                storage: 20Gi
-            volumeName: eater-pv
-    - name: Create eater PersistentVolume
-      kubernetes.core.k8s:
-        state: present
-        definition:
-          apiVersion: v1
-          kind: PersistentVolume
-          metadata:
-            name: eater-pv
-          spec:
-            capacity:
-              storage: 20Gi
-            volumeMode: Filesystem
-            accessModes:
-              - ReadWriteMany
-            persistentVolumeReclaimPolicy: Recycle
-            storageClassName: shared-storage
-            local:
-              path: /other/eater_storage
-            nodeAffinity:
-              required:
-                nodeSelectorTerms:
-                  - matchExpressions:
-                      - key: kubernetes.io/hostname
-                        operator: In
-                        values:
-                          - "racoon"
     - name: Deploy eater Deployment
       kubernetes.core.k8s:
         state: present
@@ -69,7 +25,7 @@
             name: eater
             namespace: eater
           spec:
-            replicas: 1
+            replicas: 2
             selector:
               matchLabels:
                 app: eater
@@ -117,7 +73,13 @@
                         value: "{{ vars.EATER.DB_NAME }}"
                       - name: POSTGRES_HOST
                         value: "{{ vars.EATER.POSTGRES_HOST }}"
-                volumes:
-                  - name: eater-pvc
-                    persistentVolumeClaim:
-                      claimName: eater-pvc
+                affinity:
+                  nodeAffinity:
+                    requiredDuringSchedulingIgnoredDuringExecution:
+                      nodeSelectorTerms:
+                        - matchExpressions:
+                            - key: kubernetes.io/hostname
+                              operator: In
+                              values:
+                                - racoon
+                                - racoon-gpu

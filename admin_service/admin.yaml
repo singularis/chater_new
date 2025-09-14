@@ -17,7 +17,7 @@
             name: admin-service 
             namespace: eater
           spec:
-            replicas: 1
+            replicas: 2
             selector:
               matchLabels:
                 app:  admin-service 
@@ -46,6 +46,16 @@
                         value: "{{ vars.EATER.DB_NAME }}"
                       - name: POSTGRES_HOST
                         value: "{{ vars.EATER.POSTGRES_HOST }}" 
+                affinity:
+                  nodeAffinity:
+                    requiredDuringSchedulingIgnoredDuringExecution:
+                      nodeSelectorTerms:
+                        - matchExpressions:
+                            - key: kubernetes.io/hostname
+                              operator: In
+                              values:
+                                - racoon
+                                - racoon-gpu
     - name: Create Admin Service
       kubernetes.core.k8s:
         state: present

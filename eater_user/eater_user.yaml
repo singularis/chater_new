@@ -25,7 +25,7 @@
             name: eater-users
             namespace: eater
           spec:
-            replicas: 1
+            replicas: 2
             selector:
               matchLabels:
                 app: eater-users
@@ -105,6 +105,16 @@
                         port: 8000
                       initialDelaySeconds: 5
                       periodSeconds: 15
+                affinity:
+                  nodeAffinity:
+                    requiredDuringSchedulingIgnoredDuringExecution:
+                      nodeSelectorTerms:
+                        - matchExpressions:
+                            - key: kubernetes.io/hostname
+                              operator: In
+                              values:
+                                - racoon
+                                - racoon-gpu
     - name: Create eater Service
       kubernetes.core.k8s:
         state: present

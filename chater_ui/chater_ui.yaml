@@ -212,6 +212,9 @@
         path: /other/chater-ui
         state: directory
         mode: '0755'
+      become: true
+      vars:
+        ansible_become_password: "{{ ansible_become_password_racoon }}"
     - name: Create eater PersistentVolume
       kubernetes.core.k8s:
         state: present
@@ -262,6 +265,9 @@
         path: /other/eater_storage
         state: directory
         mode: '0755'
+      become: true
+      vars:
+        ansible_become_password: "{{ ansible_become_password_racoon }}"
     - name: Create secret for environment variables
       kubernetes.core.k8s:
         state: present
