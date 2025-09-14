@@ -57,7 +57,9 @@ def eater_get_today_kafka(user_email):
     payload = {
         "date": datetime.now().strftime("%d-%m-%Y"),
     }
-    return eater_kafka_request("get_today_data", "send_today_data", payload, user_email)
+    return eater_kafka_request(
+        "get_today_data", "send_today_data", payload, user_email, timeout_sec=20
+    )
 
 
 def eater_get_custom_date_kafka(user_email, custom_date):
@@ -73,7 +75,10 @@ def eater_get_today(user_email):
     try:
         today_food = eater_get_today_kafka(user_email)
         if not today_food:
-            raise ValueError(f"No data received from Kafka for user {user_email}")
+            logger.warning(
+                f"No data received from Kafka for user {user_email}; returning 503"
+            )
+            return "Service temporarily unavailable", 503
 
         logger.info(
             f"Received today_food from Kafka for user {user_email}: {today_food}"
