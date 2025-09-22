@@ -6,4 +6,3 @@ pillow
 sqlalchemy
 psycopg2-binary
 locust
-locust-plugins
