@@ -56,7 +56,7 @@ def eater_get_photo(user_email):
 
         # Get response from Redis using the background consumer service
         try:
-            response = get_user_message_response(message_id, user_email, timeout=30)
+            response = get_user_message_response(message_id, user_email, timeout=60)
             if response is not None:
                 logger.info(
                     f"Retrieved photo analysis response for user {user_email}: {response}"
