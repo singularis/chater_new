@@ -108,6 +108,8 @@
                         value: "{{ vars.EATER.DB_NAME }}"
                       - name: POSTGRES_HOST
                         value: "{{ vars.EATER.POSTGRES_HOST }}"
+                      - name: TEST_USER_EMAIL
+                        value: "{{ vars.TEST_USER_EMAIL }}"
                 affinity:
                   nodeAffinity:
                     requiredDuringSchedulingIgnoredDuringExecution:

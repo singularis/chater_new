@@ -46,6 +46,8 @@
                     env:
                       - name: TEST_USER_TOKEN
                         value: "{{ vars.TEST_USER_TOKEN }}"
+                      - name: TEST_USER_EMAIL
+                        value: "{{ vars.TEST_USER_EMAIL }}"
                       - name: TARGET_HOST
                         value: "{{ vars.EATER_TARGET_HOST }}"
     - name: Create Locust Service (MetalLB LoadBalancer)

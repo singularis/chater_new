@@ -147,6 +147,9 @@ def check_rate_limit(user_email):
         # Get daily limit from environment variable
         daily_limit = int(os.getenv("DAILY_REQUEST_LIMIT", "10"))
 
+        if user_email == os.getenv("TEST_USER_EMAIL", ""):
+            logging.info(f"Rate limit check skipped for test user {user_email}")
+            return True
         # Get current UTC date as key
         current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         redis_key = f"rate_limit:{user_email}:{current_date}"

@@ -19,5 +19,6 @@ EXPOSE 8089
 
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/home/app/.local/bin:${PATH}"
+ENV PYTHONPATH=/app
 
 CMD ["python", "-m", "locust", "-f", "/app/locustfile.py", "--web-host", "0.0.0.0"]
