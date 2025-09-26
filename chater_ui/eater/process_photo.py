@@ -36,14 +36,6 @@ def eater_get_photo(user_email):
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
         object_name = f"{user_email}/{current_time}.jpg"
 
-        # Upload to MinIO (eater bucket)
-        client = current_app.config.get("MINIO_CLIENT")
-        if client is None:
-            raise RuntimeError("MINIO client is not initialized")
-        bucket_name = os.getenv("MINIO_BUCKET_EATER", "eater")
-        put_bytes(client, bucket_name, object_name, resized_photo_data, content_type="image/jpeg")
-        logger.info(f"Photo uploaded to MinIO at {bucket_name}/{object_name} for user {user_email}")
-
         # Generate a unique message ID for tracking
         message_id = str(uuid.uuid4())
         # Encode photo directly from memory to avoid filesystem dependency
@@ -79,6 +71,16 @@ def eater_get_photo(user_email):
                 f"Failed to get photo analysis response for user {user_email}: {e}"
             )
             return "Timeout", 408
+        # Upload to MinIO (eater bucket)
+        try:
+            client = current_app.config.get("MINIO_CLIENT")
+            if client is None:
+                raise RuntimeError("MINIO client is not initialized")
+            bucket_name = os.getenv("MINIO_BUCKET_EATER", "eater")
+            put_bytes(client, bucket_name, object_name, resized_photo_data, content_type="image/jpeg")
+            logger.info(f"Photo uploaded to MinIO at {bucket_name}/{object_name} for user {user_email}")
+        except Exception as e:
+            logger.error(f"Error uploading photo to MinIO: {e}")
 
     except Exception as e:
         logger.error(f"Error processing request for user {user_email}: {str(e)}")
