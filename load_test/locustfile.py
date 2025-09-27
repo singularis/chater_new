@@ -1,15 +1,20 @@
 import os
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
-from locust import HttpUser, between, task, tag
+from locust import HttpUser, between, tag, task
 
 from proto import (
-    eater_photo_pb2,
-    get_recomendation_pb2,
+    alcohol_pb2,
+    custom_date_food_pb2,
     delete_food_pb2,
-    modify_food_record_pb2,
+    eater_photo_pb2,
+    feedback_pb2,
+    get_recomendation_pb2,
     manual_weight_pb2,
+    modify_food_record_pb2,
+    set_language_pb2,
     today_food_pb2,
 )
 
@@ -23,10 +28,16 @@ def proto_headers(content_type: str = "application/protobuf") -> dict:
     return {"Content-Type": content_type, **bearer_headers()}
 
 
+def grpc_headers() -> dict:
+    return proto_headers("application/grpc+proto")
+
+
 class ChaterUser(HttpUser):
     host = os.getenv(
         "TARGET_HOST",
-        os.getenv("EATER_TARGET_HOST", "http://chater-ui.chater-ui.svc.cluster.local:5000"),
+        os.getenv(
+            "EATER_TARGET_HOST", "http://chater-ui.chater-ui.svc.cluster.local:5000"
+        ),
     )
     wait_time = between(0.5, 1.5)
 
@@ -34,14 +45,23 @@ class ChaterUser(HttpUser):
         if not self.environment.host:
             self.environment.host = os.getenv(
                 "TARGET_HOST",
-                os.getenv("EATER_TARGET_HOST", "http://chater-ui.chater-ui.svc.cluster.local:5000"),
+                os.getenv(
+                    "EATER_TARGET_HOST",
+                    "http://chater-ui.chater-ui.svc.cluster.local:5000",
+                ),
             )
+        self.user_email = os.getenv("TEST_USER_EMAIL", "")
 
+    @staticmethod
+    def _date_offset(days: int) -> str:
+        return (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%d-%m-%Y")
 
     def _get_latest_dish_time(self):
         try:
             resp = self.client.get(
-                "/eater_get_today", headers=bearer_headers(), name="GET /eater_get_today (for time)"
+                "/eater_get_today",
+                headers=bearer_headers(),
+                name="GET /eater_get_today (for time)",
             )
             if resp.status_code != 200 or not resp.content:
                 return None
@@ -75,6 +95,9 @@ class ChaterUser(HttpUser):
                 headers=proto_headers(),
                 name="POST /eater_receive_photo",
             )
+        except FileNotFoundError:
+            # Skip photo upload if asset is missing to keep load running
+            pass
         except Exception:
             return
 
@@ -88,7 +111,7 @@ class ChaterUser(HttpUser):
             self.client.post(
                 "/modify_food_record",
                 data=mod.SerializeToString(),
-                headers=proto_headers(),
+                headers=grpc_headers(),
                 name="POST /modify_food_record",
             )
 
@@ -99,7 +122,7 @@ class ChaterUser(HttpUser):
         self.client.post(
             "/manual_weight",
             data=mw.SerializeToString(),
-            headers=proto_headers(),
+            headers=grpc_headers(),
             name="POST /manual_weight",
         )
 
@@ -115,7 +138,9 @@ class ChaterUser(HttpUser):
 
         # 5) Get today after changes
         self.client.get(
-            "/eater_get_today", headers=bearer_headers(), name="GET /eater_get_today (post-modify)"
+            "/eater_get_today",
+            headers=bearer_headers(),
+            name="GET /eater_get_today (post-modify)",
         )
 
         # 6) Delete the created/modified food record
@@ -126,6 +151,93 @@ class ChaterUser(HttpUser):
             self.client.post(
                 "/delete_food",
                 data=dreq.SerializeToString(),
-                headers=proto_headers(),
+                headers=grpc_headers(),
                 name="POST /delete_food",
             )
+
+    @tag("custom_date")
+    @task(1)
+    def custom_date_query(self):
+        request_proto = custom_date_food_pb2.CustomDateFoodRequest()
+        request_proto.date = os.getenv("TEST_CUSTOM_DATE", self._date_offset(1))
+        self.client.post(
+            "/get_food_custom_date",
+            data=request_proto.SerializeToString(),
+            headers=proto_headers(),
+            name="POST /get_food_custom_date",
+        )
+
+    @tag("language")
+    @task(1)
+    def set_language(self):
+        if not self.user_email:
+            return
+        lang_request = set_language_pb2.SetLanguageRequest()
+        lang_request.user_email = self.user_email
+        lang_request.language_code = os.getenv("TEST_LANGUAGE_CODE", "en")
+        self.client.post(
+            "/set_language",
+            data=lang_request.SerializeToString(),
+            headers=grpc_headers(),
+            name="POST /set_language",
+        )
+
+    @tag("alcohol")
+    @task(1)
+    def alcohol_latest(self):
+        self.client.get(
+            "/alcohol_latest",
+            headers=bearer_headers(),
+            name="GET /alcohol_latest",
+        )
+
+    @tag("alcohol")
+    @task(1)
+    def alcohol_range(self):
+        range_request = alcohol_pb2.GetAlcoholRangeRequest()
+        range_request.start_date = os.getenv("TEST_ALCOHOL_START", self._date_offset(7))
+        range_request.end_date = os.getenv("TEST_ALCOHOL_END", self._date_offset(0))
+        self.client.post(
+            "/alcohol_range",
+            data=range_request.SerializeToString(),
+            headers=grpc_headers(),
+            name="POST /alcohol_range",
+        )
+
+    @tag("feedback")
+    @task(1)
+    def submit_feedback(self):
+        if not self.user_email:
+            return
+        feedback_request = feedback_pb2.FeedbackRequest()
+        feedback_request.time = datetime.now(timezone.utc).isoformat()
+        feedback_request.userEmail = self.user_email
+        feedback_request.feedback = os.getenv(
+            "TEST_FEEDBACK_TEXT", "Load test feedback message"
+        )
+        self.client.post(
+            "/feedback",
+            data=feedback_request.SerializeToString(),
+            headers=grpc_headers(),
+            name="POST /feedback",
+        )
+
+    @tag("auth")
+    @task(1)
+    def eater_auth(self):
+        payload = {
+            "provider": os.getenv("TEST_AUTH_PROVIDER", "google"),
+            "idToken": os.getenv("TEST_AUTH_TOKEN", str(uuid4())),
+            "email": os.getenv(
+                "TEST_AUTH_EMAIL", self.user_email or "loadtest@example.com"
+            ),
+            "name": os.getenv("TEST_AUTH_NAME", "Locust Tester"),
+            "profilePictureURL": os.getenv(
+                "TEST_AUTH_PROFILE_URL", "https://example.com/avatar.png"
+            ),
+        }
+        self.client.post(
+            "/eater_auth",
+            json=payload,
+            name="POST /eater_auth",
+        )
