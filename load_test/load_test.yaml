@@ -48,6 +48,16 @@
                         value: "{{ vars.TEST_USER_TOKEN }}"
                       - name: TEST_USER_EMAIL
                         value: "{{ vars.TEST_USER_EMAIL }}"
+                      - name: TEST_AUTH_PROVIDER
+                        value: "{{ vars.TEST_AUTH_PROVIDER }}"
+                      - name: TEST_AUTH_EMAIL
+                        value: "{{ vars.TEST_AUTH_EMAIL }}"
+                      - name: TEST_AUTH_NAME
+                        value: "{{ vars.TEST_AUTH_NAME }}"
+                      - name: TEST_AUTH_PROFILE_URL
+                        value: "{{ vars.TEST_AUTH_PROFILE_URL }}"
+                      - name: TEST_AUTH_TOKEN
+                        value: "{{ vars.TEST_AUTH_TOKEN }}"
                       - name: TARGET_HOST
                         value: "{{ vars.EATER_TARGET_HOST }}"
     - name: Create Locust Service (MetalLB LoadBalancer)
