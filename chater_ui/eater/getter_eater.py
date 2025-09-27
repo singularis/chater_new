@@ -435,7 +435,7 @@ def eater_auth_token(request):
         )
 
 
-def get_recommendation(request, user_email):
+def get_recommendation(request, user_email, local_model_service):
     try:
         proto_request = get_recomendation_pb2.RecommendationRequest()
         proto_request.ParseFromString(request.data)
@@ -448,8 +448,14 @@ def get_recommendation(request, user_email):
             "prompt": prompt,
             "type_of_processing": "get_recommendation",
         }
+        if local_model_service:
+            topic = local_model_service.get_user_kafka_topic(user_email, "get_recommendation")
+            logger.debug(f"Topic: {topic} for user {user_email}. User model tier is local, overriding topic to {topic}")
+        else:
+            topic = "get_recommendation"
+            logger.error(f"Topic: {topic} for user {user_email}. User model tier is not available, using default topic")
         recommendation_data = eater_kafka_request(
-            "get_recommendation", "gemini-response", payload, user_email, timeout_sec=90
+            topic, "gemini-response", payload, user_email, timeout_sec=90
         )
         logger.info(f"recommendation_data for user {user_email}: {recommendation_data}")
         if recommendation_data is None:

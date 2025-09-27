@@ -81,8 +81,6 @@
                         value: "{{ vars.EATER_SECRET_KEY }}"
                       - name: REDIS_ENDPOINT
                         value: "{{ vars.REDIS_ENDPOINT }}"
-                      - name: FLASK_DEBUG
-                        value: "true"
                       - name: DAILY_REQUEST_LIMIT
                         value: "30"
                       - name: MINIO_ENDPOINT
@@ -110,6 +108,14 @@
                         value: "{{ vars.EATER.POSTGRES_HOST }}"
                       - name: TEST_USER_EMAIL
                         value: "{{ vars.TEST_USER_EMAIL }}"
+                      - name: LOCAL_MODEL_SERVICE_URL
+                        value: "{{ vars.LOCAL_MODEL_SERVICE_URL }}"
+                      - name: LOCAL_MODEL_KAFKA_TOPIC
+                        value: "{{ vars.LOCAL_MODEL_KAFKA_TOPIC }}"
+                      - name: DEFAULT_MODEL_TIER
+                        value: "{{ vars.DEFAULT_MODEL_TIER }}"
+                      - name: LOG_LEVEL
+                        value: "{{ vars.LOG_LEVEL }}"
                 affinity:
                   nodeAffinity:
                     requiredDuringSchedulingIgnoredDuringExecution:

@@ -15,14 +15,16 @@ from .getter_eater import (
 )
 from .language import set_language_handler
 from .process_photo import eater_get_photo
+from local_models_helper import LocalModelService
 
 logger = logging.getLogger(__name__)
+local_model_service = LocalModelService()
 
 
 def eater_photo(user_email):
     logger.info(f"Starting eater from chater for user: {user_email}")
     try:
-        photo_confirmation = eater_get_photo(user_email=user_email)
+        photo_confirmation = eater_get_photo(user_email=user_email, local_model_service=local_model_service)
         logger.info(f"Received photo confirmation {photo_confirmation}")
         return photo_confirmation
     except Exception as e:
@@ -71,7 +73,7 @@ def modify_food_record_data(request, user_email):
 def get_recommendations(request, user_email):
     logger.info(f"Requested recommendation providing for user: {user_email}")
     try:
-        return get_recommendation(request=request, user_email=user_email)
+        return get_recommendation(request=request, user_email=user_email, local_model_service=local_model_service)
     except Exception as e:
         logger.info(f"Exception {e}")
         return "Failed"

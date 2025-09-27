@@ -63,12 +63,10 @@ from .metrics import (
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
 
-# Enable debug logging for personal development
-if os.getenv("FLASK_DEBUG", "true").lower() == "true":
-    logging.getLogger().setLevel(logging.DEBUG)
-    logging.getLogger("werkzeug").setLevel(logging.DEBUG)
-    logging.getLogger("flask").setLevel(logging.DEBUG)
-    logger.info("Debug logging enabled for personal development")
+log_level = os.getenv("LOG_LEVEL", "INFO")
+logging.getLogger().setLevel(log_level)
+logging.getLogger("werkzeug").setLevel(log_level)
+logging.getLogger("flask").setLevel(log_level)
 
 redis_client = redis.StrictRedis(host=os.getenv("REDIS_ENDPOINT"), port=6379, db=0)
 app = Flask(__name__, static_url_path="/chater/static")
@@ -94,8 +92,7 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     # Enable debug logging for personal development
-    DEBUG=os.getenv("FLASK_DEBUG", "true").lower() == "true",
-    TESTING=False,
+    DEBUG=True if log_level == "DEBUG" else False,
 )
 
 Session(app)
@@ -344,6 +341,9 @@ def metrics():
 
 if __name__ == "__main__":
     # Local development with debug logging enabled
-    logging.getLogger("werkzeug").setLevel(logging.DEBUG)
-    logging.getLogger().setLevel(logging.DEBUG)
-    app.run(host="0.0.0.0", debug=True)
+    logging.getLogger("werkzeug").setLevel(log_level)
+    logging.getLogger().setLevel(log_level)
+    if log_level == "DEBUG":
+        app.run(host="0.0.0.0", debug=True)
+    else:
+        app.run(host="0.0.0.0")

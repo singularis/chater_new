@@ -35,7 +35,7 @@ def _upload_to_minio_background(
         logger.error(f"Error uploading photo to MinIO: {e}")
 
 
-def eater_get_photo(user_email):
+def eater_get_photo(user_email, local_model_service):
     try:
         photo_message = eater_photo_pb2.PhotoMessage()
         photo_message.ParseFromString(request.data)
@@ -60,7 +60,7 @@ def eater_get_photo(user_email):
         # Encode photo directly from memory to avoid filesystem dependency
         photo_base64 = base64.b64encode(resized_photo_data).decode("utf-8")
         send_kafka_message(
-            photo_base64, type_of_processing, user_email, message_id=message_id
+            photo_base64, type_of_processing, user_email, message_id=message_id, local_model_service=local_model_service
         )
 
         logger.info(
@@ -123,6 +123,7 @@ def send_kafka_message(
     type_of_processing,
     user_email,
     message_id=None,
+    local_model_service=None,
     topic="eater-send-photo",
 ):
     producer = create_producer()
@@ -143,7 +144,14 @@ def send_kafka_message(
         },
     }
     logger.info(f"Food image {photo_uuid} sent for user {user_email}")
-    if type_of_processing == "weight_prompt":
-        topic = "chater-vision"
-        logger.info(f"Topic: {topic} for user {user_email}")
+    if type_of_processing != "eater-send-photo":
+        if local_model_service:
+            topic = local_model_service.get_user_kafka_topic(user_email, topic)
+        else:
+            logger.error(f"Topic: {topic} for user {user_email}. User model tier is not available, using default topic")
+    elif type_of_processing == "weight_prompt":
+            topic = "chater-vision"
+            logger.info(f"Topic: {topic} for user {user_email}")
+    else:
+        logger.error(f"Topic: {topic} for user {user_email}. Invalid type of processing")
     produce_message(producer, topic=topic, message=message)

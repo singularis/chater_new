@@ -9,14 +9,16 @@ USER_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS "user" (
         email TEXT PRIMARY KEY,
         register_date TIMESTAMP,
-        last_activity TIMESTAMP
+        last_activity TIMESTAMP,
+        model_tier TEXT,
+        language TEXT
     )
 """
 
 ensure_table_exists(USER_TABLE_SQL)
 
 
-def update_user_activity(email):
+def update_user_activity(email, model_tier="cloud"):
     now = datetime.now()
     session = Session()
     try:
@@ -31,9 +33,9 @@ def update_user_activity(email):
         else:
             session.execute(
                 text(
-                    'INSERT INTO "user" (email, register_date, last_activity) VALUES (:email, :now, :now)'
+                    'INSERT INTO "user" (email, register_date, last_activity, model_tier) VALUES (:email, :now, :now, :model_tier)'
                 ),
-                {"email": email, "now": now},
+                {"email": email, "now": now, "model_tier": model_tier},
             )
         session.commit()
     finally:
@@ -81,5 +83,18 @@ def get_user_language(email):
         if len(language) != 2:
             language = "en"
         return language
+    finally:
+        session.close()
+
+def get_user_model_tier(email):
+    session = Session()
+    try:
+        result = session.execute(
+            text('SELECT model_tier FROM "user" WHERE email = :email'), {"email": email}
+        ).fetchone()
+        model_tier = result[0].strip().lower() if result and result[0] else "cloud"
+        if model_tier not in ["cloud", "local"]:
+            model_tier = "cloud"
+        return model_tier
     finally:
         session.close()
