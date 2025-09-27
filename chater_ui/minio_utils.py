@@ -6,7 +6,9 @@ from minio import Minio
 from minio.error import S3Error
 
 
-def _parse_endpoint_and_secure(raw_endpoint: str | None, default_secure: bool) -> tuple[str, bool]:
+def _parse_endpoint_and_secure(
+    raw_endpoint: str | None, default_secure: bool
+) -> tuple[str, bool]:
     if not raw_endpoint:
         return ("localhost:9000", default_secure)
     parsed = urlparse(raw_endpoint)
@@ -45,5 +47,3 @@ def put_bytes(
         length=length,
         content_type=content_type,
     )
-
-

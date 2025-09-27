@@ -119,7 +119,9 @@ def track_operation(
                 return response
             except Exception:
                 elapsed = time.time() - start
-                operation_total.labels(operation=operation_name, outcome="exception").inc()
+                operation_total.labels(
+                    operation=operation_name, outcome="exception"
+                ).inc()
                 operation_latency_seconds.labels(
                     operation=operation_name, outcome="exception"
                 ).observe(elapsed)
@@ -129,6 +131,7 @@ def track_operation(
         return wrapper
 
     return decorator
+
 
 def metrics_endpoint() -> Response:
     """Return Prometheus metrics in text format."""

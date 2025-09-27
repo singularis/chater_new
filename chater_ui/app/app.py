@@ -1,30 +1,64 @@
+import atexit
 import logging
 import os
-import atexit
 import time
 
-import context
 import redis
-from common import (before_request, chater_clear, generate_session_secret,
-                    token_required, rate_limit_required)
-from flask import Flask, jsonify, render_template, request, session, redirect, url_for, flash, g
+from flask import (
+    Flask,
+    flash,
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from flask_cors import CORS
 from flask_session import Session
-from minio_utils import get_minio_client
-from google_ops import create_google_blueprint, g_login
-from gphoto import gphoto, gphoto_proxy
-from kafka_consumer_service import start_kafka_consumer_service, stop_kafka_consumer_service
-from logging_config import setup_logging
-from login import login, logout
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+import context
 from chater import chater as chater_ui
-from eater.eater import (delete_food_record, eater_photo, eater_today, eater_custom_date,
-                         get_recommendations, modify_food_record_data, eater_auth_request, manual_weight_record,
-                         alcohol_latest, alcohol_range, set_language)
+from common import (
+    before_request,
+    chater_clear,
+    generate_session_secret,
+    rate_limit_required,
+    token_required,
+)
+from eater.eater import (
+    alcohol_latest,
+    alcohol_range,
+    delete_food_record,
+    eater_auth_request,
+    eater_custom_date,
+    eater_photo,
+    eater_today,
+    get_recommendations,
+    manual_weight_record,
+    modify_food_record_data,
+    set_language,
+)
 from eater.feedback import submit_feedback_request
-from eater_admin import eater_admin_request, eater_admin_proxy
-from .metrics import metrics_endpoint, record_http_metrics, track_eater_operation, track_operation
+from eater_admin import eater_admin_proxy, eater_admin_request
+from google_ops import create_google_blueprint, g_login
+from gphoto import gphoto, gphoto_proxy
+from kafka_consumer_service import (
+    start_kafka_consumer_service,
+    stop_kafka_consumer_service,
+)
+from logging_config import setup_logging
+from login import login, logout
+from minio_utils import get_minio_client
+
+from .metrics import (
+    metrics_endpoint,
+    record_http_metrics,
+    track_eater_operation,
+    track_operation,
+)
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)
@@ -54,12 +88,14 @@ app.config.update(
     SESSION_USE_SIGNER=True,
     SESSION_KEY_PREFIX="chater_ui:",
     # Security headers for personal app
-    SESSION_COOKIE_SECURE=True if os.getenv("HTTPS_ENABLED", "false").lower() == "true" else False,
+    SESSION_COOKIE_SECURE=(
+        True if os.getenv("HTTPS_ENABLED", "false").lower() == "true" else False
+    ),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     # Enable debug logging for personal development
     DEBUG=os.getenv("FLASK_DEBUG", "true").lower() == "true",
-    TESTING=False
+    TESTING=False,
 )
 
 Session(app)
@@ -93,16 +129,21 @@ def before():
     return before_request(session=session, app=app, SESSION_LIFETIME=SESSION_LIFETIME)
 
 
-
 @app.after_request
 def metrics_after_request(response):
     try:
         if request.path != "/metrics":
             start_time = getattr(g, "_http_request_start_time", time.time())
             endpoint_label = (
-                request.url_rule.rule if getattr(request, "url_rule", None) else request.path
+                request.url_rule.rule
+                if getattr(request, "url_rule", None)
+                else request.path
             )
-            record_http_metrics(start_time=start_time, endpoint=endpoint_label, status=response.status_code)
+            record_http_metrics(
+                start_time=start_time,
+                endpoint=endpoint_label,
+                status=response.status_code,
+            )
     finally:
         return response
 
@@ -112,7 +153,9 @@ def metrics_teardown_request(exc):
     if exc is not None and request and request.path != "/metrics":
         start_time = getattr(g, "_http_request_start_time", time.time())
         endpoint_label = (
-            request.url_rule.rule if getattr(request, "url_rule", None) else request.path
+            request.url_rule.rule
+            if getattr(request, "url_rule", None)
+            else request.path
         )
         record_http_metrics(start_time=start_time, endpoint=endpoint_label, status=500)
 
@@ -252,6 +295,8 @@ def eater_auth():
 @token_required
 def manual_weight(user_email):
     return manual_weight_record(request=request, user_email=user_email)
+
+
 @app.route("/alcohol_latest", methods=["GET"])
 @track_eater_operation("alcohol_latest")
 @token_required
@@ -264,7 +309,6 @@ def get_alcohol_latest_route(user_email):
 @token_required
 def get_alcohol_range_route(user_email):
     return alcohol_range(request=request, user_email=user_email)
-
 
 
 @app.route("/feedback", methods=["POST"])

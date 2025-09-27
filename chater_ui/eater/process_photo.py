@@ -1,19 +1,38 @@
 import base64
 import logging
 import os
+import threading
 import uuid
 from datetime import datetime
 
-from flask import jsonify, request, current_app
+from flask import current_app, jsonify, request
 
 from common import get_prompt, get_respond_in_language, resize_image
 from kafka_consumer_service import get_user_message_response
 from kafka_producer import create_producer, produce_message
-
-from .proto import eater_photo_pb2
 from minio_utils import put_bytes
 
+from .proto import eater_photo_pb2
+
 logger = logging.getLogger(__name__)
+
+
+def _upload_to_minio_background(
+    minio_client, bucket_name, object_name, photo_bytes, user_email
+):
+    try:
+        put_bytes(
+            minio_client,
+            bucket_name,
+            object_name,
+            photo_bytes,
+            content_type="image/jpeg",
+        )
+        logger.info(
+            f"Photo uploaded to MinIO at {bucket_name}/{object_name} for user {user_email}"
+        )
+    except Exception as e:
+        logger.error(f"Error uploading photo to MinIO: {e}")
 
 
 def eater_get_photo(user_email):
@@ -40,7 +59,9 @@ def eater_get_photo(user_email):
         message_id = str(uuid.uuid4())
         # Encode photo directly from memory to avoid filesystem dependency
         photo_base64 = base64.b64encode(resized_photo_data).decode("utf-8")
-        send_kafka_message(photo_base64, type_of_processing, user_email, message_id=message_id)
+        send_kafka_message(
+            photo_base64, type_of_processing, user_email, message_id=message_id
+        )
 
         logger.info(
             f"Waiting for photo analysis response for user {user_email} with message ID {message_id}"
@@ -59,8 +80,25 @@ def eater_get_photo(user_email):
                         f"Error in photo analysis response for user {user_email}: {response.get('error')}"
                     )
                     return jsonify({"error": response.get("error")}), 400
-
-                return response.get("status", "Success")
+                else:
+                    # Trigger MinIO upload in background; do not block the response
+                    client = current_app.config.get("MINIO_CLIENT")
+                    bucket_name = os.getenv("MINIO_BUCKET_EATER", "eater")
+                    if client is None:
+                        logger.error("MINIO client is not initialized; skipping upload")
+                    else:
+                        threading.Thread(
+                            target=_upload_to_minio_background,
+                            args=(
+                                client,
+                                bucket_name,
+                                object_name,
+                                resized_photo_data,
+                                user_email,
+                            ),
+                            daemon=True,
+                        ).start()
+                    return response.get("status", "Success")
             else:
                 logger.warning(
                     f"Timeout waiting for photo analysis response for user {user_email} with message ID {message_id}"
@@ -71,16 +109,6 @@ def eater_get_photo(user_email):
                 f"Failed to get photo analysis response for user {user_email}: {e}"
             )
             return "Timeout", 408
-        # Upload to MinIO (eater bucket)
-        try:
-            client = current_app.config.get("MINIO_CLIENT")
-            if client is None:
-                raise RuntimeError("MINIO client is not initialized")
-            bucket_name = os.getenv("MINIO_BUCKET_EATER", "eater")
-            put_bytes(client, bucket_name, object_name, resized_photo_data, content_type="image/jpeg")
-            logger.info(f"Photo uploaded to MinIO at {bucket_name}/{object_name} for user {user_email}")
-        except Exception as e:
-            logger.error(f"Error uploading photo to MinIO: {e}")
 
     except Exception as e:
         logger.error(f"Error processing request for user {user_email}: {str(e)}")
