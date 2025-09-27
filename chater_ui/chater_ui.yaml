@@ -29,7 +29,8 @@
             strategy:
               type: RollingUpdate
               rollingUpdate:
-                maxUnavailable: 1
+                maxUnavailable: 0
+                maxSurge: 1
             selector:
               matchLabels:
                 app: chater-ui
@@ -146,6 +147,22 @@
             selector:
               app: chater-ui
             type: NodePort
+
+    - name: Create PodDisruptionBudget for chater-ui
+      kubernetes.core.k8s:
+        state: present
+        namespace: chater-ui
+        definition:
+          apiVersion: policy/v1
+          kind: PodDisruptionBudget
+          metadata:
+            name: chater-ui-pdb
+            namespace: chater-ui
+          spec:
+            minAvailable: 1
+            selector:
+              matchLabels:
+                app: chater-ui
 
     - name: Create ServiceMonitor for chater-ui
       tags:
