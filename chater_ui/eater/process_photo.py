@@ -29,10 +29,15 @@ def _upload_to_minio_background(
             content_type="image/jpeg",
         )
         logger.info(
-            f"Photo uploaded to MinIO at {bucket_name}/{object_name} for user {user_email}"
+            "Photo uploaded to MinIO at %s/%s for user %s",
+            bucket_name,
+            object_name,
+            user_email,
         )
-    except Exception as e:
-        logger.error(f"Error uploading photo to MinIO: {e}")
+    except Exception as exc:
+        logger.exception(
+            "Error uploading photo to MinIO for user %s: %s", user_email, exc
+        )
 
 
 def eater_get_photo(user_email, local_model_service):
@@ -43,14 +48,16 @@ def eater_get_photo(user_email, local_model_service):
         time = photo_message.time
         photo_data = photo_message.photo_data
         type_of_processing = photo_message.photoType
-        logger.info(f"Received time for user {user_email}: {time}")
-        logger.info(
-            f"Received photo_data size for user {user_email}: {len(photo_data)} bytes"
+        logger.debug("Received photo metadata for user %s", user_email)
+        logger.debug(
+            "Raw photo payload size for user %s: %s bytes", user_email, len(photo_data)
         )
-        logger.info(f"Received task type for user {user_email}: {type_of_processing}")
+        logger.debug("Task type for user %s: %s", user_email, type_of_processing)
         resized_photo_data = resize_image(photo_data, max_size=(1024, 1024))
-        logger.info(
-            f"Resized photo_data size for user {user_email}: {len(resized_photo_data)} bytes"
+        logger.debug(
+            "Resized photo payload size for user %s: %s bytes",
+            user_email,
+            len(resized_photo_data),
         )
         current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
         object_name = f"{user_email}/{current_time}.jpg"
@@ -60,24 +67,32 @@ def eater_get_photo(user_email, local_model_service):
         # Encode photo directly from memory to avoid filesystem dependency
         photo_base64 = base64.b64encode(resized_photo_data).decode("utf-8")
         send_kafka_message(
-            photo_base64, type_of_processing, user_email, message_id=message_id, local_model_service=local_model_service
+            photo_base64,
+            type_of_processing,
+            user_email,
+            message_id=message_id,
+            local_model_service=local_model_service,
         )
 
         logger.info(
-            f"Waiting for photo analysis response for user {user_email} with message ID {message_id}"
+            "Waiting for photo analysis response for user %s (message_id=%s)",
+            user_email,
+            message_id,
         )
 
         # Get response from Redis using the background consumer service
         try:
             response = get_user_message_response(message_id, user_email, timeout=60)
             if response is not None:
-                logger.info(
-                    f"Retrieved photo analysis response for user {user_email}: {response}"
+                logger.debug(
+                    "Retrieved photo analysis response for user %s", user_email
                 )
 
                 if response.get("error"):
                     logger.error(
-                        f"Error in photo analysis response for user {user_email}: {response.get('error')}"
+                        "Error in photo analysis response for user %s: %s",
+                        user_email,
+                        response.get("error"),
                     )
                     return jsonify({"error": response.get("error")}), 400
                 else:
@@ -101,19 +116,21 @@ def eater_get_photo(user_email, local_model_service):
                     return response.get("status", "Success")
             else:
                 logger.warning(
-                    f"Timeout waiting for photo analysis response for user {user_email} with message ID {message_id}"
+                    "Timeout waiting for photo analysis response for user %s (message_id=%s)",
+                    user_email,
+                    message_id,
                 )
                 return "Timeout", 408
-        except Exception as e:
-            logger.error(
-                f"Failed to get photo analysis response for user {user_email}: {e}"
+        except Exception as exc:
+            logger.exception(
+                "Failed to get photo analysis response for user %s", user_email
             )
             return "Timeout", 408
 
-    except Exception as e:
-        logger.error(f"Error processing request for user {user_email}: {str(e)}")
+    except Exception as exc:
+        logger.exception("Error processing request for user %s", user_email)
         return (
-            jsonify({"message": "Failed to process the request", "error": str(e)}),
+            jsonify({"message": "Failed to process the request", "error": str(exc)}),
             400,
         )
 
@@ -143,15 +160,24 @@ def send_kafka_message(
             "user_email": user_email,
         },
     }
-    logger.info(f"Food image {photo_uuid} sent for user {user_email}")
+    logger.debug("Food image %s queued for user %s", photo_uuid, user_email)
     if type_of_processing != "eater-send-photo":
         if local_model_service:
             topic = local_model_service.get_user_kafka_topic(user_email, topic)
         else:
-            logger.error(f"Topic: {topic} for user {user_email}. User model tier is not available, using default topic")
+            logger.warning(
+                "User model tier lookup unavailable; using default topic %s for user %s",
+                topic,
+                user_email,
+            )
     elif type_of_processing == "weight_prompt":
-            topic = "chater-vision"
-            logger.info(f"Topic: {topic} for user {user_email}")
+        topic = "chater-vision"
+        logger.debug("Routing weight prompt for user %s to topic %s", user_email, topic)
     else:
-        logger.error(f"Topic: {topic} for user {user_email}. Invalid type of processing")
+        logger.error(
+            "Invalid processing type %s for user %s; using default topic %s",
+            type_of_processing,
+            user_email,
+            topic,
+        )
     produce_message(producer, topic=topic, message=message)

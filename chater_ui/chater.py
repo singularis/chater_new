@@ -8,10 +8,8 @@ from flask import flash, redirect, render_template, request, url_for
 from common import sanitize_question
 from kafka_consumer_service import get_message_response
 from kafka_producer import create_producer, produce_message
-from logging_config import setup_logging
 
-setup_logging("app.log")
-log = logging.getLogger("main")
+logger = logging.getLogger(__name__)
 
 
 TARGET_CONFIG = {
@@ -34,20 +32,20 @@ def get_target_config(target):
 
 def chater(session, target):
     if "logged_in" not in session:
-        log.warning("Unauthorized chater access attempt")
+        logger.warning("Unauthorized chater access attempt")
         flash("You need to log in to view this page")
         return redirect(url_for("chater_login"))
 
     if request.method == "POST":
         target_config = get_target_config(target)
         if not target_config:
-            log.error(f"Invalid target: {target}")
+            logger.error("Invalid target: %s", target)
             flash("Invalid target specified")
             return redirect(url_for("chater"))
 
         question = request.form["question"]
         question = sanitize_question(question=question)
-        log.info(f"Asked question in UI: {question}")
+        logger.debug("Queued question from UI; target=%s", target)
         question_uuid = str(uuid.uuid4())
         message = {
             "key": question_uuid,
@@ -58,27 +56,27 @@ def chater(session, target):
                 "think": True,
             },
         }
-        log.info(f"message {message}")
+        logger.debug("Produced message payload for UUID %s", question_uuid)
         producer = create_producer()
         produce_message(producer, topic="dlp-source", message=message)
         json_response = get_messages(
             question_uuid, topics=target_config["receive_topic"]
         )
-        log.info(f"Message response {json_response}")
+        logger.debug("Received raw message response for UUID %s", question_uuid)
         try:
             json_response = json_response.get("response")
         except Exception as e:
-            log.error(f"Error getting json response: {e}")
+            logger.error("Error normalising response for UUID %s: %s", question_uuid, e)
             json_response = json_response
         if session.get("switch_state", "off") == "on":
             session["context"] = (
                 (session.get("context") or "") + question + json_response
             )
-            log.info(f"Context crated {session['context'] }")
+            logger.debug("Conversation context updated for session")
         else:
             session["context"] = None
         formatted_script = format_script(json_response)
-        log.info(f"Formated data {formatted_script}")
+        logger.debug("Formatted response ready for render")
         new_response = {
             "question": question,
             "response": formatted_script,
@@ -94,21 +92,19 @@ def chater(session, target):
 
 
 def get_messages(message_uuid, topics):
-    log.info(
-        f"Starting message processing for UUID: {message_uuid}, expected from topics: {topics}"
-    )
+    logger.debug("Awaiting response for UUID %s from topics %s", message_uuid, topics)
 
     # Get response from Redis using the background consumer service
     try:
         response = get_message_response(message_uuid, timeout=220)
         if response is not None:
-            log.info(f"Retrieved response for UUID {message_uuid}: {response}")
+            logger.debug("Retrieved response for UUID %s", message_uuid)
             return response
         else:
-            log.warning(f"Timeout waiting for response for UUID: {message_uuid}")
+            logger.warning("Timeout waiting for response for UUID %s", message_uuid)
             return "Timeout: No response received within 30 seconds"
     except Exception as e:
-        log.error(f"Failed to get message response: {e}")
+        logger.error("Failed to get message response for UUID %s: %s", message_uuid, e)
         return "Error retrieving response"
 
 

@@ -20,12 +20,15 @@ logger = logging.getLogger(__name__)
 def eater_kafka_request(topic_send, topic_receive, payload, user_email, timeout_sec=30):
     producer = create_producer()
     message_id = str(uuid.uuid4())
-    logger.info(f"Sending request to topic {topic_send} for user {user_email}")
+    logger.info("Dispatching %s request for user %s", topic_send, user_email)
     message = {"key": message_id, "value": {**payload, "user_email": user_email}}
     produce_message(producer, topic=topic_send, message=message)
 
-    logger.info(
-        f"Waiting for response from topic {topic_receive} for user {user_email} with message ID {message_id}"
+    logger.debug(
+        "Awaiting response from topic %s for user %s (message_id=%s)",
+        topic_receive,
+        user_email,
+        message_id,
     )
 
     # Get response from Redis using the background consumer service
@@ -34,22 +37,26 @@ def eater_kafka_request(topic_send, topic_receive, payload, user_email, timeout_
             message_id, user_email, timeout=timeout_sec
         )
         if response is not None:
-            logger.info(f"Retrieved response for user {user_email}: {response}")
+            logger.debug("Retrieved response for user %s", user_email)
 
             if response.get("error"):
                 logger.error(
-                    f"Error in response for user {user_email}: {response.get('error')}"
+                    "Error in response for user %s: %s",
+                    user_email,
+                    response.get("error"),
                 )
                 return None
 
             return response
         else:
             logger.warning(
-                f"Timeout waiting for response for user {user_email} with message ID {message_id}"
+                "Timeout waiting for response for user %s (message_id=%s)",
+                user_email,
+                message_id,
             )
             return None
-    except Exception as e:
-        logger.error(f"Failed to get message response for user {user_email}: {e}")
+    except Exception as exc:
+        logger.exception("Failed to get message response for user %s", user_email)
         return None
 
 
@@ -76,37 +83,36 @@ def eater_get_today(user_email):
         today_food = eater_get_today_kafka(user_email)
         if not today_food:
             logger.warning(
-                f"No data received from Kafka for user {user_email}; returning 503"
+                "No data received from Kafka for user %s; returning 503",
+                user_email,
             )
             return "Service temporarily unavailable", 503
 
-        logger.info(
-            f"Received today_food from Kafka for user {user_email}: {today_food}"
-        )
+        logger.debug("Today food payload for user %s: %s", user_email, today_food)
         proto_message = today_food_pb2.TodayFood()
         tf = today_food.get("dishes", {}).get("total_for_day", {})
-        logger.info(
-            f"Total_for_day content for user {user_email}: {tf} | Types: { {k: type(v) for k, v in tf.items()} }"
+        logger.debug(
+            "Total_for_day content for user %s: %s",
+            user_email,
+            tf,
         )
         total_avg_weight = tf.get("total_avg_weight", 0)
-        logger.info(
-            f"Assigning total_avg_weight for user {user_email}: {total_avg_weight} (type: {type(total_avg_weight)})"
-        )
+        logger.debug("total_avg_weight for user %s: %s", user_email, total_avg_weight)
         proto_message.total_for_day.total_avg_weight = int(total_avg_weight)
         total_calories = tf.get("total_calories", 0)
-        logger.info(
-            f"Assigning total_calories for user {user_email}: {total_calories} (type: {type(total_calories)})"
-        )
+        logger.debug("total_calories for user %s: %s", user_email, total_calories)
         proto_message.total_for_day.total_calories = total_calories
         contains_data = tf.get("contains", {})
         if isinstance(contains_data, list):
             logger.warning(
-                f"'contains' is a list instead of dict for user {user_email}: {contains_data}. Defaulting to empty."
+                "'contains' is a list instead of dict for user %s; defaulting to empty",
+                user_email,
             )
             contains_data = {}
         elif not isinstance(contains_data, dict):
             logger.warning(
-                f"'contains' is neither dict nor list for user {user_email}: {contains_data}. Defaulting to empty."
+                "'contains' is neither dict nor list for user %s; defaulting to empty",
+                user_email,
             )
             contains_data = {}
 
@@ -124,17 +130,12 @@ def eater_get_today(user_email):
         if not lw:
             lw = today_food.get("dishes", {}).get("closest_weight", {})
 
-        logger.info(
-            f"Weight data for user {user_email}: {lw}, weight value: {lw.get('weight')}"
-        )
+        logger.debug("Weight data for user %s: %s", user_email, lw)
         proto_message.person_weight = lw.get("weight", 0)
 
         dishes = today_food.get("dishes", {}).get("dishes_today", [])
         for dish in dishes:
-            logger.info(
-                f"Processing dish for user {user_email}: {dish} | "
-                f"Types: {{ { {k: type(v) for k, v in dish.items()} } }}"
-            )
+            logger.debug("Processing dish for user %s: %s", user_email, dish)
             dish_proto = proto_message.dishes_today.add()
             dish_proto.time = dish.get("time", 0)
             dish_proto.dish_name = dish.get("dish_name", "")
@@ -142,28 +143,27 @@ def eater_get_today(user_email):
             dish_proto.total_avg_weight = int(dish.get("total_avg_weight", 0))
 
             ingredients = dish.get("ingredients", [])
-            logger.info(
-                f"Raw ingredients for dish {dish.get('dish_name')}: {ingredients}"
+            logger.debug(
+                "Raw ingredients for user %s dish %s: %s",
+                user_email,
+                dish.get("dish_name"),
+                ingredients,
             )
             if not isinstance(ingredients, list):
                 logger.warning(
-                    f"'ingredients' is not a list for user {user_email}: {ingredients}. Converting to empty list."
+                    "'ingredients' is not a list for user %s; defaulting to empty",
+                    user_email,
                 )
                 ingredients = []
             dish_proto.ingredients.extend(ingredients)
-            logger.info(f"Processed dish proto: {dish_proto}")
+            logger.debug("Processed dish proto for user %s: %s", user_email, dish_proto)
 
         proto_data = proto_message.SerializeToString()
-        logger.info(
-            f"Successfully processed message for user {user_email}: {today_food}"
-        )
+        logger.debug("Successfully processed today message for user %s", user_email)
         return proto_data, 200, {"Content-Type": "application/protobuf"}
 
-    except Exception as e:
-        logger.error(f"Exception in eater_get_today for user {user_email}: {e}")
-        logger.error(
-            f"Problematic message for user {user_email}: {today_food if 'today_food' in locals() else 'None'}"
-        )
+    except Exception as exc:
+        logger.exception("Error in eater_get_today for user %s", user_email)
         return "Failed", 500
 
 
@@ -175,7 +175,7 @@ def eater_get_custom_date(request, user_email):
         custom_date = proto_request.date
         if not custom_date:
             logger.error(
-                f"No date provided in custom date request for user {user_email}"
+                "No date provided in custom date request for user %s", user_email
             )
             return "No date provided", 400
 
@@ -185,37 +185,51 @@ def eater_get_custom_date(request, user_email):
                 f"No data received from Kafka for user {user_email} and date {custom_date}"
             )
 
-        logger.info(
-            f"Received custom_food from Kafka for user {user_email} and date {custom_date}: {custom_food}"
+        logger.debug(
+            "Custom food payload for user %s (%s): %s",
+            user_email,
+            custom_date,
+            custom_food,
         )
 
         proto_message = custom_date_food_pb2.CustomDateFoodResponse()
         tf = custom_food.get("dishes", {}).get("total_for_day", {})
-        logger.info(
-            f"Total_for_day content for user {user_email} and date {custom_date}: {tf} | Types: { {k: type(v) for k, v in tf.items()} }"
+        logger.debug(
+            "Total_for_day content for user %s (%s): %s",
+            user_email,
+            custom_date,
+            tf,
         )
 
         total_avg_weight = tf.get("total_avg_weight", 0)
-        logger.info(
-            f"Assigning total_avg_weight for user {user_email}: {total_avg_weight} (type: {type(total_avg_weight)})"
+        logger.debug(
+            "total_avg_weight for user %s (%s): %s",
+            user_email,
+            custom_date,
+            total_avg_weight,
         )
         proto_message.total_for_day.total_avg_weight = int(total_avg_weight)
 
         total_calories = tf.get("total_calories", 0)
-        logger.info(
-            f"Assigning total_calories for user {user_email}: {total_calories} (type: {type(total_calories)})"
+        logger.debug(
+            "total_calories for user %s (%s): %s",
+            user_email,
+            custom_date,
+            total_calories,
         )
         proto_message.total_for_day.total_calories = total_calories
 
         contains_data = tf.get("contains", {})
         if isinstance(contains_data, list):
             logger.warning(
-                f"'contains' is a list instead of dict for user {user_email}: {contains_data}. Defaulting to empty."
+                "'contains' is a list instead of dict for user %s; defaulting to empty",
+                user_email,
             )
             contains_data = {}
         elif not isinstance(contains_data, dict):
             logger.warning(
-                f"'contains' is neither dict nor list for user {user_email}: {contains_data}. Defaulting to empty."
+                "'contains' is neither dict nor list for user %s; defaulting to empty",
+                user_email,
             )
             contains_data = {}
 
@@ -233,16 +247,18 @@ def eater_get_custom_date(request, user_email):
         if not lw:
             lw = custom_food.get("dishes", {}).get("latest_weight", {})
 
-        logger.info(
-            f"Weight data for user {user_email} and date {custom_date}: {lw}, weight value: {lw.get('weight')}"
+        logger.debug(
+            "Weight data for user %s (%s): %s",
+            user_email,
+            custom_date,
+            lw,
         )
         proto_message.person_weight = lw.get("weight", 0)
 
         dishes = custom_food.get("dishes", {}).get("dishes_today", [])
         for dish in dishes:
-            logger.info(
-                f"Processing dish for user {user_email}: {dish} | "
-                f"Types: {{ { {k: type(v) for k, v in dish.items()} } }}"
+            logger.debug(
+                "Processing dish for user %s (%s): %s", user_email, custom_date, dish
             )
             dish_proto = proto_message.dishes_for_date.add()
             dish_proto.time = dish.get("time", 0)
@@ -251,34 +267,45 @@ def eater_get_custom_date(request, user_email):
             dish_proto.total_avg_weight = int(dish.get("total_avg_weight", 0))
 
             ingredients = dish.get("ingredients", [])
-            logger.info(
-                f"Raw ingredients for dish {dish.get('dish_name')}: {ingredients}"
+            logger.debug(
+                "Raw ingredients for user %s (%s) dish %s: %s",
+                user_email,
+                custom_date,
+                dish.get("dish_name"),
+                ingredients,
             )
             if not isinstance(ingredients, list):
                 logger.warning(
-                    f"'ingredients' is not a list for user {user_email}: {ingredients}. Converting to empty list."
+                    "'ingredients' is not a list for user %s; defaulting to empty",
+                    user_email,
                 )
                 ingredients = []
             dish_proto.ingredients.extend(ingredients)
-            logger.info(f"Processed dish proto: {dish_proto}")
+            logger.debug(
+                "Processed custom dish proto for user %s (%s): %s",
+                user_email,
+                custom_date,
+                dish_proto,
+            )
 
         proto_data = proto_message.SerializeToString()
-        logger.info(
-            f"Successfully processed custom date message for user {user_email} and date {custom_date}: {custom_food}"
+        logger.debug(
+            "Successfully processed custom date message for user %s (%s)",
+            user_email,
+            custom_date,
         )
         return proto_data, 200, {"Content-Type": "application/protobuf"}
 
-    except Exception as e:
-        logger.error(f"Exception in eater_get_custom_date for user {user_email}: {e}")
-        logger.error(
-            f"Problematic message for user {user_email}: {custom_food if 'custom_food' in locals() else 'None'}"
+    except Exception as exc:
+        logger.exception(
+            "Error in eater_get_custom_date for user %s (%s)", user_email, custom_date
         )
         return "Failed", 500
 
 
 def eater_auth_token(request):
     """Handle authentication token request"""
-    logger.info("=== ENTERING eater_auth_token function ===")
+    logger.debug("Entering eater_auth_token")
     try:
         import json
 
@@ -316,7 +343,7 @@ def eater_auth_token(request):
             )
 
         if provider not in ["google", "apple"]:
-            logger.error(f"Invalid provider: {provider}")
+            logger.error("Invalid provider: %s", provider)
             return (
                 jsonify(
                     {
@@ -337,7 +364,7 @@ def eater_auth_token(request):
         }
 
         # Use the standard eater_kafka_request function like other endpoints
-        logger.info(f"Sending auth request to Kafka for email: {email}")
+        logger.info("Dispatching auth request for %s", email)
 
         # Create a temporary user email since this is before authentication
         temp_user_email = email  # Use the email from the request as user identifier
@@ -349,22 +376,18 @@ def eater_auth_token(request):
             "value": {**payload, "user_email": temp_user_email},
         }
 
-        logger.info(f"AUTH DEBUG - Message created in auth function: {message}")
-        logger.info(f"AUTH DEBUG - temp_user_email: {temp_user_email}")
-        logger.info(f"AUTH DEBUG - payload: {payload}")
+        logger.debug("Auth payload for %s: %s", email, payload)
 
         producer = create_producer()
         produce_message(producer, topic="auth_requires_token", message=message)
 
-        logger.info(
-            f"Waiting for auth response from topic add_auth_token with message ID {message_id}"
-        )
+        logger.debug("Awaiting auth response for %s (message_id=%s)", email, message_id)
 
         # Get response from Redis using the background consumer service
         try:
             response = get_message_response(message_id, timeout=30)
             if response is not None:
-                logger.info(f"Retrieved auth response for email {email}: {response}")
+                logger.debug("Auth response for %s received", email)
 
                 if response.get("error"):
                     logger.error(
@@ -399,7 +422,8 @@ def eater_auth_token(request):
                 )
             else:
                 logger.warning(
-                    f"Timeout waiting for auth response with message ID {message_id}"
+                    "Timeout waiting for auth response (message_id=%s)",
+                    message_id,
                 )
                 return (
                     jsonify(
@@ -410,8 +434,8 @@ def eater_auth_token(request):
                     ),
                     500,
                 )
-        except Exception as e:
-            logger.error(f"Failed to get auth message response: {e}")
+        except Exception as exc:
+            logger.exception("Failed to get auth message response for %s", email)
             return (
                 jsonify(
                     {
@@ -422,8 +446,13 @@ def eater_auth_token(request):
                 500,
             )
 
-    except Exception as e:
-        logger.error(f"Exception in eater_auth_token: {e}")
+    except Exception as exc:
+        user_identifier = (
+            request_data.get("email")
+            if "request_data" in locals() and request_data
+            else "<unknown>"
+        )
+        logger.exception("Unexpected error in eater_auth_token for %s", user_identifier)
         return (
             jsonify(
                 {
@@ -449,25 +478,33 @@ def get_recommendation(request, user_email, local_model_service):
             "type_of_processing": "get_recommendation",
         }
         if local_model_service:
-            topic = local_model_service.get_user_kafka_topic(user_email, "get_recommendation")
-            logger.debug(f"Topic: {topic} for user {user_email}. User model tier is local, overriding topic to {topic}")
+            topic = local_model_service.get_user_kafka_topic(
+                user_email, "get_recommendation"
+            )
+            logger.debug(
+                "Routing recommendation for user %s to topic %s", user_email, topic
+            )
         else:
             topic = "get_recommendation"
-            logger.error(f"Topic: {topic} for user {user_email}. User model tier is not available, using default topic")
+            logger.warning(
+                "User model tier unavailable; defaulting topic %s for user %s",
+                topic,
+                user_email,
+            )
         recommendation_data = eater_kafka_request(
             topic, "gemini-response", payload, user_email, timeout_sec=90
         )
-        logger.info(f"recommendation_data for user {user_email}: {recommendation_data}")
+        logger.debug("Recommendation data for user %s received", user_email)
         if recommendation_data is None:
             raise ValueError(
                 f"No recommendation received from Kafka for user {user_email}"
             )
         plain_text = json_to_plain_text(recommendation_data)
-        logger.info(f"plain_text for user {user_email}: {plain_text}")
+        logger.debug("Recommendation plain text prepared for user %s", user_email)
         proto_response = get_recomendation_pb2.RecommendationResponse()
         proto_response.recommendation = plain_text
         response_data = proto_response.SerializeToString()
         return response_data, 200, {"Content-Type": "application/protobuf"}
-    except Exception as e:
-        logger.error(f"Exception for user {user_email}: {e}")
+    except Exception as exc:
+        logger.exception("Recommendation generation failed for user %s", user_email)
         return "Failed", 500

@@ -109,11 +109,11 @@
                       - name: TEST_USER_EMAIL
                         value: "{{ vars.TEST_USER_EMAIL }}"
                       - name: LOCAL_MODEL_SERVICE_URL
-                        value: "{{ vars.LOCAL_MODEL_SERVICE_URL }}"
+                        value: "{{ vars.MODELS_PROCESSOR.LOCAL_MODEL_SERVICE_URL }}"
                       - name: LOCAL_MODEL_KAFKA_TOPIC
-                        value: "{{ vars.LOCAL_MODEL_KAFKA_TOPIC }}"
+                        value: "{{ vars.MODELS_PROCESSOR.LOCAL_MODEL_KAFKA_TOPIC }}"
                       - name: DEFAULT_MODEL_TIER
-                        value: "{{ vars.DEFAULT_MODEL_TIER }}"
+                        value: "{{ vars.MODELS_PROCESSOR.DEFAULT_MODEL_TIER }}"
                       - name: LOG_LEVEL
                         value: "{{ vars.LOG_LEVEL }}"
                 affinity:

@@ -21,7 +21,7 @@ class ChaterLoginForm(FlaskForm):
     password = PasswordField("Password", validators=[InputRequired()])
 
 
-log = logging.getLogger("main")
+logger = logging.getLogger(__name__)
 
 
 def login(session):
@@ -29,7 +29,7 @@ def login(session):
     if LAST_FAILED_ATTEMPT_TIME and (
         datetime.now() - LAST_FAILED_ATTEMPT_TIME
     ) < timedelta(seconds=30):
-        logging.warning("Too many failed attempts")
+        logger.warning("Too many failed login attempts in cooldown window")
         flash("Too many failed attempts. Please try again later.")
         return redirect(url_for("chater_wait"))
     else:
@@ -38,21 +38,19 @@ def login(session):
             if form.username.data == USERNAME and check_password_hash(
                 PASSWORD_HASH, form.password.data
             ):
-                logging.info("Successful chater_login by user: %s", form.username.data)
+                logger.info("User %s successfully authenticated", form.username.data)
                 session.permanent = True
                 session["logged_in"] = True
                 return redirect(url_for("chamini"))
             else:
                 LAST_FAILED_ATTEMPT_TIME = datetime.now()
-                logging.warning(
-                    "Failed chater_login attempt for user: %s", form.username.data
-                )
+                logger.warning("Failed login attempt for user %s", form.username.data)
             flash("Wrong password", "error")
         return render_template("login.html", form=form)
 
 
 def logout(session):
-    logging.info("Logged out")
+    logger.info("User initiated logout")
     if google.authorized:
         try:
             response = google.post(
@@ -64,6 +62,6 @@ def logout(session):
             session.pop("google_id", None)
             session.pop("user_email", None)
         except Exception as e:
-            logging.error(f"Failed to revoke Google token: {e}")
+            logger.error("Failed to revoke Google token: %s", e)
     session.pop("logged_in", None)
     return redirect(url_for("chater_login"))

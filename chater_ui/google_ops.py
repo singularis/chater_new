@@ -4,7 +4,7 @@ import os
 from flask import flash, redirect, url_for
 from flask_dance.contrib.google import google, make_google_blueprint
 
-log = logging.getLogger("main")
+logger = logging.getLogger(__name__)
 
 
 def create_google_blueprint():
@@ -22,15 +22,15 @@ def create_google_blueprint():
 
 
 def g_login(session, ALLOWED_EMAILS):
-    logging.info("Google login")
+    logger.info("Google login initiated")
     if not google.authorized:
-        logging.info("User not authorized with Google")
+        logger.debug("User not authorized with Google; redirecting to OAuth flow")
         return redirect(url_for("google.login"))
     try:
         resp = google.get("/oauth2/v1/userinfo")
         resp.raise_for_status()
     except Exception as e:
-        logging.error(f"Google login error: {e}")
+        logger.error("Google login error: %s", e)
         flash("An error occurred during Google login", "error")
         return redirect(url_for("google.login"))
     user_info = resp.json()
@@ -42,9 +42,7 @@ def g_login(session, ALLOWED_EMAILS):
         session.permanent = True
         return redirect(url_for("chamini"))
     else:
-        logging.error(
-            f"Email {user_email} with {user_info} is not authorized for chater"
-        )
+        logger.warning("Unauthorized Google email attempted login: %s", user_email)
         session["logged_in"] = False
         session.permanent = False
         flash("Email not authorized", "error")

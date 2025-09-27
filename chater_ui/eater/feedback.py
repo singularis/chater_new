@@ -20,7 +20,7 @@ def submit_feedback_request(user_email):
         proto_data = request.data
         if not proto_data:
             logger.error(
-                f"No Protobuf data found in the request from user: {user_email}"
+                "No Protobuf data found in the request from user %s", user_email
             )
             return jsonify({"success": False, "error": "Invalid Protobuf data"}), 400
 
@@ -32,13 +32,13 @@ def submit_feedback_request(user_email):
         user_email_from_proto = feedback_request.userEmail
         feedback_text = feedback_request.feedback
 
-        logger.info(
-            f"Extracted feedback from Protobuf for user {user_email}: time={time}, feedback={feedback_text}"
+        logger.debug(
+            "Extracted feedback protobuf for user %s: time=%s", user_email, time
         )
 
         # Validate feedback
         if not feedback_text.strip():
-            logger.error(f"Empty feedback from user: {user_email}")
+            logger.warning("Empty feedback from user %s", user_email)
             feedback_response.success = False
             response_data = feedback_response.SerializeToString()
             return (
@@ -63,7 +63,7 @@ def submit_feedback_request(user_email):
         # Send message to feedback topic
         produce_message(producer, topic="feedback", message=kafka_message)
 
-        logger.info(f"Feedback submitted by user {user_email}: {feedback_text}")
+        logger.info("Feedback submitted for user %s", user_email)
 
         # Create successful protobuf response
         feedback_response.success = True
@@ -74,8 +74,8 @@ def submit_feedback_request(user_email):
             {"Content-Type": "application/grpc+proto"},
         )
 
-    except Exception as e:
-        logger.error(f"Error submitting feedback for user {user_email}: {e}")
+    except Exception as exc:
+        logger.exception("Error submitting feedback for user %s", user_email)
         feedback_response.success = False
         response_data = feedback_response.SerializeToString()
         return (

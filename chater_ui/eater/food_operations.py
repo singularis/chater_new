@@ -24,35 +24,41 @@ def delete_food(request, user_email):
         proto_data = request.data
         if not proto_data:
             logger.error(
-                f"No Protobuf data found in the request from user: {user_email}"
+                "No Protobuf data found in the request from user %s", user_email
             )
             return jsonify({"success": False, "error": "Invalid Protobuf data"}), 400
 
         delete_food_request.ParseFromString(proto_data)
         time = delete_food_request.time
-        logger.info(f"Extracted time from Protobuf for user {user_email}: {time}")
+        logger.debug("Extracted time from Protobuf for user %s: %s", user_email, time)
 
         producer = create_producer()
         message_id = str(uuid.uuid4())
         message = {"key": message_id, "value": {"time": time, "user_email": user_email}}
         produce_message(producer, topic="delete_food", message=message)
-        logger.info(f"Sent message to Kafka for user {user_email}: {message}")
+        logger.debug(
+            "Delete request dispatched for user %s (message_id=%s)",
+            user_email,
+            message_id,
+        )
 
-        logger.info(
-            f"Waiting for delete confirmation for user {user_email} with message ID {message_id}"
+        logger.debug(
+            "Waiting for delete confirmation for user %s (message_id=%s)",
+            user_email,
+            message_id,
         )
 
         # Get response from Redis using the background consumer service
         try:
             response = get_user_message_response(message_id, user_email, timeout=30)
             if response is not None:
-                logger.info(
-                    f"Retrieved delete confirmation for user {user_email}: {response}"
-                )
+                logger.debug("Retrieved delete confirmation for user %s", user_email)
 
                 if response.get("error"):
                     logger.error(
-                        f"Error in delete response for user {user_email}: {response.get('error')}"
+                        "Error in delete response for user %s: %s",
+                        user_email,
+                        response.get("error"),
                     )
                     delete_food_response.success = False
                     response_data = delete_food_response.SerializeToString()
@@ -71,7 +77,9 @@ def delete_food(request, user_email):
                 )
             else:
                 logger.warning(
-                    f"Timeout waiting for delete confirmation for user {user_email} with message ID {message_id}"
+                    "Timeout waiting for delete confirmation for user %s (message_id=%s)",
+                    user_email,
+                    message_id,
                 )
                 delete_food_response.success = False
                 response_data = delete_food_response.SerializeToString()
@@ -80,9 +88,9 @@ def delete_food(request, user_email):
                     500,
                     {"Content-Type": "application/grpc+proto"},
                 )
-        except Exception as e:
-            logger.error(
-                f"Failed to get delete confirmation for user {user_email}: {e}"
+        except Exception as exc:
+            logger.exception(
+                "Failed to get delete confirmation for user %s", user_email
             )
             delete_food_response.success = False
             response_data = delete_food_response.SerializeToString()
@@ -92,8 +100,8 @@ def delete_food(request, user_email):
                 {"Content-Type": "application/grpc+proto"},
             )
 
-    except Exception as e:
-        logger.error(f"Error in delete_food for user {user_email}: {str(e)}")
+    except Exception as exc:
+        logger.exception("Error in delete_food for user %s", user_email)
         delete_food_response.success = False
         response_data = delete_food_response.SerializeToString()
         return response_data, 500, {"Content-Type": "application/grpc+proto"}
@@ -106,15 +114,18 @@ def modify_food_record(request, user_email):
         proto_data = request.data
         if not proto_data:
             logger.error(
-                f"No Protobuf data found in the request from user: {user_email}"
+                "No Protobuf data found in the request from user %s", user_email
             )
             return jsonify({"success": False, "error": "Invalid Protobuf data"}), 400
 
         modify_food_request.ParseFromString(proto_data)
         time = modify_food_request.time
         percentage = modify_food_request.percentage
-        logger.info(
-            f"Extracted time and percentage from Protobuf for user {user_email}: time={time}, percentage={percentage}"
+        logger.debug(
+            "Extracted modify payload for user %s: time=%s percentage=%s",
+            user_email,
+            time,
+            percentage,
         )
 
         producer = create_producer()
@@ -124,23 +135,29 @@ def modify_food_record(request, user_email):
             "value": {"time": time, "user_email": user_email, "percentage": percentage},
         }
         produce_message(producer, topic="modify_food_record", message=message)
-        logger.info(f"Sent message to Kafka for user {user_email}: {message}")
+        logger.debug(
+            "Modify request dispatched for user %s (message_id=%s)",
+            user_email,
+            message_id,
+        )
 
-        logger.info(
-            f"Waiting for modify confirmation for user {user_email} with message ID {message_id}"
+        logger.debug(
+            "Waiting for modify confirmation for user %s (message_id=%s)",
+            user_email,
+            message_id,
         )
 
         # Get response from Redis using the background consumer service
         try:
             response = get_user_message_response(message_id, user_email, timeout=30)
             if response is not None:
-                logger.info(
-                    f"Retrieved modify confirmation for user {user_email}: {response}"
-                )
+                logger.debug("Retrieved modify confirmation for user %s", user_email)
 
                 if response.get("error"):
                     logger.error(
-                        f"Error in modify response for user {user_email}: {response.get('error')}"
+                        "Error in modify response for user %s: %s",
+                        user_email,
+                        response.get("error"),
                     )
                     modify_food_response.success = False
                     response_data = modify_food_response.SerializeToString()
@@ -159,7 +176,9 @@ def modify_food_record(request, user_email):
                 )
             else:
                 logger.warning(
-                    f"Timeout waiting for modify confirmation for user {user_email} with message ID {message_id}"
+                    "Timeout waiting for modify confirmation for user %s (message_id=%s)",
+                    user_email,
+                    message_id,
                 )
                 modify_food_response.success = False
                 response_data = modify_food_response.SerializeToString()
@@ -168,9 +187,9 @@ def modify_food_record(request, user_email):
                     500,
                     {"Content-Type": "application/grpc+proto"},
                 )
-        except Exception as e:
-            logger.error(
-                f"Failed to get modify confirmation for user {user_email}: {e}"
+        except Exception as exc:
+            logger.exception(
+                "Failed to get modify confirmation for user %s", user_email
             )
             modify_food_response.success = False
             response_data = modify_food_response.SerializeToString()
@@ -180,8 +199,8 @@ def modify_food_record(request, user_email):
                 {"Content-Type": "application/grpc+proto"},
             )
 
-    except Exception as e:
-        logger.error(f"Error in modify_food_record for user {user_email}: {str(e)}")
+    except Exception as exc:
+        logger.exception("Error in modify_food_record for user %s", user_email)
         modify_food_response.success = False
         response_data = modify_food_response.SerializeToString()
         return response_data, 500, {"Content-Type": "application/grpc+proto"}
@@ -201,7 +220,11 @@ def manual_weight(request, user_email):
         manual_weight_request.ParseFromString(proto_data)
         weight = manual_weight_request.weight
         user_email_from_proto = manual_weight_request.user_email
-        logger.info(f"Extracted weight from Protobuf for user {user_email}: {weight}")
+        logger.debug(
+            "Extracted manual weight request for user %s: weight=%s",
+            user_email,
+            weight,
+        )
 
         producer = create_producer()
         message_id = str(uuid.uuid4())
@@ -214,8 +237,10 @@ def manual_weight(request, user_email):
             },
         }
         produce_message(producer, topic="manual_weight", message=message)
-        logger.info(
-            f"Sent manual weight message to Kafka manual_weight topic for user {user_email}: {message}"
+        logger.debug(
+            "Manual weight request dispatched for user %s (message_id=%s)",
+            user_email,
+            message_id,
         )
 
         # Return success immediately after sending the message
@@ -227,8 +252,8 @@ def manual_weight(request, user_email):
             {"Content-Type": "application/grpc+proto"},
         )
 
-    except Exception as e:
-        logger.error(f"Error in manual_weight for user {user_email}: {str(e)}")
+    except Exception as exc:
+        logger.exception("Error in manual_weight for user %s", user_email)
         manual_weight_response.success = False
         response_data = manual_weight_response.SerializeToString()
         return response_data, 500, {"Content-Type": "application/grpc+proto"}
@@ -241,10 +266,20 @@ def get_alcohol_latest(user_email):
         message_id = str(uuid.uuid4())
         message = {"key": message_id, "value": {"user_email": user_email}}
         produce_message(producer, topic="get_alcohol_latest", message=message)
+        logger.debug(
+            "Requested latest alcohol summary for user %s (message_id=%s)",
+            user_email,
+            message_id,
+        )
 
         # Wait for response
         kafka_response = get_user_message_response(message_id, user_email, timeout=30)
         if not kafka_response:
+            logger.warning(
+                "No alcohol summary received within timeout for user %s (message_id=%s)",
+                user_email,
+                message_id,
+            )
             return (
                 response.SerializeToString(),
                 500,
@@ -254,15 +289,18 @@ def get_alcohol_latest(user_email):
         alcohol = kafka_response.get("alcohol", {}) or {}
         response.today_summary.total_drinks = int(alcohol.get("total_drinks", 0))
         response.today_summary.total_calories = int(alcohol.get("total_calories", 0))
-        for d in alcohol.get("drinks_of_day", []) or []:
-            response.today_summary.drinks_of_day.append(d)
+        for drink in alcohol.get("drinks_of_day", []) or []:
+            response.today_summary.drinks_of_day.append(drink)
+        logger.debug(
+            "Alcohol latest response for user %s: %s", user_email, kafka_response
+        )
         return (
             response.SerializeToString(),
             200,
             {"Content-Type": "application/grpc+proto"},
         )
-    except Exception as e:
-        logger.error(f"Error in get_alcohol_latest for user {user_email}: {e}")
+    except Exception as exc:
+        logger.exception("Error in get_alcohol_latest for user %s", user_email)
         return (
             response.SerializeToString(),
             500,
@@ -289,22 +327,39 @@ def get_alcohol_range(request, user_email):
             },
         }
         produce_message(producer, topic="get_alcohol_range", message=message)
+        logger.debug(
+            "Requested alcohol range for user %s (message_id=%s) from %s to %s",
+            user_email,
+            message_id,
+            start_date,
+            end_date,
+        )
 
         kafka_response = get_user_message_response(message_id, user_email, timeout=30)
         if not kafka_response:
+            logger.warning(
+                "No alcohol range response within timeout for user %s (message_id=%s)",
+                user_email,
+                message_id,
+            )
             return (
                 response.SerializeToString(),
                 500,
                 {"Content-Type": "application/grpc+proto"},
             )
 
-        for ev in kafka_response.get("events", []) or []:
-            e = response.events.add()
-            e.time = int(ev.get("time", 0))
-            e.date = ev.get("date", "")
-            e.drink_name = ev.get("drink_name", "")
-            e.calories = int(ev.get("calories", 0))
-            e.quantity = int(ev.get("quantity", 0))
+        # alcohol range proto only has repeated events
+        for event in kafka_response.get("events", []) or []:
+            proto_event = response.events.add()
+            proto_event.time = int(event.get("time", 0))
+            proto_event.date = event.get("date", "")
+            proto_event.drink_name = event.get("drink_name", "")
+            proto_event.calories = int(event.get("calories", 0))
+            proto_event.quantity = int(event.get("quantity", 0))
+
+        logger.debug(
+            "Alcohol range response for user %s: %s", user_email, kafka_response
+        )
         return (
             response.SerializeToString(),
             200,

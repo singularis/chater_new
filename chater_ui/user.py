@@ -86,6 +86,7 @@ def get_user_language(email):
     finally:
         session.close()
 
+
 def get_user_model_tier(email):
     session = Session()
     try:
