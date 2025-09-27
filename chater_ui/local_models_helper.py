@@ -22,7 +22,7 @@ class LocalModelService:
                 response = requests.get(self.local_model_service_url, timeout=0.1)
                 if response.status_code == 200:
                     return True
-                logger.debug(
+                logger.error(
                     "Local model service returned status code %s", response.status_code
                 )
                 return False

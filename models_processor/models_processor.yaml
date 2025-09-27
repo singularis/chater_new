@@ -13,22 +13,39 @@
           apiVersion: v1
           kind: Namespace
           metadata:
-            name: {{ vars.MODELS_PROCESSOR.NAMESPACE }}
+            name: "{{ vars.MODELS_PROCESSOR.NAMESPACE }}"
+    - name: Ensure models-processor Service
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ vars.MODELS_PROCESSOR.NAMESPACE }}"
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: models-processor
+            namespace: "{{ vars.MODELS_PROCESSOR.NAMESPACE }}"
+          spec:
+            selector:
+              app: models-processor
+            ports:
+              - port: 8000
+                targetPort: 8000
+                protocol: TCP
     - name: Deploy eater Deployment
       kubernetes.core.k8s:
         state: present
-        namespace: {{ vars.MODELS_PROCESSOR.NAMESPACE }}
+        namespace: "{{ vars.MODELS_PROCESSOR.NAMESPACE }}"
         definition:
           apiVersion: apps/v1
           kind: Deployment
           metadata:
             name: models-processor
-            namespace: {{ vars.MODELS_PROCESSOR.NAMESPACE }}
+            namespace: "{{ vars.MODELS_PROCESSOR.NAMESPACE }}"
           spec:
             replicas: 2
             selector:
               matchLabels:
-                app: eater-users
+                app: models-processor
             template:
               metadata:
                 labels:
@@ -54,6 +71,12 @@
                         value: "{{ vars.BOOTSTRAP_SERVER }}"
                       - name: LOCAL_MODEL_KAFKA_TOPIC
                         value: "{{ vars.MODELS_PROCESSOR.LOCAL_MODEL_KAFKA_TOPIC }}"
+                      - name: OLLAMA_HOST
+                        value: "{{ vars.MODELS_PROCESSOR.OLLAMA_HOST }}"
+                      - name: OLLAMA_MODEL
+                        value: "{{ vars.MODELS_PROCESSOR.OLLAMA_MODEL }}"
+                      - name: LOG_LEVEL
+                        value: "{{ vars.LOG_LEVEL }}"
                     ports:
                       - containerPort: 8000
                         name: http
