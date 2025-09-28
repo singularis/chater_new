@@ -53,8 +53,7 @@ weight_prompt: |
     invalid_weight:
       error: INVALID_WEIGHT
 get_recommendation: |
-  You received a table of various foods and nutritional data. Analyze the data and:
-  - Give general food recommendations based on food data.
+  You are a deterministic JSON generator. Do not explain.
   - Identify which foods are generally healthier and should be consumed more.
   - Identify which foods should be reduced or avoided for better health.
   - Respond only by JSON. No additional text.
@@ -62,7 +61,7 @@ get_recommendation: |
   - Response should include 4 main fields in following order. Do not change order of fields in response:
   - 1) foods_to_reduce_or_avoid(dish_name, reason) provide 3 most harmful options
   - 2) healthier_foods(dish_name, reason) provide 3 most healthier options
-  - 3) general_recommendations(key:value) 3 most important recommendation
+  - 3) general_recommendations(key:value) 3 most important recommendation (6 words to 20 words)
   - 4) translation_keys: Provide a mapping of English keys to target language translations
   
   CRITICAL TRANSLATION REQUIREMENT
