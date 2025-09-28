@@ -76,10 +76,11 @@ def get_recommendation(message_key, message, value_dict, user_email):
                 },
             }
             logger.info(f"model_topic for user {user_email}: {model_topic}")
-            if model_topic == "eater-send-photo-local":
-                topic = model_topic
-            else:
-                topic = "gemini-send"
+            # if model_topic == "eater-send-photo-local":
+            #     topic = model_topic
+            # else:
+            # TODO: uncomment this when local model service is ready
+            topic = "gemini-send"
             produce_message(topic=topic, message=payload)
             logger.info(f"formatted_payload for user {user_email}: {payload}")
         else:
