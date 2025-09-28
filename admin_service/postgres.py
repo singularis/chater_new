@@ -7,6 +7,9 @@ from psycopg2.extras import RealDictCursor
 
 logger = logging.getLogger(__name__)
 
+TEST_USER_EMAIL = os.getenv("TEST_USER_EMAIL", "test@test.com")
+
+
 # Database configuration
 DB_CONFIG = {
     "host": os.getenv("POSTGRES_HOST", "localhost"),
@@ -113,10 +116,11 @@ def get_all_feedback_data():
         query = """
         SELECT id, date, user_email, feedback, created_at
         FROM feedbacks
+        WHERE user_email != %s
         ORDER BY date DESC;
         """
         
-        cursor.execute(query)
+        cursor.execute(query, (TEST_USER_EMAIL,))
         feedback_records = cursor.fetchall()
         
         result = []
