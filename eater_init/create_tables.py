@@ -336,7 +336,7 @@ def create_tables():
 
         Session = sessionmaker(bind=engine)
 
-        with engine.connect() as connection:
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
             logger.info("Creating schema and setting up user...")
             try:
                 # Create schema and set up user
