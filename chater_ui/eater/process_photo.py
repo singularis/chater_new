@@ -174,7 +174,7 @@ def _dispatch_photo_message(
         logger.debug(
             "Routing weight prompt for user %s to topic %s", user_email, destination_topic
         )
-    elif type_of_processing == "eater-send-photo":
+    elif type_of_processing == "default_prompt":
         if local_model_service:
             destination_topic = local_model_service.get_user_kafka_topic(
                 user_email, topic

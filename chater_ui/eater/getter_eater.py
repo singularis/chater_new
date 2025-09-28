@@ -528,7 +528,7 @@ def get_recommendation(request, user_email, local_model_service):
             "days": days,
             "prompt": prompt,
             "type_of_processing": "get_recommendation",
-            "model_topic": prxwocessing_topic,
+            "model_topic": processing_topic,
         }
         recommendation_data = eater_kafka_request(
             "get_recommendation", "gemini-response", payload, user_email, timeout_sec=90
