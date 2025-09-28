@@ -54,10 +54,11 @@ def process_weight(message, user_email):
         raise
 
 
-def get_recommendation(message_key, message, user_email):
+def get_recommendation(message_key, message, value_dict, user_email):
     logger.info(f"Received request to get recommendation for user {user_email}")
     days = message.get("days")
     prompt = message.get("prompt", "")
+    model_topic = message.get("model_topic") or value_dict.get("value", {}).get("model_topic", "")
     food_table = get_dishes(days=days, user_email=user_email)
     id = message_key
     logger.info(
@@ -74,7 +75,12 @@ def get_recommendation(message_key, message, user_email):
                     "user_email": user_email,
                 },
             }
-            produce_message(topic="gemini-send", message=payload)
+            logger.info(f"model_topic for user {user_email}: {model_topic}")
+            if model_topic == "eater-send-photo-local":
+                topic = model_topic
+            else:
+                topic = "gemini-send"
+            produce_message(topic=topic, message=payload)
             logger.info(f"formatted_payload for user {user_email}: {payload}")
         else:
             # No food data found for user, send specific message

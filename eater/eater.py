@@ -174,7 +174,7 @@ def process_messages():
                         },
                     )
                 elif message.topic() == "get_recommendation":
-                    get_recommendation(message_key,value_dict.get("value"), user_email)
+                    get_recommendation(message_key,value_dict.get("value"), value_dict, user_email)
                 elif message.topic() == "manual_weight":
                     # Handle messages from manual_weight endpoint
                     response_data = value_dict.get("value", {})
