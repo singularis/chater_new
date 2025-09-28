@@ -7,7 +7,7 @@ from flask import flash, redirect, render_template, request, url_for
 
 from common import sanitize_question
 from kafka_consumer_service import get_message_response
-from kafka_producer import create_producer, produce_message
+from kafka_producer import KafkaDispatchError, send_kafka_message
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +57,27 @@ def chater(session, target):
             },
         }
         logger.debug("Produced message payload for UUID %s", question_uuid)
-        producer = create_producer()
-        produce_message(producer, topic="dlp-source", message=message)
+        try:
+            send_kafka_message(
+                "dlp-source",
+                value=message["value"],
+                key=question_uuid,
+            )
+        except KafkaDispatchError as kafka_error:
+            logger.error(
+                "Failed to dispatch chat question %s: %s",
+                question_uuid,
+                kafka_error,
+            )
+            flash("Chat backend unavailable. Please try again shortly.")
+            return redirect(url_for(target_config["target"]))
+        except Exception as exc:
+            logger.exception(
+                "Unexpected error producing chat question %s", question_uuid
+            )
+            flash("Chat backend unavailable. Please try again later.")
+            return redirect(url_for(target_config["target"]))
+
         json_response = get_messages(
             question_uuid, topics=target_config["receive_topic"]
         )

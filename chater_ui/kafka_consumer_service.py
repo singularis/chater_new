@@ -3,7 +3,6 @@ import logging
 import os
 import threading
 import time
-from datetime import datetime
 
 import redis
 from confluent_kafka import Consumer, KafkaError, KafkaException
@@ -12,6 +11,9 @@ from logging_config import setup_logging
 
 setup_logging("kafka_consumer_service.log")
 logger = logging.getLogger("kafka_consumer_service")
+
+CONSUMER_RESTART_BACKOFF_SECONDS = 5
+MAX_CONSUMER_ERROR_RETRIES = 5
 
 
 class KafkaConsumerService:
@@ -43,16 +45,23 @@ class KafkaConsumerService:
             logger.error("Expected list of topic unicode strings")
             raise TypeError("Expected list of topic unicode strings")
 
+        bootstrap_servers = os.getenv("BOOTSTRAP_SERVER")
+        if not bootstrap_servers:
+            message = "BOOTSTRAP_SERVER environment variable is required for Kafka consumer"
+            logger.error(message)
+            raise RuntimeError(message)
+
         try:
             consumer = Consumer(
                 {
-                    "bootstrap.servers": os.getenv("BOOTSTRAP_SERVER"),
+                    "bootstrap.servers": bootstrap_servers,
                     "group.id": "chater_background_service",
                     "auto.offset.reset": "earliest",
                     "enable.auto.commit": True,
                     "max.poll.interval.ms": 300000,
                     "session.timeout.ms": 60000,
                     "heartbeat.interval.ms": 10000,
+                    "socket.keepalive.enable": True,
                 }
             )
 
@@ -94,86 +103,176 @@ class KafkaConsumerService:
 
     def consume_topic_messages(self, topics):
         """Consume messages from specific topics continuously"""
-        consumer = self.create_consumer(topics)
-        logger.info(f"Starting consumer for topics: {topics}")
+        logger.info(f"Starting consumer worker for topics: {topics}")
 
-        try:
-            while self.is_running:
+        while self.is_running:
+            consumer = None
+            try:
+                consumer = self.create_consumer(topics)
+                self._consume_loop(consumer, topics)
+            except Exception as e:
+                if not self.is_running:
+                    break
+
+                logger.error(f"Error in consumer loop for topics {topics}: {str(e)}")
+                logger.debug("Restarting consumer after error", exc_info=True)
+                time.sleep(CONSUMER_RESTART_BACKOFF_SECONDS)
+            finally:
+                if consumer is not None:
+                    try:
+                        consumer.close()
+                        logger.info(f"Consumer closed for topics: {topics}")
+                    except Exception as close_error:
+                        logger.warning(
+                            f"Failed to close consumer cleanly for topics {topics}: {close_error}"
+                        )
+
+        logger.info(f"Stopping consumer worker for topics: {topics}")
+
+    def _consume_loop(self, consumer, topics):
+        consecutive_errors = 0
+
+        while self.is_running:
+            try:
                 msg = consumer.poll(1.0)
-                if msg is None:
+            except KafkaException as e:
+                error = e.args[0] if e.args else e
+                consecutive_errors += 1
+                if hasattr(error, "fatal") and error.fatal():
+                    logger.error(
+                        f"Fatal Kafka error encountered while polling topics {topics}: {error}"
+                    )
+                    raise
+
+                logger.warning(
+                    "Kafka error while polling topics %s: %s (attempt %d/%d)",
+                    topics,
+                    error,
+                    consecutive_errors,
+                    MAX_CONSUMER_ERROR_RETRIES,
+                )
+
+                if consecutive_errors >= MAX_CONSUMER_ERROR_RETRIES:
+                    raise
+
+                backoff = min(1 + consecutive_errors, CONSUMER_RESTART_BACKOFF_SECONDS)
+                time.sleep(backoff)
+                continue
+            except Exception as e:
+                consecutive_errors += 1
+                logger.error(
+                    "Unexpected error while polling topics %s: %s (attempt %d/%d)",
+                    topics,
+                    str(e),
+                    consecutive_errors,
+                    MAX_CONSUMER_ERROR_RETRIES,
+                )
+                logger.debug("Unexpected polling error details", exc_info=True)
+
+                if consecutive_errors >= MAX_CONSUMER_ERROR_RETRIES:
+                    raise
+
+                backoff = min(1 + consecutive_errors, CONSUMER_RESTART_BACKOFF_SECONDS)
+                time.sleep(backoff)
+                continue
+
+            if msg is None:
+                continue
+
+            consecutive_errors = 0
+
+            if msg.error():
+                error = msg.error()
+                if error.code() == KafkaError._PARTITION_EOF:
+                    logger.debug(
+                        "End of partition reached for topic %s partition %s offset %s",
+                        msg.topic(),
+                        msg.partition(),
+                        msg.offset(),
+                    )
                     continue
 
-                if msg.error():
-                    if msg.error().code() == KafkaError._PARTITION_EOF:
-                        logger.debug(
-                            f"End of partition reached for topic {msg.topic()} "
-                            f"partition {msg.partition()} offset {msg.offset()}"
-                        )
-                        continue
-                    elif msg.error().code() == KafkaError.BROKER_NOT_AVAILABLE:
-                        logger.error("Broker not available. Retrying in 5 seconds...")
-                        time.sleep(5)
-                        continue
-                    elif msg.error().code() == KafkaError.INVALID_MSG_SIZE:
-                        logger.error(f"Message too large: {msg.error()}")
-                        continue
-                    else:
-                        logger.error(f"Consumer error: {msg.error()}")
-                        continue
+                if error.fatal():
+                    logger.error(
+                        f"Fatal consumer error for topics {topics}: {error}. Restarting consumer"
+                    )
+                    raise KafkaException(error)
 
-                try:
-                    # Process the message
-                    message_data = json.loads(msg.value().decode("utf-8"))
-                    logger.info(
-                        f"Received message on topic {msg.topic()}: {message_data}"
+                if error.retriable():
+                    logger.warning(
+                        "Retriable consumer error for topics %s: %s", topics, error
+                    )
+                    time.sleep(1)
+                    continue
+
+                if error.code() == KafkaError.BROKER_NOT_AVAILABLE:
+                    logger.error("Broker not available. Retrying in 5 seconds...")
+                    time.sleep(5)
+                    continue
+
+                if error.code() == KafkaError.INVALID_MSG_SIZE:
+                    logger.error(f"Message too large: {error}")
+                    continue
+
+                logger.error(f"Consumer error: {error}")
+                continue
+
+            try:
+                message_payload = msg.value()
+                if message_payload is None:
+                    logger.warning(
+                        f"Received empty message payload on topic {msg.topic()}"
+                    )
+                    continue
+
+                message_data = json.loads(message_payload.decode("utf-8"))
+                logger.info(
+                    f"Received message on topic {msg.topic()}: {message_data}"
+                )
+
+                # Extract message UUID from key or value
+                message_uuid = msg.key().decode("utf-8") if msg.key() else None
+                if not message_uuid and isinstance(message_data, dict):
+                    message_uuid = message_data.get("key")
+
+                if message_uuid:
+                    # Store the response in Redis
+                    response_value = (
+                        message_data.get("value")
+                        if isinstance(message_data, dict)
+                        else message_data
                     )
 
-                    # Extract message UUID from key or value
-                    message_uuid = msg.key().decode("utf-8") if msg.key() else None
-                    if not message_uuid and isinstance(message_data, dict):
-                        message_uuid = message_data.get("key")
+                    # Extract user_email for user-specific storage
+                    user_email = None
+                    if isinstance(response_value, dict):
+                        user_email = response_value.get("user_email")
 
-                    if message_uuid:
-                        # Store the response in Redis
-                        response_value = (
-                            message_data.get("value")
-                            if isinstance(message_data, dict)
-                            else message_data
-                        )
+                    self.store_response_in_redis(
+                        message_uuid, response_value, user_email
+                    )
 
-                        # Extract user_email for user-specific storage
-                        user_email = None
-                        if isinstance(response_value, dict):
-                            user_email = response_value.get("user_email")
+                    logger.info(
+                        f"Processed message UUID: {message_uuid} from topic: {msg.topic()}"
+                        + (f" for user: {user_email}" if user_email else "")
+                    )
+                else:
+                    logger.warning(f"No message UUID found in message: {message_data}")
 
-                        self.store_response_in_redis(
-                            message_uuid, response_value, user_email
-                        )
-
-                        logger.info(
-                            f"Processed message UUID: {message_uuid} from topic: {msg.topic()}"
-                            + (f" for user: {user_email}" if user_email else "")
-                        )
-                    else:
-                        logger.warning(
-                            f"No message UUID found in message: {message_data}"
-                        )
-
-                    # Commit the message
+                try:
                     consumer.commit(msg)
+                except KafkaException as commit_error:
+                    logger.error(
+                        f"Commit failed for message {message_uuid} on topic {msg.topic()}: {commit_error}"
+                    )
+                    if commit_error.args and commit_error.args[0].fatal():
+                        raise
 
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse message as JSON: {str(e)}")
-                    continue
-                except Exception as e:
-                    logger.error(f"Error processing message: {str(e)}")
-                    continue
-
-        except Exception as e:
-            logger.error(f"Error in consumer loop: {str(e)}")
-        finally:
-            consumer.close()
-            logger.info(f"Consumer closed for topics: {topics}")
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse message as JSON: {str(e)}")
+            except Exception as e:
+                logger.error(f"Error processing message: {str(e)}")
+                logger.debug("Processing error details", exc_info=True)
 
     def start_service(self):
         """Start the background consumer service"""

@@ -10,7 +10,7 @@ from common import (
     json_to_plain_text,
 )
 from kafka_consumer_service import get_message_response, get_user_message_response
-from kafka_producer import create_producer, produce_message
+from kafka_producer import KafkaDispatchError, send_kafka_message
 
 from .proto import custom_date_food_pb2, get_recomendation_pb2, today_food_pb2
 
@@ -18,11 +18,27 @@ logger = logging.getLogger(__name__)
 
 
 def eater_kafka_request(topic_send, topic_receive, payload, user_email, timeout_sec=30):
-    producer = create_producer()
-    message_id = str(uuid.uuid4())
-    logger.info("Dispatching %s request for user %s", topic_send, user_email)
-    message = {"key": message_id, "value": {**payload, "user_email": user_email}}
-    produce_message(producer, topic=topic_send, message=message)
+    try:
+        message_id = send_kafka_message(
+            topic_send,
+            value={**payload, "user_email": user_email},
+        )
+        logger.info("Dispatching %s request for user %s", topic_send, user_email)
+    except KafkaDispatchError as kafka_error:
+        logger.error(
+            "Failed to send Kafka message for topic %s user %s: %s",
+            topic_send,
+            user_email,
+            kafka_error,
+        )
+        return None
+    except Exception as exc:
+        logger.exception(
+            "Unexpected error while sending Kafka message for user %s on topic %s",
+            user_email,
+            topic_send,
+        )
+        return None
 
     logger.debug(
         "Awaiting response from topic %s for user %s (message_id=%s)",
@@ -370,16 +386,39 @@ def eater_auth_token(request):
         temp_user_email = email  # Use the email from the request as user identifier
 
         # Send to Kafka using the standard pattern
-        message_id = str(uuid.uuid4())
-        message = {
-            "key": message_id,
-            "value": {**payload, "user_email": temp_user_email},
-        }
-
-        logger.debug("Auth payload for %s: %s", email, payload)
-
-        producer = create_producer()
-        produce_message(producer, topic="auth_requires_token", message=message)
+        try:
+            message_id = send_kafka_message(
+                "auth_requires_token",
+                value={**payload, "user_email": temp_user_email},
+            )
+        except KafkaDispatchError as kafka_error:
+            logger.error(
+                "Failed to dispatch auth request for %s: %s",
+                email,
+                kafka_error,
+            )
+            return (
+                jsonify(
+                    {
+                        "error": "service_unavailable",
+                        "message": "Authentication backend unavailable",
+                    }
+                ),
+                kafka_error.status_code,
+            )
+        except Exception as exc:
+            logger.exception(
+                "Unexpected error creating Kafka auth message for %s", email
+            )
+            return (
+                jsonify(
+                    {
+                        "error": "internal_error",
+                        "message": "Authentication backend error",
+                    }
+                ),
+                500,
+            )
 
         logger.debug("Awaiting auth response for %s (message_id=%s)", email, message_id)
 

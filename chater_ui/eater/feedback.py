@@ -3,7 +3,7 @@ import uuid
 
 from flask import jsonify, request
 
-from kafka_producer import create_producer, produce_message
+from kafka_producer import KafkaDispatchError, send_kafka_message
 
 from .proto import feedback_pb2
 
@@ -48,20 +48,43 @@ def submit_feedback_request(user_email):
             )
 
         # Create producer and message for Kafka
-        producer = create_producer()
         message_key = str(uuid.uuid4())
 
         kafka_message = {
-            "key": message_key,
-            "value": {
-                "time": time,
-                "user_email": user_email_from_proto,
-                "feedback": feedback_text,
-            },
+            "time": time,
+            "user_email": user_email_from_proto,
+            "feedback": feedback_text,
         }
 
         # Send message to feedback topic
-        produce_message(producer, topic="feedback", message=kafka_message)
+        try:
+            send_kafka_message(
+                "feedback",
+                value=kafka_message,
+                key=message_key,
+            )
+        except KafkaDispatchError as kafka_error:
+            logger.error(
+                "Failed to send feedback for user %s: %s", user_email, kafka_error
+            )
+            feedback_response.success = False
+            response_data = feedback_response.SerializeToString()
+            return (
+                response_data,
+                kafka_error.status_code,
+                {"Content-Type": "application/grpc+proto"},
+            )
+        except Exception as exc:
+            logger.exception(
+                "Unexpected error while sending feedback for user %s", user_email
+            )
+            feedback_response.success = False
+            response_data = feedback_response.SerializeToString()
+            return (
+                response_data,
+                500,
+                {"Content-Type": "application/grpc+proto"},
+            )
 
         logger.info("Feedback submitted for user %s", user_email)
 

@@ -1,11 +1,10 @@
-import json
 import logging
 import uuid
 
 from flask import jsonify
 
 from kafka_consumer_service import get_user_message_response
-from kafka_producer import create_producer, produce_message
+from kafka_producer import KafkaDispatchError, send_kafka_message
 
 from .proto import (
     alcohol_pb2,
@@ -15,6 +14,70 @@ from .proto import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _dispatch_kafka_request(topic, payload, user_email, proto_error=None):
+    try:
+        message_id = send_kafka_message(
+            topic,
+            value=payload,
+            key=str(uuid.uuid4()),
+            ensure_user_email=True,
+        )
+    except KafkaDispatchError as error:
+        logger.error(
+            "Failed to dispatch topic %s for user %s: %s",
+            topic,
+            user_email,
+            error,
+        )
+        return None, (error.status_code, str(error))
+
+    return message_id, None
+
+
+def _await_user_response(message_id, user_email, timeout, proto_response):
+    try:
+        response = get_user_message_response(message_id, user_email, timeout=timeout)
+    except Exception:
+        logger.exception(
+            "Failed to get response for user %s (message_id=%s)", user_email, message_id
+        )
+        proto_response.success = False
+        return proto_response.SerializeToString(), 500
+
+    if response is None:
+        logger.warning(
+            "Timeout waiting for response for user %s (message_id=%s)",
+            user_email,
+            message_id,
+        )
+        proto_response.success = False
+        return proto_response.SerializeToString(), 500
+
+    if response.get("error"):
+        logger.error(
+            "Error in response for user %s (message_id=%s): %s",
+            user_email,
+            message_id,
+            response.get("error"),
+        )
+        proto_response.success = False
+        return proto_response.SerializeToString(), 500
+
+    proto_response.success = True
+    return proto_response.SerializeToString(), 200
+
+
+def _proto_error_response(proto_message, status, error):
+    proto_message.success = False
+    return proto_message.SerializeToString(), status, {
+        "Content-Type": "application/grpc+proto"
+    }
+
+
+def _json_error(status, message):
+    return jsonify({"success": False, "error": message}), status
 
 
 def delete_food(request, user_email):
@@ -32,10 +95,13 @@ def delete_food(request, user_email):
         time = delete_food_request.time
         logger.debug("Extracted time from Protobuf for user %s: %s", user_email, time)
 
-        producer = create_producer()
-        message_id = str(uuid.uuid4())
-        message = {"key": message_id, "value": {"time": time, "user_email": user_email}}
-        produce_message(producer, topic="delete_food", message=message)
+        payload = {"time": time, "user_email": user_email}
+        message_id, error = _dispatch_kafka_request(
+            topic="delete_food", payload=payload, user_email=user_email
+        )
+        if error:
+            status, message = error
+            return _json_error(status, message)
         logger.debug(
             "Delete request dispatched for user %s (message_id=%s)",
             user_email,
@@ -49,56 +115,10 @@ def delete_food(request, user_email):
         )
 
         # Get response from Redis using the background consumer service
-        try:
-            response = get_user_message_response(message_id, user_email, timeout=30)
-            if response is not None:
-                logger.debug("Retrieved delete confirmation for user %s", user_email)
-
-                if response.get("error"):
-                    logger.error(
-                        "Error in delete response for user %s: %s",
-                        user_email,
-                        response.get("error"),
-                    )
-                    delete_food_response.success = False
-                    response_data = delete_food_response.SerializeToString()
-                    return (
-                        response_data,
-                        500,
-                        {"Content-Type": "application/grpc+proto"},
-                    )
-
-                delete_food_response.success = True
-                response_data = delete_food_response.SerializeToString()
-                return (
-                    response_data,
-                    200,
-                    {"Content-Type": "application/grpc+proto"},
-                )
-            else:
-                logger.warning(
-                    "Timeout waiting for delete confirmation for user %s (message_id=%s)",
-                    user_email,
-                    message_id,
-                )
-                delete_food_response.success = False
-                response_data = delete_food_response.SerializeToString()
-                return (
-                    response_data,
-                    500,
-                    {"Content-Type": "application/grpc+proto"},
-                )
-        except Exception as exc:
-            logger.exception(
-                "Failed to get delete confirmation for user %s", user_email
-            )
-            delete_food_response.success = False
-            response_data = delete_food_response.SerializeToString()
-            return (
-                response_data,
-                500,
-                {"Content-Type": "application/grpc+proto"},
-            )
+        response_data, status = _await_user_response(
+            message_id, user_email, timeout=30, proto_response=delete_food_response
+        )
+        return response_data, status, {"Content-Type": "application/grpc+proto"}
 
     except Exception as exc:
         logger.exception("Error in delete_food for user %s", user_email)
@@ -128,13 +148,19 @@ def modify_food_record(request, user_email):
             percentage,
         )
 
-        producer = create_producer()
-        message_id = str(uuid.uuid4())
-        message = {
-            "key": message_id,
-            "value": {"time": time, "user_email": user_email, "percentage": percentage},
+        payload = {
+            "time": time,
+            "user_email": user_email,
+            "percentage": percentage,
         }
-        produce_message(producer, topic="modify_food_record", message=message)
+        message_id, error = _dispatch_kafka_request(
+            topic="modify_food_record",
+            payload=payload,
+            user_email=user_email,
+        )
+        if error:
+            status, message = error
+            return _json_error(status, message)
         logger.debug(
             "Modify request dispatched for user %s (message_id=%s)",
             user_email,
@@ -226,17 +252,21 @@ def manual_weight(request, user_email):
             weight,
         )
 
-        producer = create_producer()
-        message_id = str(uuid.uuid4())
-        message = {
-            "key": message_id,
-            "value": {
-                "user_email": user_email_from_proto,
-                "weight": weight,
-                "type": "weight_processing",
-            },
+        payload = {
+            "user_email": user_email_from_proto,
+            "weight": weight,
+            "type": "weight_processing",
         }
-        produce_message(producer, topic="manual_weight", message=message)
+        message_id, error = _dispatch_kafka_request(
+            topic="manual_weight",
+            payload=payload,
+            user_email=user_email,
+        )
+        if error:
+            status, _message = error
+            manual_weight_response.success = False
+            response_data = manual_weight_response.SerializeToString()
+            return response_data, status, {"Content-Type": "application/grpc+proto"}
         logger.debug(
             "Manual weight request dispatched for user %s (message_id=%s)",
             user_email,
@@ -262,10 +292,20 @@ def manual_weight(request, user_email):
 def get_alcohol_latest(user_email):
     response = alcohol_pb2.GetAlcoholLatestResponse()
     try:
-        producer = create_producer()
-        message_id = str(uuid.uuid4())
-        message = {"key": message_id, "value": {"user_email": user_email}}
-        produce_message(producer, topic="get_alcohol_latest", message=message)
+        payload = {"user_email": user_email}
+        message_id, error = _dispatch_kafka_request(
+            topic="get_alcohol_latest",
+            payload=payload,
+            user_email=user_email,
+        )
+        if error:
+            status, _message = error
+            return (
+                response.SerializeToString(),
+                status,
+                {"Content-Type": "application/grpc+proto"},
+            )
+
         logger.debug(
             "Requested latest alcohol summary for user %s (message_id=%s)",
             user_email,
@@ -316,17 +356,24 @@ def get_alcohol_range(request, user_email):
         start_date = req.start_date
         end_date = req.end_date
 
-        producer = create_producer()
-        message_id = str(uuid.uuid4())
-        message = {
-            "key": message_id,
-            "value": {
-                "user_email": user_email,
-                "start_date": start_date,
-                "end_date": end_date,
-            },
+        payload = {
+            "user_email": user_email,
+            "start_date": start_date,
+            "end_date": end_date,
         }
-        produce_message(producer, topic="get_alcohol_range", message=message)
+        message_id, error = _dispatch_kafka_request(
+            topic="get_alcohol_range",
+            payload=payload,
+            user_email=user_email,
+        )
+        if error:
+            status, _message = error
+            return (
+                response.SerializeToString(),
+                status,
+                {"Content-Type": "application/grpc+proto"},
+            )
+
         logger.debug(
             "Requested alcohol range for user %s (message_id=%s) from %s to %s",
             user_email,

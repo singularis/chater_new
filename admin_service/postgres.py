@@ -241,7 +241,7 @@ def get_user_statistics():
         constantly_active_30_days = len(constantly_active_30_days_emails)
         constantly_active_30_days_list = [row[0] for row in constantly_active_30_days_emails]
         
-        cursor.execute("SELECT COUNT(*) FROM feedbacks;")
+        cursor.execute("SELECT COUNT(*) FROM feedbacks WHERE user_email != %s;", (TEST_USER_EMAIL,))
         total_feedback_records = cursor.fetchone()[0] or 0
         
         cursor.execute("""

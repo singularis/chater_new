@@ -106,7 +106,11 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 
 # Start the background Kafka consumer service
 logger.info("Starting Kafka Consumer Service...")
-start_kafka_consumer_service()
+try:
+    start_kafka_consumer_service()
+except Exception as exc:
+    logger.critical("Failed to start Kafka Consumer Service: %s", exc)
+    raise
 
 # Register cleanup function for graceful shutdown
 atexit.register(stop_kafka_consumer_service)
