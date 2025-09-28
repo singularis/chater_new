@@ -127,3 +127,102 @@ class OllamaClient:
             )
 
         return analysis
+
+    def analyze_text_with_ollama(self, message: Dict[str, Any]) -> Optional[str]:
+        if not isinstance(message, dict):
+            logger.warning(
+                "Unexpected message type for text analysis; expected dict but got %s",
+                type(message),
+            )
+            return None
+
+        prompt_candidates = [
+            message.get("prompt"),
+            message.get("question"),
+            message.get("text"),
+            message.get("content"),
+        ]
+
+        prompt: Optional[str] = None
+        for candidate in prompt_candidates:
+            if isinstance(candidate, str) and candidate.strip():
+                prompt = candidate.strip()
+                break
+
+        if prompt is None:
+            logger.warning(
+                "Message payload did not contain a usable text prompt: %s", message
+            )
+            return None
+
+        self.assert_model_running()
+
+        respond_in_language = message.get("respond_in_language")
+        system_prompt = message.get("system_prompt") or message.get("system")
+
+        messages: List[Dict[str, str]] = []
+
+        if isinstance(system_prompt, str) and system_prompt.strip():
+            messages.append({"role": "system", "content": system_prompt.strip()})
+
+        if isinstance(respond_in_language, str) and respond_in_language.strip():
+            messages.append(
+                {
+                    "role": "system",
+                    "content": (
+                        "Respond entirely in language code "
+                        f"'{respond_in_language.strip()}'."
+                    ),
+                }
+            )
+
+        messages.append({"role": "user", "content": prompt})
+
+        history = message.get("history")
+        if isinstance(history, list):
+            for entry in history:
+                if (
+                    isinstance(entry, dict)
+                    and isinstance(entry.get("role"), str)
+                    and isinstance(entry.get("content"), str)
+                ):
+                    messages.append(
+                        {
+                            "role": entry["role"],
+                            "content": entry["content"],
+                        }
+                    )
+
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "stream": False,
+        }
+
+        try:
+            response = requests.post(
+                self._config.url_for("api/chat"),
+                json=payload,
+                timeout=self.request_timeout,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            logger.error("Failed to analyze text with Ollama: %s", exc)
+            return None
+
+        try:
+            response_json = response.json()
+        except ValueError as exc:
+            logger.error("Invalid JSON response from Ollama: %s", exc)
+            return None
+
+        message_block = response_json.get("message") or {}
+        analysis = message_block.get("content") or response_json.get("response")
+
+        if not analysis:
+            logger.warning(
+                "Ollama response did not include text analysis content: %s",
+                response_json,
+            )
+
+        return analysis

@@ -5,7 +5,7 @@ import logging
 import re
 import threading
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from flask import Flask, jsonify
 
@@ -160,35 +160,59 @@ class ModelsProcessor:
             photo_base64 = value_dict.get("photo")
             user_email = value_dict.get("user_email")
 
-            if not (prompt and photo_base64):
-                logging.warning(
-                    "Message missing prompt or photo fields; skipping processing: %s",
-                    value_dict,
-                )
-                consumer.commit(message)
-                continue
+            has_photo = bool(photo_base64)
+            target_topic = "photo-analysis-response"
+            analysis_result: Optional[str]
 
-            analysis_result = self.client.analyze_photo_with_ollama(
-                prompt, photo_base64
-            )
+            if has_photo:
+                if not prompt:
+                    logging.warning(
+                        "Photo analysis message missing prompt; skipping processing: %s",
+                        value_dict,
+                    )
+                    consumer.commit(message)
+                    continue
+
+                analysis_result = self.client.analyze_photo_with_ollama(
+                    prompt, photo_base64
+                )
+            else:
+                analysis_result = self.client.analyze_text_with_ollama(value_dict)
+                target_topic = "gemini-response"
+
             analysis_result = _sanitize_analysis_result(analysis_result)
 
             if analysis_result is None:
                 analysis_result = "Analysis failed; check service logs for details."
 
             key = message.key().decode("utf-8") if message.key() else None
+
+            message_value: dict[str, Any] = {"user_email": user_email}
+
+            if target_topic == "gemini-response":
+                parsed_analysis: Any
+                try:
+                    parsed_analysis = json.loads(analysis_result)
+                except json.JSONDecodeError:
+                    message_value["analysis"] = analysis_result
+                else:
+                    if isinstance(parsed_analysis, dict):
+                        message_value.update(parsed_analysis)
+                    else:
+                        message_value["analysis"] = analysis_result
+            else:
+                message_value["analysis"] = analysis_result
+
             kafka_message = {
                 "key": key,
-                "value": {
-                    "analysis": analysis_result,
-                    "user_email": user_email,
-                },
+                "value": message_value,
             }
 
             try:
-                produce_message("photo-analysis-response", kafka_message)
+                produce_message(target_topic, kafka_message)
                 logging.info(
-                    "Produced analysis result to 'photo-analysis-response': %s",
+                    "Produced analysis result to '%s': %s",
+                    target_topic,
                     kafka_message,
                 )
             except Exception as exc:  # Catch-all to avoid crashing the consumer loop

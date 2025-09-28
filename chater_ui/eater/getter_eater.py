@@ -510,28 +510,28 @@ def get_recommendation(request, user_email, local_model_service):
 
         days = proto_request.days
         prompt = create_multilingual_prompt("get_recommendation", user_email)
-        message_id = str(uuid.uuid4())
+        if local_model_service:
+            processing_topic = local_model_service.get_user_kafka_topic(
+                user_email, "gemini-send"
+            )
+            logger.debug(
+                "Routing recommendation for user %s to topic %s", user_email, processing_topic
+            )
+        else:
+            processing_topic = "gemini-send"
+            logger.warning(
+                "User model tier unavailable; defaulting topic %s for user %s",
+                processing_topic,
+                user_email,
+            )
         payload = {
             "days": days,
             "prompt": prompt,
             "type_of_processing": "get_recommendation",
+            "model_topic": prxwocessing_topic,
         }
-        if local_model_service:
-            topic = local_model_service.get_user_kafka_topic(
-                user_email, "get_recommendation"
-            )
-            logger.debug(
-                "Routing recommendation for user %s to topic %s", user_email, topic
-            )
-        else:
-            topic = "get_recommendation"
-            logger.warning(
-                "User model tier unavailable; defaulting topic %s for user %s",
-                topic,
-                user_email,
-            )
         recommendation_data = eater_kafka_request(
-            topic, "gemini-response", payload, user_email, timeout_sec=90
+            "get_recommendation", "gemini-response", payload, user_email, timeout_sec=90
         )
         logger.debug("Recommendation data for user %s received", user_email)
         if recommendation_data is None:
