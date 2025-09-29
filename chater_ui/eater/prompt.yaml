@@ -119,3 +119,16 @@ respond_in_language: |
   - Use proper grammar and natural phrasing in the target language
   - Ensure cultural appropriateness for the target language
   - Provide complete translation_keys mapping
+get_recommendation_local: |
+  JSON ONLY. No explanation. Keep output short.
+  Keys and order (exactly 4):
+  1) foods_to_reduce_or_avoid: list of 3 objects {dish_name, reason}
+  2) healthier_foods: list of 3 objects {dish_name, reason}.
+  3) general_recommendations: object with 3 short values (6–12 words each)
+  4) translation_keys: map English keys to target language labels for the three sections
+
+  Rules:
+  - Translate ALL values to the target language.
+  - Dish names concise; reasons brief and specific.
+  - No extra keys, no markdown, no comments, no trailing text.
+  - Be deterministic and consistent.

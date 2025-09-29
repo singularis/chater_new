@@ -1,12 +1,8 @@
-import json
 import logging
-import uuid
 from datetime import datetime
 
 from common import (
     create_multilingual_prompt,
-    get_prompt,
-    get_respond_in_language,
     json_to_plain_text,
 )
 from kafka_consumer_service import get_message_response, get_user_message_response
@@ -509,15 +505,16 @@ def get_recommendation(request, user_email, local_model_service):
         proto_request.ParseFromString(request.data)
 
         days = proto_request.days
-        prompt = create_multilingual_prompt("get_recommendation", user_email)
         if local_model_service:
             processing_topic = local_model_service.get_user_kafka_topic(
                 user_email, "gemini-send"
             )
+            prompt = local_model_service.get_user_prompt(user_email, "get_recommendation")
             logger.debug(
                 "Routing recommendation for user %s to topic %s", user_email, processing_topic
             )
         else:
+            prompt = create_multilingual_prompt("get_recommendation", user_email)
             processing_topic = "gemini-send"
             logger.warning(
                 "User model tier unavailable; defaulting topic %s for user %s",

@@ -4,6 +4,7 @@ import os
 import requests
 
 from user import get_user_model_tier
+from common import create_multilingual_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -46,3 +47,15 @@ class LocalModelService:
         except Exception as e:
             logger.error("Error getting user kafka topic: %s", e)
             return default_topic
+
+    def get_user_prompt(self, user_email, prompt):
+        try:
+            user_model_tier = self.get_user_model_tier(user_email)
+            if user_model_tier == "local":
+                prompt = prompt + "_local"
+            else:
+                prompt = prompt
+            return create_multilingual_prompt(prompt, user_email)
+        except Exception as e:
+            logger.error("Error getting user prompt: %s", e)
+            return prompt
