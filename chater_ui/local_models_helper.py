@@ -54,7 +54,7 @@ class LocalModelService:
                 prompt = prompt + "_local"
             else:
                 prompt = prompt
-            return create_multilingual_prompt(prompt, user_email)
+            return create_multilingual_prompt(prompt, user_email, is_add_lang_instruction=False)
         except Exception as e:
             logger.error("Error getting user prompt: %s", e)
             return prompt

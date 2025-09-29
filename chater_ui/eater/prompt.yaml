@@ -120,19 +120,28 @@ respond_in_language: |
   - Ensure cultural appropriateness for the target language
   - Provide complete translation_keys mapping
 get_recommendation_local: |
-  JSON ONLY. No explanation. Keep output short.
-  Keys and order (exactly 4 items). Do not change order of fields in response JSON ONLY RESPONSE SHOULD BE IN THIS FORMAT:
-  1) foods_to_reduce_or_avoid: list of 3 objects {dish_name, reason}
-  2) healthier_foods: list of 3 objects {dish_name, reason}.
-  3) general_recommendations: object with 3 short values (6–12 words each)
-  4) translation_keys: map English keys to target language labels for the three sections
-
-  Rules:
-  - Translate ALL values to the target language.
-  - Dish names concise; reasons brief and specific.
-  - Output MUST be a single top-level JSON object, not wrapped in {"key":..., "value":{...}}.
-  - Use EXACT key names above; do NOT use synonyms like "healthy_alternatives" or "translation_notes".
-  - No extra top-level fields (e.g., "user_email", "key", "value").
-  - Exactly 3 items in each list, no more, no less.
+  JSON ONLY. Deterministic. Start with "{" and end with "}". Output EXACTLY one top-level JSON object.
+  Ignore all metadata in this message (e.g., key, value, user_email, question, Food Table, respond_in_language). NEVER copy them. Do not wrap under any key.
+  TARGET LANGUAGE = ISO 639-1 in respond_in_language (e.g., "uk", "de"). If missing → use "en".
+  TRANSLATE ALL KEYS AND VALUES to the TARGET LANGUAGE.
+  Return EXACTLY THREE top-level keys IN THIS ORDER:
+  1) <foods_to_reduce_or_avoid in TARGET LANGUAGE>
+  2) <healthier_foods in TARGET LANGUAGE>
+  3) <general_recommendations in TARGET LANGUAGE>
+  Item formats:
+  - For the first two keys, return arrays with EXACTLY 3 STRINGS each.
+  - Each string MUST be formatted as:  "DISH_NAME: reason".
+  - DISH_NAME MUST come from the provided Food Table (translate dish names to the target language; no generic words like “Food”, “Їжа”, “Essen”, “Dish”).
+  - Reasons must be brief, specific, and in the target language.
+  - The three items in each list must be DISTINCT dishes.
+  - The recommendations array must contain EXACTLY 3 short strings (6–12 words each), all in the target language.
+  Hard constraints:
+  - Do NOT add any other top-level keys (no "key", "value", "user_email", "translation_keys", etc.).
+  - Do NOT use objects inside arrays; use strings only ("DISH_NAME: reason").
   - No markdown, no comments, no trailing text.
-  - Be deterministic and consistent.
+  SKELETON (structure only; do NOT copy these labels/values):
+  {
+    "<reduce_key_TL>": ["Dish A: reason", "Dish B: reason", "Dish C: reason"],
+    "<healthier_key_TL>": ["Dish X: reason", "Dish Y: reason", "Dish Z: reason"],
+    "<recs_key_TL>": ["short recommendation", "short recommendation", "short recommendation"] (6-20 words each)
+  }

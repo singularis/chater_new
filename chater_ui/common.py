@@ -236,7 +236,7 @@ def get_respond_in_language(user_email: str) -> str:
         return "en"
 
 
-def create_multilingual_prompt(base_prompt_key: str, user_email: str) -> str:
+def create_multilingual_prompt(base_prompt_key: str, user_email: str, is_add_lang_instruction: bool = True) -> str:
     """
     Create a multilingual prompt by combining a base prompt with language instructions.
 
@@ -253,9 +253,12 @@ def create_multilingual_prompt(base_prompt_key: str, user_email: str) -> str:
         user_lang = get_respond_in_language(user_email)
 
         # Combine prompts with language instruction
-        combined_prompt = (
-            f"{base_prompt}\n{lang_instruction}\nTarget language: {user_lang}"
-        )
+        if is_add_lang_instruction:
+            combined_prompt = (
+                f"{base_prompt}\n {lang_instruction}\n Target language: {user_lang} "
+            )
+        else:
+            combined_prompt = base_prompt + f"\n respond_in_language: {user_lang} "
         return combined_prompt
     except Exception as e:
         logger.warning(

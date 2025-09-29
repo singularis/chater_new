@@ -156,11 +156,11 @@ def _dispatch_photo_message(
     topic="eater-send-photo",
 ):
     photo_uuid = message_id or str(uuid.uuid4())
-    prompt = get_prompt(type_of_processing)
+    clear_prompt = get_prompt(type_of_processing)
     try:
         lang_instruction = get_prompt("respond_in_language")
         user_lang = get_respond_in_language(user_email)
-        prompt = f"{prompt}\n{lang_instruction}\nTarget language: {user_lang}"
+        prompt = f"{clear_prompt}\n {lang_instruction}\n Target language: {user_lang} "
     except Exception:
         pass
     payload = {
@@ -172,6 +172,11 @@ def _dispatch_photo_message(
     destination_topic = topic
     if type_of_processing == "weight_prompt":
         destination_topic = "chater-vision"
+        payload = {
+            "prompt": clear_prompt,
+            "photo": photo_base64,
+            "user_email": user_email,
+        }
         logger.debug(
             "Routing weight prompt for user %s to topic %s",
             user_email,
