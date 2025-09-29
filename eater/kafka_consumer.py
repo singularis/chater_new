@@ -59,7 +59,7 @@ def validate_user_data(message_data, expected_user_email=None):
 
 
 def consume_messages(topics, expected_user_email=None):
-    logger.info(
+    logger.debug(
         f"Starting Kafka consumer with topics: {topics} for user: {expected_user_email}"
     )
     if not isinstance(topics, list):
@@ -84,7 +84,7 @@ def consume_messages(topics, expected_user_email=None):
             continue
         if msg.error():
             if msg.error().code() == KafkaError._PARTITION_EOF:
-                logger.info(f"End of partition reached for topic {msg.topic()}")
+                logger.debug(f"End of partition reached for topic {msg.topic()}")
                 continue
             elif msg.error().code() == KafkaError.BROKER_NOT_AVAILABLE:
                 logger.error("Broker not available. Retrying in 5 seconds...")
@@ -99,7 +99,7 @@ def consume_messages(topics, expected_user_email=None):
 
         try:
             message_data = json.loads(msg.value())
-            logger.info(f"Received message: {message_data}")
+            logger.debug(f"Received message: {message_data}")
             if not validate_user_data(message_data, expected_user_email):
                 logger.warning(f"Skipping message for unexpected user: {message_data}")
                 continue

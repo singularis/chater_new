@@ -38,7 +38,7 @@
               spec:
                 containers:
                   - name: chater-gemini
-                    image: singularis314/chater-gemini:0.3
+                    image: docker.io/singularis314/chater-gemini:0.3
                     imagePullPolicy: Always
                     env:
                       - name: GOOGLE_API_KEY
@@ -52,6 +52,8 @@
                         value: "{{ vars.GEMINI_MODEL }}"
                       - name: GEMINI_THINK_MODEL
                         value: "{{ vars.GEMINI_THINK_MODEL }}"
+                      - name: LOG_LEVEL
+                        value: "{{ vars.LOG_LEVEL }}"
                 affinity:
                   nodeAffinity:
                     requiredDuringSchedulingIgnoredDuringExecution:

@@ -3,62 +3,34 @@ import logging
 import os
 import time
 
+import context
 import redis
-from flask import (
-    Flask,
-    flash,
-    g,
-    jsonify,
-    redirect,
-    render_template,
-    request,
-    session,
-    url_for,
-)
+from common import (before_request, chater_clear, generate_session_secret,
+                    rate_limit_required, token_required)
+from eater_admin import eater_admin_proxy, eater_admin_request
+from flask import (Flask, flash, g, jsonify, redirect, render_template,
+                   request, session, url_for)
 from flask_cors import CORS
 from flask_session import Session
-from werkzeug.middleware.proxy_fix import ProxyFix
-
-import context
-from chater import chater as chater_ui
-from common import (
-    before_request,
-    chater_clear,
-    generate_session_secret,
-    rate_limit_required,
-    token_required,
-)
-from eater.eater import (
-    alcohol_latest,
-    alcohol_range,
-    delete_food_record,
-    eater_auth_request,
-    eater_custom_date,
-    eater_photo,
-    eater_today,
-    get_recommendations,
-    manual_weight_record,
-    modify_food_record_data,
-    set_language,
-)
-from eater.feedback import submit_feedback_request
-from eater_admin import eater_admin_proxy, eater_admin_request
 from google_ops import create_google_blueprint, g_login
 from gphoto import gphoto, gphoto_proxy
-from kafka_consumer_service import (
-    start_kafka_consumer_service,
-    stop_kafka_consumer_service,
-)
+from kafka_consumer_service import (start_kafka_consumer_service,
+                                    stop_kafka_consumer_service)
 from logging_config import setup_logging
 from login import login, logout
 from minio_utils import get_minio_client
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-from .metrics import (
-    metrics_endpoint,
-    record_http_metrics,
-    track_eater_operation,
-    track_operation,
-)
+from chater import chater as chater_ui
+from eater.eater import (alcohol_latest, alcohol_range, delete_food_record,
+                         eater_auth_request, eater_custom_date, eater_photo,
+                         eater_today, get_recommendations,
+                         manual_weight_record, modify_food_record_data,
+                         set_language)
+from eater.feedback import submit_feedback_request
+
+from .metrics import (metrics_endpoint, record_http_metrics,
+                      track_eater_operation, track_operation)
 
 setup_logging("app.log")
 logger = logging.getLogger(__name__)

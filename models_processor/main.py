@@ -1,11 +1,12 @@
 import os
 
-from common import configure_logging
+from logging_config import setup_logging
+
 from models_processor import ModelsProcessor
 
 
 def main() -> None:
-    configure_logging()
+    setup_logging("models_processor.log")
     port = int(os.getenv("PORT", "8000"))
 
     processor = ModelsProcessor()

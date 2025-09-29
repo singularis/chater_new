@@ -221,7 +221,7 @@ def update_chater_gpt(spec, **kwargs):
                         }
                     ]
                 }
-            }
+            },
         }
     }
     if affinity is not None:
@@ -272,7 +272,10 @@ def resume_chater_gpt(spec, **kwargs):
                 api_version="v1",
                 kind="Secret",
                 metadata=client.V1ObjectMeta(name="chater-gpt", namespace=namespace),
-                data={"OPENAI_API_KEY": openai_api_key_b64, "SECRET_KEY": secret_key_b64},
+                data={
+                    "OPENAI_API_KEY": openai_api_key_b64,
+                    "SECRET_KEY": secret_key_b64,
+                },
             )
             core_api.create_namespaced_secret(namespace=namespace, body=secret_body)
         else:
@@ -313,7 +316,7 @@ def resume_chater_gpt(spec, **kwargs):
                         }
                     ]
                 }
-            }
+            },
         }
     }
     if affinity is not None:
@@ -373,7 +376,9 @@ def resume_chater_gpt(spec, **kwargs):
                 metadata=client.V1ObjectMeta(name="chater-gpt", namespace=namespace),
                 spec=deployment_spec,
             )
-            apps_api.create_namespaced_deployment(namespace=namespace, body=deployment_body)
+            apps_api.create_namespaced_deployment(
+                namespace=namespace, body=deployment_body
+            )
         else:
             raise
 

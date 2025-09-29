@@ -3,7 +3,8 @@ import multiprocessing
 import os
 
 # Server socket
-bind = "0.0.0.0:5000"
+port = os.getenv("PORT", "5000")
+bind = f"0.0.0.0:{port}"
 backlog = 2048
 
 # Worker processes
@@ -18,10 +19,11 @@ keepalive = 2
 max_requests = 1000
 max_requests_jitter = 50
 
-# Logging - verbose for personal development
+# Logging - use environment variable for log level
 accesslog = "-"
 errorlog = "-"
-loglevel = "debug"
+log_level_env = os.getenv("LOG_LEVEL", "WARNING").lower()
+loglevel = log_level_env
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 capture_output = True
 

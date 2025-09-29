@@ -31,3 +31,5 @@
   import_playbook: ./load_test/load_test.yaml
 - name: Setup mcpo-proxy
   import_playbook: ./mcpo-proxy/eater-postgres-mcpo-proxy.yaml
+- name: Setup models-processor
+  import_playbook: ./models_processor/models_processor.yaml

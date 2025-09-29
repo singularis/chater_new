@@ -5,9 +5,8 @@ import threading
 import uuid
 from datetime import datetime
 
-from flask import current_app, jsonify, request
-
 from common import get_prompt, get_respond_in_language, resize_image
+from flask import current_app, jsonify, request
 from kafka_consumer_service import get_user_message_response
 from kafka_producer import KafkaDispatchError, send_kafka_message
 from minio_utils import put_bytes
@@ -81,7 +80,9 @@ def eater_get_photo(user_email, local_model_service):
                 kafka_error,
             )
             return (
-                jsonify({"message": "Kafka dispatch failed", "error": str(kafka_error)}),
+                jsonify(
+                    {"message": "Kafka dispatch failed", "error": str(kafka_error)}
+                ),
                 kafka_error.status_code,
             )
 
@@ -172,7 +173,9 @@ def _dispatch_photo_message(
     if type_of_processing == "weight_prompt":
         destination_topic = "chater-vision"
         logger.debug(
-            "Routing weight prompt for user %s to topic %s", user_email, destination_topic
+            "Routing weight prompt for user %s to topic %s",
+            user_email,
+            destination_topic,
         )
     elif type_of_processing == "default_prompt":
         if local_model_service:

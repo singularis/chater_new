@@ -38,7 +38,7 @@
               spec:
                 containers:
                   - name: chater-vision
-                    image: singularis314/chater-vision:0.1
+                    image: docker.io/singularis314/chater-vision:0.1
                     imagePullPolicy: Always
                     env:
                       - name: VISION_API_KEY
@@ -48,6 +48,8 @@
                             key: VISION_API_KEY
                       - name: BOOTSTRAP_SERVERS
                         value: "{{ vars.BOOTSTRAP_SERVER }}"
+                      - name: LOG_LEVEL
+                        value: "{{ vars.LOG_LEVEL }}"
                 affinity:
                   nodeAffinity:
                     requiredDuringSchedulingIgnoredDuringExecution:

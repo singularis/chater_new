@@ -47,7 +47,9 @@
                       - name: POSTGRES_HOST
                         value: "{{ vars.EATER.POSTGRES_HOST }}" 
                       - name: TEST_USER_EMAIL
-                        value: "{{ vars.TEST_USER_EMAIL }}" 
+                        value: "{{ vars.TEST_USER_EMAIL }}"
+                      - name: LOG_LEVEL
+                        value: "{{ vars.LOG_LEVEL }}" 
                 affinity:
                   nodeAffinity:
                     requiredDuringSchedulingIgnoredDuringExecution:

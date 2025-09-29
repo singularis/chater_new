@@ -39,7 +39,7 @@
               spec:
                 containers:
                   - name: eater-postgres-mcp
-                    image: crystaldba/postgres-mcp:latest
+                    image: docker.io/crystaldba/postgres-mcp:latest
                     args:
                       - --access-mode=restricted
                       - --transport=sse

@@ -7,7 +7,6 @@ import uuid
 from typing import Any, Dict, Optional
 
 from confluent_kafka import KafkaException, Producer
-
 from logging_config import setup_logging
 
 setup_logging("kafka_producer.log")
@@ -27,7 +26,6 @@ class KafkaDispatchError(Exception):
     def __init__(self, message: str, *, status_code: int = 500) -> None:
         super().__init__(message)
         self.status_code = status_code
-
 
 
 def create_producer():
@@ -156,7 +154,8 @@ def produce_message(producer, topic, message, ensure_user_email=True):
         outstanding = producer.flush(FLUSH_TIMEOUT_SECONDS)
         if outstanding > 0:
             logger.warning(
-                "Producer flush timed out with %d message(s) still pending delivery", outstanding
+                "Producer flush timed out with %d message(s) still pending delivery",
+                outstanding,
             )
 
         logger.info(

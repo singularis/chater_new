@@ -5,9 +5,11 @@ import uuid
 from common import remove_markdown_fence
 from kafka_consumer import consume_messages, validate_user_data
 from kafka_producer import produce_message
-from postgres import delete_food, get_today_dishes, get_custom_date_dishes, modify_food
-from postgres import AlcoholConsumption, AlcoholForDay, get_alcohol_events_in_range
-from process_gpt import get_recommendation, proces_food, process_weight
+from logging_config import setup_logging
+from postgres import (AlcoholConsumption, AlcoholForDay, delete_food,
+                      get_alcohol_events_in_range, get_custom_date_dishes,
+                      get_today_dishes, modify_food)
+from process_gpt import get_recommendation, process_food, process_weight
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ def process_messages():
         "get_alcohol_latest",
         "get_alcohol_range",
     ]
-    logging.info(f"Starting message processing with topics: {topics}")
+    logger.info(f"Starting message processing with topics: {topics}")
     while True:
         for message, consumer in consume_messages(topics):
             try:
@@ -68,7 +70,7 @@ def process_messages():
 
                     # Check for errors after parsing
                     if json_response.get("error"):
-                        logging.error(f"Error for user {user_email}: {json_response}")
+                        logger.error(f"Error for user {user_email}: {json_response}")
                         produce_message(
                             topic="photo-analysis-response-check",
                             message={
@@ -81,14 +83,14 @@ def process_messages():
                         )
                     else:
                         type_of_processing = json_response.get("type")
-                        logger.info(
+                        logger.debug(
                             f"Received food processing {type_of_processing} for user {user_email}"
                         )
                         if type_of_processing == "food_processing":
-                            logger.info(
+                            logger.debug(
                                 f"Received food_process for user {user_email}: {json_response}"
                             )
-                            proces_food(json_response, user_email)
+                            process_food(json_response, user_email)
                         elif type_of_processing == "weight_processing":
                             process_weight(json_response, user_email)
                         else:
@@ -114,7 +116,7 @@ def process_messages():
                         )
                 elif message.topic() == "get_today_data":
                     today_dishes = get_today_dishes(user_email)
-                    logger.info(f"Received request to get food for user {user_email}")
+                    logger.debug(f"Received request to get food for user {user_email}")
                     message = {
                         "key": message_key,
                         "value": {"dishes": today_dishes, "user_email": user_email},
@@ -123,10 +125,14 @@ def process_messages():
                 elif message.topic() == "get_today_data_custom":
                     custom_date = value_dict.get("value", {}).get("date")
                     if not custom_date:
-                        logger.warning(f"No date provided in custom date request for user {user_email}")
+                        logger.warning(
+                            f"No date provided in custom date request for user {user_email}"
+                        )
                         continue
                     custom_dishes = get_custom_date_dishes(custom_date, user_email)
-                    logger.info(f"Received request to get food for {custom_date} for user {user_email}")
+                    logger.debug(
+                        f"Received request to get food for {custom_date} for user {user_email}"
+                    )
                     message = {
                         "key": message_key,
                         "value": {"dishes": custom_dishes, "user_email": user_email},
@@ -145,13 +151,20 @@ def process_messages():
                     start_date = value.get("start_date")
                     end_date = value.get("end_date")
                     if not start_date or not end_date:
-                        logger.warning(f"Invalid date range in alcohol request for user {user_email}")
+                        logger.warning(
+                            f"Invalid date range in alcohol request for user {user_email}"
+                        )
                         continue
 
-                    events = get_alcohol_events_in_range(start_date=start_date, end_date=end_date, user_email=user_email)
+                    events = get_alcohol_events_in_range(
+                        start_date=start_date, end_date=end_date, user_email=user_email
+                    )
                     produce_message(
                         topic="send_alcohol_range",
-                        message={"key": message_key, "value": {"events": events, "user_email": user_email}},
+                        message={
+                            "key": message_key,
+                            "value": {"events": events, "user_email": user_email},
+                        },
                     )
                 elif message.topic() == "delete_food":
                     delete_food(value_dict.get("value"), user_email)
@@ -174,20 +187,28 @@ def process_messages():
                         },
                     )
                 elif message.topic() == "get_recommendation":
-                    get_recommendation(message_key,value_dict.get("value"), value_dict, user_email)
+                    get_recommendation(
+                        message_key, value_dict.get("value"), value_dict, user_email
+                    )
                 elif message.topic() == "manual_weight":
                     # Handle messages from manual_weight endpoint
                     response_data = value_dict.get("value", {})
                     message_type = response_data.get("type")
-                    
+
                     if message_type == "weight_processing":
-                        logger.info(f"Received manual weight processing for user {user_email}: {response_data}")
+                        logger.debug(
+                            f"Received manual weight processing for user {user_email}: {response_data}"
+                        )
                         process_weight(response_data, user_email)
-                        logger.info(f"Successfully processed manual weight for user {user_email}")
+                        logger.debug(
+                            f"Successfully processed manual weight for user {user_email}"
+                        )
                     else:
-                        logger.warning(f"Unknown message type '{message_type}' in manual_weight for user {user_email}")
+                        logger.warning(
+                            f"Unknown message type '{message_type}' in manual_weight for user {user_email}"
+                        )
             except Exception as e:
-                logging.error(
+                logger.error(
                     f"Failed to process message for user {user_email}: {e}, message {value_dict}"
                 )
                 # Send error response if we have a message key
@@ -202,6 +223,6 @@ def process_messages():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    logging.info("Starting Eater processor")
+    setup_logging("eater.log")
+    logger.info("Starting Eater processor")
     process_messages()

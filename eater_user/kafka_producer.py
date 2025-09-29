@@ -19,7 +19,9 @@ def delivery_report(err, msg):
     if err is not None:
         logger.error("Message delivery failed: {}".format(err))
     else:
-        logger.info("Message delivered to {} [{}]".format(msg.topic(), msg.partition()))
+        logger.debug(
+            "Message delivered to {} [{}]".format(msg.topic(), msg.partition())
+        )
 
 
 def produce_message(topic, message):

@@ -14,7 +14,6 @@ import redis
 import yaml
 from flask import flash, jsonify, redirect, request, url_for
 from PIL import Image
-
 from user import get_user_language, update_user_activity
 
 logger = logging.getLogger(__name__)

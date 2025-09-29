@@ -17,9 +17,9 @@ def get_jwt_secret_key():
     """
     if not SECRET_KEY:
         raise ValueError("EATER_SECRET_KEY not set in vars.yaml")
-    
-    secret_bytes = SECRET_KEY.encode('utf-8')
-    
+
+    secret_bytes = SECRET_KEY.encode("utf-8")
+
     # If the secret is already 32+ bytes, use it directly
     # Otherwise, derive a 256-bit key using SHA-256
     if len(secret_bytes) >= 32:
@@ -28,7 +28,9 @@ def get_jwt_secret_key():
         # Derive a 256-bit key from the secret using SHA-256
         hash_obj = hashlib.sha256(secret_bytes)
         derived_key = hash_obj.digest()
-        print(f"Secret key was too short ({len(secret_bytes) * 8} bits), derived 256-bit key using SHA-256")
+        print(
+            f"Secret key was too short ({len(secret_bytes) * 8} bits), derived 256-bit key using SHA-256"
+        )
         return derived_key
 
 

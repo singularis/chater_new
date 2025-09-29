@@ -1,13 +1,14 @@
 import logging
 import os
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import (ARRAY, JSON, Column, Float, Integer, String, Date,
-                        create_engine, func, PrimaryKeyConstraint, cast)
+from sqlalchemy import (ARRAY, JSON, Column, Date, Float, Integer,
+                        PrimaryKeyConstraint, String, cast, create_engine,
+                        func)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +48,7 @@ class DishesDay(Base):
 
 class TotalForDay(Base):
     __tablename__ = "total_for_day"
-    __table_args__ = (
-        PrimaryKeyConstraint("today", "user_email"),
-        {"schema": "public"}
-    )
+    __table_args__ = (PrimaryKeyConstraint("today", "user_email"), {"schema": "public"})
 
     today = Column(String)
     total_calories = Column(Integer)
@@ -85,10 +83,7 @@ class AlcoholConsumption(Base):
 
 class AlcoholForDay(Base):
     __tablename__ = "alcohol_for_day"
-    __table_args__ = (
-        PrimaryKeyConstraint("date", "user_email"),
-        {"schema": "public"}
-    )
+    __table_args__ = (PrimaryKeyConstraint("date", "user_email"), {"schema": "public"})
 
     date = Column(Date)
     user_email = Column(String, nullable=False)
@@ -161,13 +156,15 @@ def write_to_dish_day(
                         user_email=user_email,
                     )
                     session.add(alcohol_entry)
-                    logger.info(f"Recorded alcohol consumption for user {user_email}: {drink_name}, cal {calories}, qty {quantity}")
+                    logger.debug(
+                        f"Recorded alcohol consumption for user {user_email}: {drink_name}, cal {calories}, qty {quantity}"
+                    )
                 session.commit()
 
-                logger.info(f"Successfully wrote dish data to database: {dish_name}")
+                logger.debug(f"Successfully wrote dish data to database: {dish_name}")
 
             # Query aggregated data for the current date
-            logger.info(f"Calculating total food data for {current_date()}")
+            logger.debug(f"Calculating total food data for {current_date()}")
 
             # Get total_calories, total_weight, all_dishes, all_contains
             total_data = (
@@ -204,7 +201,12 @@ def write_to_dish_day(
             )
 
             all_contains = total_data.all_contains or []
-            aggregated_contains = {"proteins": 0, "fats": 0, "carbohydrates": 0, "sugar": 0}
+            aggregated_contains = {
+                "proteins": 0,
+                "fats": 0,
+                "carbohydrates": 0,
+                "sugar": 0,
+            }
             for entry in all_contains:
                 for key in aggregated_contains:
                     aggregated_contains[key] += entry.get(key, 0)
@@ -228,19 +230,19 @@ def write_to_dish_day(
                 .first()
             )
             if existing_entry:
-                logger.info("Updating existing entry in total_for_day table")
+                logger.debug("Updating existing entry in total_for_day table")
                 existing_entry.total_calories = total_calories
                 existing_entry.ingredients = all_ingredients
                 existing_entry.dishes_of_day = all_dishes
                 existing_entry.total_avg_weight = total_weight
                 existing_entry.contains = aggregated_contains
             else:
-                logger.info("Inserting new entry in total_for_day table")
+                logger.debug("Inserting new entry in total_for_day table")
                 session.add(total_for_day)
 
             session.commit()
 
-            logger.info(
+            logger.debug(
                 f"Successfully wrote aggregated data to total_for_day for {current_date()}"
             )
 
@@ -250,7 +252,7 @@ def write_to_dish_day(
                     session.query(
                         func.sum(AlcoholConsumption.calories).label("total_calories"),
                         func.count(AlcoholConsumption.time).label("total_drinks"),
-                        func.array_agg(AlcoholConsumption.drink_name).label("drinks")
+                        func.array_agg(AlcoholConsumption.drink_name).label("drinks"),
                     )
                     .filter(AlcoholConsumption.date == current_date())
                     .filter(AlcoholConsumption.user_email == user_email)
@@ -281,7 +283,9 @@ def write_to_dish_day(
                     )
                     session.add(alcohol_for_day)
                 session.commit()
-                logger.info(f"Updated alcohol_for_day for {current_date()} user {user_email}")
+                logger.debug(
+                    f"Updated alcohol_for_day for {current_date()} user {user_email}"
+                )
             except Exception as e:
                 logger.warning(f"Failed to aggregate alcohol_for_day: {e}")
     except Exception as e:
@@ -305,12 +309,12 @@ def get_today_dishes(user_email: str = None):
                 .first()
             )
             if not total_data:
-                logger.info(f"No data found in total_for_day for {current_date()}")
+                logger.debug(f"No data found in total_for_day for {current_date()}")
                 total_for_day_data = {
                     "total_calories": 0,
-                    "total_avg_weight": latest_weight_entry.weight
-                    if latest_weight_entry
-                    else 0,
+                    "total_avg_weight": (
+                        latest_weight_entry.weight if latest_weight_entry else 0
+                    ),
                     "contains": [],
                 }
                 dishes_list = []
@@ -371,7 +375,7 @@ def get_today_dishes(user_email: str = None):
                     "weight": latest_weight_entry.weight,
                 }
 
-            logger.info(f"Result of get_today_dishes {result}")
+            logger.debug(f"Result of get_today_dishes {result}")
             return result
     except Exception as e:
         logger.error(f"Error retrieving today's dishes: {e}")
@@ -385,26 +389,23 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
     try:
         with get_db_session() as session:
             # Convert dd-mm-yyyy to yyyy-mm-dd format for database query
-            day, month, year = custom_date.split('-')
+            day, month, year = custom_date.split("-")
             formatted_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
-            
+
             # Get the timestamp for the requested date to find closest weight entry
-            requested_date = datetime.strptime(formatted_date, '%Y-%m-%d')
+            requested_date = datetime.strptime(formatted_date, "%Y-%m-%d")
             requested_timestamp = int(requested_date.timestamp())
-            
+
             # Find weight entry closest to the requested date
             # First try to get weight entries and find the one with minimum time difference
             weight_entries = (
-                session.query(Weight)
-                .filter(Weight.user_email == user_email)
-                .all()
+                session.query(Weight).filter(Weight.user_email == user_email).all()
             )
-            
+
             closest_weight_entry = None
             if weight_entries:
                 closest_weight_entry = min(
-                    weight_entries,
-                    key=lambda w: abs(w.time - requested_timestamp)
+                    weight_entries, key=lambda w: abs(w.time - requested_timestamp)
                 )
 
             total_data = (
@@ -414,12 +415,12 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
                 .first()
             )
             if not total_data:
-                logger.info(f"No data found in total_for_day for {formatted_date}")
+                logger.debug(f"No data found in total_for_day for {formatted_date}")
                 total_for_day_data = {
                     "total_calories": 0,
-                    "total_avg_weight": closest_weight_entry.weight
-                    if closest_weight_entry
-                    else 0,
+                    "total_avg_weight": (
+                        closest_weight_entry.weight if closest_weight_entry else 0
+                    ),
                     "contains": {},
                 }
                 dishes_list = []
@@ -474,7 +475,9 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
                         "drinks_of_day": alcohol.drinks_of_day or [],
                     }
             except Exception as e:
-                logger.warning(f"Failed to fetch alcohol_for_day for {formatted_date}: {e}")
+                logger.warning(
+                    f"Failed to fetch alcohol_for_day for {formatted_date}: {e}"
+                )
 
             # Return raw alcohol events in range if asked later via separate function
             if closest_weight_entry:
@@ -484,7 +487,9 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
                     "date": closest_weight_entry.date,
                 }
 
-            logger.info(f"Result of get_custom_date_dishes for {formatted_date}: {result}")
+            logger.debug(
+                f"Result of get_custom_date_dishes for {formatted_date}: {result}"
+            )
             return result
     except Exception as e:
         logger.error(f"Error retrieving dishes for date {custom_date}: {e}")
@@ -492,7 +497,7 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
 
 
 def delete_food(time, user_email: str = None):
-    logger.info(f"Deleting food with time {time} from db")
+    logger.debug(f"Deleting food with time {time} from db")
     try:
         with get_db_session() as session:
             # Handle case where time is passed as a dictionary with time and user_email
@@ -510,18 +515,18 @@ def delete_food(time, user_email: str = None):
             )
             session.commit()
             if rows_deleted > 0:
-                logger.info(
+                logger.debug(
                     f"Successfully deleted {rows_deleted} food entries with time {time_value} from database"
                 )
                 write_to_dish_day(recalculate=True, user_email=user_email)
             else:
-                logger.info(f"No food entries found with time {time_value}")
+                logger.debug(f"No food entries found with time {time_value}")
     except Exception as e:
         logger.error(f"Error deleting food from database: {e}")
 
 
 def modify_food(data, user_email: str = None):
-    logger.info(f"Modifying food record for user {user_email}")
+    logger.debug(f"Modifying food record for user {user_email}")
     try:
         with get_db_session() as session:
             # Handle case where data is passed as a dictionary with time, user_email, and percentage
@@ -544,26 +549,34 @@ def modify_food(data, user_email: str = None):
             if food_record:
                 # Calculate the modification factor (percentage / 100)
                 factor = percentage / 100.0
-                
+
                 # Update the food record with the new percentage
-                food_record.estimated_avg_calories = int(food_record.estimated_avg_calories * factor)
-                food_record.total_avg_weight = int(food_record.total_avg_weight * factor)
-                
+                food_record.estimated_avg_calories = int(
+                    food_record.estimated_avg_calories * factor
+                )
+                food_record.total_avg_weight = int(
+                    food_record.total_avg_weight * factor
+                )
+
                 # Update nutritional values in the contains field
                 if food_record.contains:
                     for key in food_record.contains:
                         if isinstance(food_record.contains[key], (int, float)):
-                            food_record.contains[key] = food_record.contains[key] * factor
-                
+                            food_record.contains[key] = (
+                                food_record.contains[key] * factor
+                            )
+
                 session.commit()
-                logger.info(
+                logger.debug(
                     f"Successfully modified food record with time {time_value} for user {user_email} by {percentage}%"
                 )
-                
+
                 # Recalculate the totals for the day after modification
                 write_to_dish_day(recalculate=True, user_email=user_email)
             else:
-                logger.info(f"No food record found with time {time_value} for user {user_email}")
+                logger.debug(
+                    f"No food record found with time {time_value} for user {user_email}"
+                )
     except Exception as e:
         logger.error(f"Error modifying food record: {e}")
 
@@ -579,16 +592,16 @@ def write_weight(weight, user_email: str = None):
             )
             session.add(weight_entry)
             session.commit()
-            logger.info(f"Successfully wrote weight data to database: {weight}")
+            logger.debug(f"Successfully wrote weight data to database: {weight}")
     except Exception as e:
         logger.error(f"Error writing weight to database: {e}")
 
 
 def get_dishes(days, user_email: str = None):
     try:
-        logger.info(f"Starting get_dishes function with days={days}")
+        logger.debug(f"Starting get_dishes function with days={days}")
         with get_db_session() as session:
-            logger.info("Database session created successfully.")
+            logger.debug("Database session created successfully.")
             today = datetime.now()
             start_date = today - timedelta(days=days)
             dishes = (
@@ -624,8 +637,10 @@ def get_alcohol_events_in_range(start_date: str, end_date: str, user_email: str 
     try:
         # Convert dd-mm-yyyy to yyyy-mm-dd
         def to_date(date_str: str):
-            day, month, year = date_str.split('-')
-            return datetime.strptime(f"{year}-{month.zfill(2)}-{day.zfill(2)}", "%Y-%m-%d").date()
+            day, month, year = date_str.split("-")
+            return datetime.strptime(
+                f"{year}-{month.zfill(2)}-{day.zfill(2)}", "%Y-%m-%d"
+            ).date()
 
         start_sql = to_date(start_date)
         end_sql = to_date(end_date)
@@ -642,20 +657,30 @@ def get_alcohol_events_in_range(start_date: str, end_date: str, user_email: str 
                     events_query = (
                         session.query(AlcoholConsumption)
                         .filter(AlcoholConsumption.user_email == user_email)
-                        .filter(cast(AlcoholConsumption.date, Date).between(start_sql, end_sql))
+                        .filter(
+                            cast(AlcoholConsumption.date, Date).between(
+                                start_sql, end_sql
+                            )
+                        )
                         .all()
                     )
                 except Exception:
                     pass
             events = []
             for ev in events_query:
-                events.append({
-                    "time": ev.time,
-                    "date": ev.date.strftime("%Y-%m-%d") if isinstance(ev.date, datetime) else str(ev.date),
-                    "drink_name": ev.drink_name,
-                    "calories": ev.calories,
-                    "quantity": ev.quantity,
-                })
+                events.append(
+                    {
+                        "time": ev.time,
+                        "date": (
+                            ev.date.strftime("%Y-%m-%d")
+                            if isinstance(ev.date, datetime)
+                            else str(ev.date)
+                        ),
+                        "drink_name": ev.drink_name,
+                        "calories": ev.calories,
+                        "quantity": ev.quantity,
+                    }
+                )
             return events
     except Exception as e:
         logger.error(f"Error retrieving alcohol events: {e}")

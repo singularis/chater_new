@@ -2,9 +2,8 @@ import logging
 import os
 
 import requests
-
-from user import get_user_model_tier
 from common import create_multilingual_prompt
+from user import get_user_model_tier
 
 logger = logging.getLogger(__name__)
 

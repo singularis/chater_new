@@ -4,6 +4,7 @@ import os
 from typing import Any, Dict, Optional
 
 LOG_FORMAT = "%(asctime)s %(name)s %(levelname)s %(message)s"
+DEFAULT_LOG_LEVEL = "WARNING"
 
 
 DEFAULT_LEVEL_MAPPING = {
@@ -30,11 +31,11 @@ def _resolve_log_level(level_name: str) -> int:
         if normalized in DEFAULT_LEVEL_MAPPING:
             return DEFAULT_LEVEL_MAPPING[normalized]
 
-    logging.warning("Invalid log level '%s'; defaulting to INFO", level_name)
-    return logging.INFO
+    logging.warning("Invalid log level '%s'; defaulting to WARNING", level_name)
+    return logging.WARNING
 
 
-def configure_logging(default_level: str = "INFO") -> None:
+def configure_logging(default_level: str = DEFAULT_LOG_LEVEL) -> None:
     log_level_name = os.getenv("LOG_LEVEL", default_level)
     logging.basicConfig(level=_resolve_log_level(log_level_name), format=LOG_FORMAT)
 

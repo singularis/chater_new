@@ -126,5 +126,5 @@
                 serviceAccountName: default
                 containers:
                   - name: chater-gpt-operator
-                    image: singularis314/chater-gpt-operator:0.1
+                    image: docker.io/singularis314/chater-gpt-operator:0.1
                     imagePullPolicy: Always

@@ -4,7 +4,10 @@ import os
 
 from kafka_consumer import consume_messages
 from kafka_producer import produce_message
+from logging_config import setup_logging
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 MODEL = os.getenv("MODEL")
 VISION_MODEL = os.getenv("VISION_MODEL")
@@ -12,7 +15,7 @@ client = OpenAI()
 
 
 def gpt_request(question, context=None, content=None) -> dict[str, str]:
-    logging.info(f"GPT Question: {question}")
+    logger.debug(f"GPT Question: {question}")
 
     if MODEL == "o1-mini":
         messages = [{"role": "user", "content": question}]
@@ -49,14 +52,14 @@ def gpt_request(question, context=None, content=None) -> dict[str, str]:
         )
 
     response_content = response.choices[0].message.content
-    logging.info(f"GPT Answer: {response_content}")
+    logger.debug(f"GPT Answer: {response_content}")
 
     return response_content
 
 
 def analyze_photo(prompt, photo_base64):
     try:
-        logging.info("Analyzing photo with prompt via ChatGPT.")
+        logger.debug("Analyzing photo with prompt via ChatGPT.")
         response = client.chat.completions.create(
             model=VISION_MODEL,
             messages=[
@@ -79,17 +82,17 @@ def analyze_photo(prompt, photo_base64):
         )
 
         response_content = response.choices[0].message.content
-        logging.info(f"Photo analysis result: {response_content}")
+        logger.debug(f"Photo analysis result: {response_content}")
 
         return response_content
     except Exception as e:
-        logging.error(f"Failed to analyze photo: {e}")
+        logger.error(f"Failed to analyze photo: {e}")
         return None
 
 
 def process_messages():
     topics = ["gpt-send", "eater-send-photo"]
-    logging.info(f"Starting message processing with topics: {topics}")
+    logger.info(f"Starting message processing with topics: {topics}")
     while True:
         for message, consumer in consume_messages(topics):
             try:
@@ -106,12 +109,12 @@ def process_messages():
                     kafka_message = {"key": key, "value": response_value}
 
                     produce_message("gpt-response", kafka_message)
-                    logging.info(
+                    logger.debug(
                         f"Processed GPT message and sent to Kafka: {kafka_message}"
                     )
 
                 elif topic == "eater-send-photo":
-                    logging.info("Received message on 'eater-send-photo'.")
+                    logger.debug("Received message on 'eater-send-photo'.")
                     prompt = actual_value.get("prompt")
                     photo_base64 = actual_value.get("photo")
                     user_email = actual_value.get("user_email")
@@ -125,20 +128,20 @@ def process_messages():
                             },
                         }
                         produce_message("photo-analysis-response", kafka_message)
-                        logging.info(
+                        logger.debug(
                             f"Photo analyzed and result sent to Kafka: {kafka_message}"
                         )
                     else:
-                        logging.warning(
+                        logger.warning(
                             "Message on 'eater-send-photo' missing 'prompt' or 'photo'."
                         )
 
                 consumer.commit(message)
             except Exception as e:
-                logging.error(f"Failed to process message: {e}")
+                logger.error(f"Failed to process message: {e}")
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    logging.info("Starting GPT processing script")
+    setup_logging("gpt.log")
+    logger.info("Starting GPT processing script")
     process_messages()

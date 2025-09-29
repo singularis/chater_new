@@ -22,6 +22,7 @@
             visionModel: "{{ vars.VISION_MODEL }}"
             openAIAPIKey: "{{ vars.CAPI | b64encode }}"
             secretKey: "{{ vars.SECRET_KEY | b64encode }}"
+            logLevel: "{{ vars.LOG_LEVEL }}"
             replicas: 2
             affinity:
               nodeAffinity:

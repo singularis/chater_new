@@ -11,6 +11,9 @@ from google.cloud.dlp_v2.types import (DeidentifyConfig,
                                        ReplaceValueConfig)
 from kafka_consumer import consume_messages
 from kafka_producer import produce_message
+from logging_config import setup_logging
+
+logger = logging.getLogger(__name__)
 
 
 def inspect_and_redact(text: str) -> str:
@@ -45,13 +48,13 @@ def inspect_and_redact(text: str) -> str:
             "deidentify_config": deidentify_config,
         }
     )
-    logging.info(f"Response from DLP {response.item.value}")
+    logger.debug(f"Response from DLP {response.item.value}")
     return response.item.value
 
 
 def process_messages():
     topics = ["dlp-source"]
-    logging.info(f"Starting message processing with topics: {topics}")
+    logger.info(f"Starting message processing with topics: {topics}")
     while True:
         for message, consumer in consume_messages(topics):
             try:
@@ -72,16 +75,16 @@ def process_messages():
                 redacted_message = {"key": key, "value": redacted_data}
 
                 produce_message(send_topic, redacted_message)
-                logging.info(
+                logger.debug(
                     f"Processed and redacted message: {redacted_message}, send to topic {send_topic}"
                 )
 
                 consumer.commit(message)
             except Exception as e:
-                logging.error(f"Failed to process message: {e}")
+                logger.error(f"Failed to process message: {e}")
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    logging.info("Starting DLP processing script")
+    setup_logging("dlp.log")
+    logger.info("Starting DLP processing script")
     process_messages()

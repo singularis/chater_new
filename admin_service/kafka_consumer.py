@@ -28,10 +28,10 @@ def create_consumer(topics):
         )
 
         def on_assign(consumer, partitions):
-            logger.info(f"Assigned partitions: {partitions}")
+            logger.debug(f"Assigned partitions: {partitions}")
 
         def on_revoke(consumer, partitions):
-            logger.info(f"Partitions revoked: {partitions}")
+            logger.debug(f"Partitions revoked: {partitions}")
 
         consumer.subscribe(topics, on_assign=on_assign, on_revoke=on_revoke)
         return consumer

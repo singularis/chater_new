@@ -6,11 +6,9 @@ import signal
 import sys
 import time
 
-from kafka_consumer_service import (
-    kafka_service,
-    start_kafka_consumer_service,
-    stop_kafka_consumer_service,
-)
+from kafka_consumer_service import (kafka_service,
+                                    start_kafka_consumer_service,
+                                    stop_kafka_consumer_service)
 from logging_config import setup_logging
 
 setup_logging("kafka_service_manager.log")

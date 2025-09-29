@@ -6,7 +6,6 @@ import time
 
 import redis
 from confluent_kafka import Consumer, KafkaError, KafkaException
-
 from logging_config import setup_logging
 
 setup_logging("kafka_consumer_service.log")
@@ -47,7 +46,9 @@ class KafkaConsumerService:
 
         bootstrap_servers = os.getenv("BOOTSTRAP_SERVER")
         if not bootstrap_servers:
-            message = "BOOTSTRAP_SERVER environment variable is required for Kafka consumer"
+            message = (
+                "BOOTSTRAP_SERVER environment variable is required for Kafka consumer"
+            )
             logger.error(message)
             raise RuntimeError(message)
 
@@ -226,9 +227,7 @@ class KafkaConsumerService:
                     continue
 
                 message_data = json.loads(message_payload.decode("utf-8"))
-                logger.info(
-                    f"Received message on topic {msg.topic()}: {message_data}"
-                )
+                logger.info(f"Received message on topic {msg.topic()}: {message_data}")
 
                 # Extract message UUID from key or value
                 message_uuid = msg.key().decode("utf-8") if msg.key() else None

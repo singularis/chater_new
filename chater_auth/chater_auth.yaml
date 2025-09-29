@@ -38,7 +38,7 @@
               spec:
                 containers:
                   - name: chater-auth
-                    image: singularis314/chater-auth:0.1
+                    image: docker.io/singularis314/chater-auth:0.1
                     imagePullPolicy: Always
                     env:
                       - name: EATER_SECRET_KEY
@@ -48,6 +48,8 @@
                             key: EATER_SECRET_KEY
                       - name: BOOTSTRAP_SERVERS
                         value: "{{ vars.BOOTSTRAP_SERVER }}"
+                      - name: LOG_LEVEL
+                        value: "{{ vars.LOG_LEVEL }}"
                 affinity:
                   nodeAffinity:
                     requiredDuringSchedulingIgnoredDuringExecution:

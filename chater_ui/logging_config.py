@@ -4,14 +4,14 @@ import sys
 from tempfile import gettempdir
 from typing import Dict, Optional
 
-DEFAULT_LOG_LEVEL = "INFO"
+DEFAULT_LOG_LEVEL = "WARNING"
 
 
 def _parse_log_level(log_level: Optional[str]) -> int:
     """Convert string-based log level to logging numeric level with fallback."""
 
     if not log_level:
-        return logging.INFO
+        return logging.WARNING
 
     if isinstance(log_level, str):
         normalized = log_level.strip().upper()
@@ -30,7 +30,7 @@ def _parse_log_level(log_level: Optional[str]) -> int:
         if isinstance(numeric_level, int):
             return numeric_level
 
-    return logging.INFO
+    return logging.WARNING
 
 
 def get_log_level_from_env() -> int:
@@ -38,8 +38,8 @@ def get_log_level_from_env() -> int:
 
     env_value = os.getenv("LOG_LEVEL", DEFAULT_LOG_LEVEL)
     parsed_level = _parse_log_level(env_value)
-    if parsed_level == logging.INFO and env_value.upper() != "INFO":
-        logging.warning("Unrecognised LOG_LEVEL '%s'; defaulting to INFO", env_value)
+    if parsed_level == logging.WARNING and env_value.upper() not in ("WARNING", "WARN"):
+        logging.warning("Unrecognised LOG_LEVEL '%s'; defaulting to WARNING", env_value)
     return parsed_level
 
 

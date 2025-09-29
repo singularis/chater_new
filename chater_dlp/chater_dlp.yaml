@@ -38,7 +38,7 @@
               spec:
                 containers:
                   - name: chater-dlp
-                    image: singularis314/chater-dlp:0.3
+                    image: docker.io/singularis314/chater-dlp:0.3
                     imagePullPolicy: Always
                     env:
                       - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -47,6 +47,8 @@
                         value: "{{ vars.GCP_PROJECT_ID }}"
                       - name: BOOTSTRAP_SERVER
                         value: "{{ vars.BOOTSTRAP_SERVER }}"
+                      - name: LOG_LEVEL
+                        value: "{{ vars.LOG_LEVEL }}"
                     volumeMounts:
                       - name: gcp-dlp-creds
                         mountPath: /var/secrets/google

@@ -4,7 +4,6 @@ import os
 import time
 
 from confluent_kafka import Consumer, KafkaError, KafkaException
-
 from logging_config import setup_logging
 
 setup_logging("kafka_consumer.log")
@@ -63,7 +62,8 @@ def consume_messages(consumer, expected_user_email=None):
                 attempts += 1
                 if hasattr(error, "fatal") and error.fatal():
                     logger.error(
-                        f"Fatal Kafka error while consuming: {error}" " - stopping consumer"
+                        f"Fatal Kafka error while consuming: {error}"
+                        " - stopping consumer"
                     )
                     raise
 

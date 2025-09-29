@@ -2,16 +2,11 @@ import logging
 import uuid
 
 from flask import jsonify
-
 from kafka_consumer_service import get_user_message_response
 from kafka_producer import KafkaDispatchError, send_kafka_message
 
-from .proto import (
-    alcohol_pb2,
-    delete_food_pb2,
-    manual_weight_pb2,
-    modify_food_record_pb2,
-)
+from .proto import (alcohol_pb2, delete_food_pb2, manual_weight_pb2,
+                    modify_food_record_pb2)
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +66,11 @@ def _await_user_response(message_id, user_email, timeout, proto_response):
 
 def _proto_error_response(proto_message, status, error):
     proto_message.success = False
-    return proto_message.SerializeToString(), status, {
-        "Content-Type": "application/grpc+proto"
-    }
+    return (
+        proto_message.SerializeToString(),
+        status,
+        {"Content-Type": "application/grpc+proto"},
+    )
 
 
 def _json_error(status, message):

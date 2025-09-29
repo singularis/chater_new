@@ -7,15 +7,10 @@ import threading
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
-from flask import Flask, jsonify
-
 from common import load_kafka_payload
-from kafka_consumer import (
-    KafkaConsumerSettings,
-    consume_messages,
-    poll_messages,
-    validate_user_data,
-)
+from flask import Flask, jsonify
+from kafka_consumer import (KafkaConsumerSettings, consume_messages,
+                            poll_messages, validate_user_data)
 from kafka_producer import produce_message
 from ollama import ModelNotRunningError, OllamaClient
 

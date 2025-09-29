@@ -3,13 +3,8 @@ import time
 from typing import Callable
 
 from flask import Response, request
-from prometheus_client import (
-    CONTENT_TYPE_LATEST,
-    CollectorRegistry,
-    Counter,
-    Histogram,
-    generate_latest,
-)
+from prometheus_client import (CONTENT_TYPE_LATEST, CollectorRegistry, Counter,
+                               Histogram, generate_latest)
 
 metrics_registry = CollectorRegistry()
 
