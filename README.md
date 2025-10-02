@@ -598,173 +598,355 @@ sequenceDiagram
 ```
 
 ### Eater Ecosystem Architecture
-Complete food tracking system with all services and data flows:
+Complete food tracking system with all services, connections, proxies, and data flows:
 
 ```mermaid
 graph TB
-    subgraph "User Interface Layer"
-        User[User]
-        WebUI[chater_ui<br/>Web Interface]
+    subgraph "User Layer"
+        User[👤 User<br/>Web Browser/Mobile]
     end
     
-    subgraph "Message Broker"
-        Kafka[Apache Kafka<br/>Message Bus]
+    subgraph "UI/Gateway Layer"
+        WebUI[🌐 chater_ui<br/>Flask Web App<br/>Port: 5000]
+        AdminUI[🔧 admin_service<br/>Admin Backend<br/>Port: 5000]
+        Redis[(⚡ Redis<br/>Session & Cache<br/>Port: 6379)]
+        MinIO[📦 MinIO<br/>Object Storage<br/>Photos/Files]
     end
     
-    subgraph "Vision Processing Services"
-        Vision[chater-vision<br/>Google Vision API]
-        ModelsProc[models_processor<br/>Ollama Local Models]
+    subgraph "Message Broker Layer"
+        Kafka[📨 Apache Kafka<br/>Message Bus<br/>Port: 9092]
     end
     
-    subgraph "Core Food Services"
-        Eater[eater<br/>Food Processing Service]
-        EaterUser[eater_user<br/>Social & Sharing Service]
+    subgraph "Vision Processing Layer"
+        Vision[👁️ chater-vision<br/>Java Service<br/>Google Vision API]
+        ModelsProc[🤖 models_processor<br/>Python Service<br/>Ollama Integration]
     end
     
-    subgraph "Data Storage"
-        PostgreSQL[(PostgreSQL<br/>Food & User Data)]
-        Neo4j[(Neo4j<br/>Friend Graph)]
+    subgraph "Core Food Services Layer"
+        Eater[🍽️ eater<br/>Python Kafka Consumer<br/>Food Processing]
+        EaterUser[👥 eater_user<br/>FastAPI Service<br/>Port: 8000<br/>Social Features]
+        EaterInit[🔨 eater_init<br/>Init Container<br/>DB Schema Setup]
     end
     
-    subgraph "External AI Services"
-        GeminiAPI[Google Gemini API<br/>Vision Analysis]
-        OllamaLocal[Ollama<br/>Local LLM Runtime]
+    subgraph "Data Storage Layer"
+        PostgreSQL[(🗄️ PostgreSQL<br/>Primary Database<br/>Port: 5432)]
+        Neo4j[(🕸️ Neo4j<br/>Graph Database<br/>Port: 7687<br/>Friendships)]
     end
     
-    %% User interaction flow
-    User -->|1. Upload photo| WebUI
-    User -->|Share food| WebUI
-    User -->|Search friends| WebUI
-    User -->|Modify record| WebUI
+    subgraph "External Services Layer"
+        GeminiAPI[☁️ Google Gemini API<br/>Vision Analysis]
+        OllamaLocal[🏠 Ollama<br/>Local LLM Runtime<br/>Port: 11434]
+    end
     
-    %% Photo upload flow
-    WebUI -->|2. Publish photo<br/>eater-send-photo| Kafka
+    %% ============ USER INTERACTIONS ============
+    User -->|HTTP POST<br/>/eater_receive_photo| WebUI
+    User -->|HTTP GET<br/>/eater_get_today| WebUI
+    User -->|HTTP POST<br/>/modify_food_record| WebUI
+    User -->|HTTP POST<br/>/delete_food| WebUI
+    User -->|HTTP POST<br/>/manual_weight| WebUI
+    User -->|HTTP GET<br/>/alcohol_latest| WebUI
+    User -->|HTTP POST<br/>/alcohol_range| WebUI
+    User -->|HTTP POST<br/>/set_language| WebUI
+    User -->|HTTP POST<br/>/get_recommendation| WebUI
+    User -->|WebSocket<br/>/autocomplete| EaterUser
+    User -->|HTTP POST<br/>/autocomplete/addfriend| EaterUser
+    User -->|HTTP GET<br/>/autocomplete/getfriend| EaterUser
+    User -->|HTTP POST<br/>/autocomplete/sharefood| EaterUser
+    User -->|Proxy<br/>/eater_admin/...| AdminUI
     
-    %% Vision processing alternatives
-    Kafka -->|3a. Cloud option| Vision
-    Kafka -->|3b. Local option| ModelsProc
+    %% ============ UI LAYER INTERNALS ============
+    WebUI -->|Session mgmt| Redis
+    WebUI -->|Cache responses| Redis
+    WebUI -->|Store photos| MinIO
+    WebUI -->|Direct SQL<br/>set_user_language()| PostgreSQL
     
-    Vision -->|4a. Analyze image| GeminiAPI
-    GeminiAPI -->|5a. Return analysis| Vision
-    Vision -->|6a. Publish result<br/>photo-analysis-response| Kafka
+    %% ============ PHOTO UPLOAD FLOW ============
+    WebUI -->|Publish<br/>Topic: eater-send-photo<br/>Payload: {photo, prompt}| Kafka
     
-    ModelsProc -->|4b. Analyze with Ollama| OllamaLocal
-    OllamaLocal -->|5b. Return analysis| ModelsProc
-    ModelsProc -->|6b. Publish result<br/>photo-analysis-response| Kafka
+    Kafka -->|Consume<br/>eater-send-photo| Vision
+    Kafka -->|Consume<br/>eater-send-photo| ModelsProc
     
-    %% Food processing flow
-    Kafka -->|7. Consume analysis| Eater
-    Eater -->|8. Process & validate| Eater
-    Eater -->|9. Store dishes_day| PostgreSQL
-    Eater -->|10. Update total_for_day| PostgreSQL
-    Eater -->|11. Store alcohol data| PostgreSQL
-    Eater -->|12. Publish result<br/>send_today_data| Kafka
+    Vision -->|API Call<br/>Analyze image| GeminiAPI
+    GeminiAPI -->|Return<br/>Food analysis JSON| Vision
+    Vision -->|Publish<br/>Topic: photo-analysis-response<br/>Payload: {analysis, user_email}| Kafka
     
-    %% Return to UI
-    Kafka -->|13. Deliver to UI| WebUI
-    WebUI -->|14. Display nutrition| User
+    ModelsProc -->|HTTP POST<br/>analyze with vision model| OllamaLocal
+    OllamaLocal -->|Return<br/>Food analysis JSON| ModelsProc
+    ModelsProc -->|Publish<br/>Topic: photo-analysis-response<br/>Payload: {analysis, user_email}| Kafka
     
-    %% Query flows
-    WebUI -->|Get today's data| Kafka
-    Kafka -->|Query request| Eater
-    Eater -->|Read data| PostgreSQL
-    PostgreSQL -->|Return records| Eater
-    Eater -->|Publish response| Kafka
-    Kafka -->|Deliver data| WebUI
+    %% ============ FOOD PROCESSING FLOW ============
+    Kafka -->|Consume<br/>photo-analysis-response| Eater
+    Eater -->|Parse & validate<br/>food data| Eater
+    Eater -->|INSERT<br/>dishes_day table| PostgreSQL
+    Eater -->|UPSERT<br/>total_for_day table| PostgreSQL
+    Eater -->|INSERT<br/>alcohol_consumption<br/>if detected| PostgreSQL
+    Eater -->|UPSERT<br/>alcohol_for_day<br/>if detected| PostgreSQL
+    Eater -->|Publish<br/>Topic: send_today_data<br/>Payload: today's summary| Kafka
     
-    %% Modification flow
-    WebUI -->|Modify/Delete<br/>modify_food_record| Kafka
-    Kafka -->|Consume request| Eater
-    Eater -->|Update/Delete| PostgreSQL
-    Eater -->|Confirm change| Kafka
-    Kafka -->|Confirmation| WebUI
+    %% ============ DATA QUERY FLOWS ============
+    WebUI -->|Publish<br/>Topic: get_today_data<br/>Payload: {user_email}| Kafka
+    WebUI -->|Publish<br/>Topic: get_today_data_custom<br/>Payload: {user_email, date}| Kafka
+    WebUI -->|Publish<br/>Topic: get_alcohol_latest<br/>Payload: {user_email}| Kafka
+    WebUI -->|Publish<br/>Topic: get_alcohol_range<br/>Payload: {user_email, start, end}| Kafka
     
-    %% Social features flow
-    WebUI -->|Autocomplete search<br/>WebSocket| EaterUser
-    EaterUser -->|Query users| PostgreSQL
-    PostgreSQL -->|Return matches| EaterUser
-    EaterUser -->|Send results<br/>WebSocket| WebUI
+    Kafka -->|Consume<br/>get_today_data| Eater
+    Kafka -->|Consume<br/>get_today_data_custom| Eater
+    Kafka -->|Consume<br/>get_alcohol_latest| Eater
+    Kafka -->|Consume<br/>get_alcohol_range| Eater
     
-    WebUI -->|Add friend| EaterUser
-    EaterUser -->|Create relationship| Neo4j
-    Neo4j -->|Confirm| EaterUser
-    EaterUser -->|Success| WebUI
+    Eater -->|SELECT<br/>FROM dishes_day<br/>WHERE user_email & date| PostgreSQL
+    Eater -->|SELECT<br/>FROM total_for_day<br/>WHERE user_email & date| PostgreSQL
+    Eater -->|SELECT<br/>FROM alcohol_for_day<br/>WHERE user_email & date| PostgreSQL
+    Eater -->|SELECT<br/>FROM alcohol_consumption<br/>WHERE user_email & date range| PostgreSQL
     
-    WebUI -->|Share food| EaterUser
-    EaterUser -->|Get food record| PostgreSQL
-    EaterUser -->|Calculate portions| EaterUser
-    EaterUser -->|Share to friend<br/>photo-analysis-response| Kafka
-    EaterUser -->|Modify original<br/>modify_food_record| Kafka
-    Kafka -->|Process shared food| Eater
-    Eater -->|Store friend's portion| PostgreSQL
+    PostgreSQL -->|Return rows| Eater
+    Eater -->|Publish<br/>Topic: send_today_data<br/>Payload: food records| Kafka
+    Eater -->|Publish<br/>Topic: send_alcohol_latest<br/>Payload: alcohol summary| Kafka
+    Eater -->|Publish<br/>Topic: send_alcohol_range<br/>Payload: alcohol events| Kafka
     
-    %% Weight tracking
-    WebUI -->|Manual weight entry| Kafka
-    Kafka -->|Weight data| Eater
-    Eater -->|Store weight| PostgreSQL
+    Kafka -->|Consume via<br/>background service| WebUI
+    WebUI -->|Cache in Redis<br/>key: message_id| Redis
+    WebUI -->|Poll Redis<br/>get_user_message_response()| Redis
     
-    %% Alcohol tracking
-    Eater -->|Detect alcohol| Eater
-    Eater -->|Store alcohol_consumption| PostgreSQL
-    Eater -->|Update alcohol_for_day| PostgreSQL
-    WebUI -->|Query alcohol data| Eater
-    Eater -->|Return summary| WebUI
+    %% ============ MODIFICATION FLOWS ============
+    WebUI -->|Publish<br/>Topic: modify_food_record<br/>Payload: {time, percentage}| Kafka
+    WebUI -->|Publish<br/>Topic: delete_food<br/>Payload: {time}| Kafka
+    WebUI -->|Publish<br/>Topic: manual_weight<br/>Payload: {weight}| Kafka
+    WebUI -->|Publish<br/>Topic: get_recommendation<br/>Payload: {days}| Kafka
     
-    %% Language preferences
-    WebUI -->|Set language| Eater
-    Eater -->|Update user table| PostgreSQL
+    Kafka -->|Consume<br/>modify_food_record| Eater
+    Kafka -->|Consume<br/>delete_food| Eater
+    Kafka -->|Consume<br/>manual_weight| Eater
+    Kafka -->|Consume<br/>get_recommendation| Eater
     
-    %% Styling
-    classDef userLayer fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
-    classDef serviceLayer fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef visionLayer fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef dataLayer fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef externalLayer fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef messageLayer fill:#f1f8e9,stroke:#558b2f,stroke-width:2px
+    Eater -->|UPDATE dishes_day<br/>SET calories, weight<br/>by percentage| PostgreSQL
+    Eater -->|DELETE FROM dishes_day<br/>WHERE time| PostgreSQL
+    Eater -->|INSERT INTO weight<br/>VALUES| PostgreSQL
+    Eater -->|SELECT last N days<br/>for recommendation| PostgreSQL
     
-    class User,WebUI userLayer
-    class Eater,EaterUser serviceLayer
-    class Vision,ModelsProc visionLayer
-    class PostgreSQL,Neo4j dataLayer
-    class GeminiAPI,OllamaLocal externalLayer
-    class Kafka messageLayer
+    %% ============ SOCIAL FEATURES FLOW ============
+    EaterUser -->|Real-time<br/>SELECT email<br/>FROM user<br/>WHERE email LIKE %query%| PostgreSQL
+    EaterUser -->|CREATE relationship<br/>Neo4j Cypher| Neo4j
+    EaterUser -->|GET friends<br/>MATCH (u)-[:FRIEND]->(f)| Neo4j
+    
+    EaterUser -->|Sharing:<br/>SELECT FROM dishes_day<br/>WHERE time| PostgreSQL
+    EaterUser -->|Calculate portions<br/>Split by percentage| EaterUser
+    EaterUser -->|Friend portion<br/>Publish to photo-analysis-response| Kafka
+    EaterUser -->|Original modification<br/>Publish to modify_food_record| Kafka
+    
+    %% ============ INIT FLOW ============
+    EaterInit -->|Run once on startup<br/>CREATE TABLES<br/>CREATE INDEXES<br/>pg_trgm extension| PostgreSQL
+    
+    %% ============ ADMIN FLOW ============
+    AdminUI -->|Consume<br/>Topic: feedback| Kafka
+    AdminUI -->|INSERT feedback<br/>admin_data table| PostgreSQL
+    WebUI -->|Publish<br/>Topic: feedback<br/>Payload: user feedback| Kafka
+    
+    %% ============ RETURN FLOWS ============
+    Kafka -->|Responses consumed<br/>by background thread| WebUI
+    WebUI -->|Display to user| User
+    EaterUser -->|WebSocket<br/>Real-time results| User
+    EaterUser -->|HTTP Response<br/>Protobuf| User
+    
+    %% ============ STYLING ============
+    classDef userClass fill:#e1f5fe,stroke:#0277bd,stroke-width:3px
+    classDef uiClass fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef serviceClass fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    classDef visionClass fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef dataClass fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef externalClass fill:#ffebee,stroke:#c62828,stroke-width:2px
+    classDef kafkaClass fill:#f1f8e9,stroke:#558b2f,stroke-width:3px
+    
+    class User userClass
+    class WebUI,AdminUI,Redis,MinIO uiClass
+    class Eater,EaterUser,EaterInit serviceClass
+    class Vision,ModelsProc visionClass
+    class PostgreSQL,Neo4j dataClass
+    class GeminiAPI,OllamaLocal externalClass
+    class Kafka kafkaClass
 ```
 
 ### Eater Data Flow Summary
 
-#### Photo Analysis Flow
-1. **Upload**: User uploads photo via UI
-2. **Routing**: UI publishes to `eater-send-photo` topic
-3. **Vision Processing**: Either cloud (chater-vision + Gemini) or local (models_processor + Ollama)
-4. **Analysis**: Vision service analyzes and extracts food information
-5. **Response**: Published to `photo-analysis-response` topic
-6. **Processing**: Eater service consumes and validates
-7. **Storage**: Stores in `dishes_day` and updates `total_for_day`
-8. **Notification**: Publishes result to `send_today_data` topic
-9. **Display**: UI consumes and shows nutritional information
+#### Complete Service Inventory
+**Services**: 8 services + 3 storage systems + 2 external APIs
+- **chater_ui** (Flask, Port 5000) - Main web interface
+- **eater** (Python Kafka Consumer) - Food processing engine
+- **eater_user** (FastAPI, Port 8000) - Social features & sharing
+- **eater_init** (Init Container) - Database schema initialization
+- **chater-vision** (Java) - Cloud vision processing
+- **models_processor** (Python) - Local vision processing
+- **admin_service** (Flask, Port 5000) - Admin backend
+- **Kafka** (Port 9092) - Message broker
+- **PostgreSQL** (Port 5432) - Primary database
+- **Neo4j** (Port 7687) - Friend graph database
+- **Redis** (Port 6379) - Session & cache storage
+- **MinIO** - Object storage for photos
+- **Google Gemini API** - Cloud vision analysis
+- **Ollama** (Port 11434) - Local LLM runtime
 
-#### Food Sharing Flow
-1. **Initiate**: User selects food record to share via UI
-2. **Request**: UI calls eater_user service with share details
-3. **Fetch**: eater_user retrieves original food record from PostgreSQL
-4. **Calculate**: Splits food by percentage (e.g., 30% to friend, 70% remains)
-5. **Share**: Publishes friend's portion to `photo-analysis-response`
-6. **Modify**: Publishes modification to `modify_food_record` topic
-7. **Process**: Eater processes both the shared and modified records
-8. **Store**: Updates database with adjusted portions
+#### Kafka Topics Used in Eater Ecosystem
+**Photo Processing**:
+- `eater-send-photo` - UI → Kafka → Vision services
+- `photo-analysis-response` - Vision services → Kafka → Eater
+
+**Data Queries**:
+- `get_today_data` - UI → Kafka → Eater
+- `get_today_data_custom` - UI → Kafka → Eater
+- `get_alcohol_latest` - UI → Kafka → Eater
+- `get_alcohol_range` - UI → Kafka → Eater
+
+**Data Modifications**:
+- `modify_food_record` - UI/EaterUser → Kafka → Eater
+- `delete_food` - UI → Kafka → Eater
+- `manual_weight` - UI → Kafka → Eater
+
+**Responses**:
+- `send_today_data` - Eater → Kafka → UI
+- `send_alcohol_latest` - Eater → Kafka → UI
+- `send_alcohol_range` - Eater → Kafka → UI
+
+**Other**:
+- `get_recommendation` - UI → Kafka → Eater
+- `feedback` - UI → Kafka → AdminService
+
+#### Database Tables Used
+**PostgreSQL Tables**:
+- `user` - User profiles, language preferences, activity tracking
+- `dishes` - Master food database with nutritional information
+- `dishes_day` - Individual food consumption records (time-based primary key)
+- `total_for_day` - Daily nutritional summaries per user
+- `weight` - Weight tracking entries
+- `alcohol_consumption` - Individual alcohol consumption events
+- `alcohol_for_day` - Daily alcohol consumption summaries
+- `admin_data` - Admin data and statistics
+- `feedbacks` - User feedback records
+
+**Neo4j Graph**:
+- `User` nodes with `FRIEND` relationships (bidirectional friendships)
+
+#### HTTP Endpoints Exposed
+**chater_ui endpoints** (Port 5000):
+- `POST /eater_receive_photo` - Upload food photo (JWT protected)
+- `GET /eater_get_today` - Get today's food data (JWT protected)
+- `POST /get_food_custom_date` - Get food for specific date
+- `POST /delete_food` - Delete food record
+- `POST /modify_food_record` - Modify food portions
+- `POST /manual_weight` - Log weight entry
+- `GET /alcohol_latest` - Get today's alcohol summary
+- `POST /alcohol_range` - Get alcohol data for date range
+- `POST /set_language` - Set user language preference
+- `POST /get_recommendation` - Get AI meal recommendations
+- `POST /feedback` - Submit user feedback
+- `POST /eater_auth` - Mobile app authentication
+
+**eater_user endpoints** (Port 8000):
+- `WebSocket /autocomplete` - Real-time email search (JWT via WebSocket)
+- `POST /autocomplete/addfriend` - Add friend (Protobuf, JWT protected)
+- `GET /autocomplete/getfriend` - List friends (Protobuf, JWT protected)
+- `POST /autocomplete/sharefood` - Share food with friend (Protobuf, JWT protected)
+- `GET /health` - Health check
+- `GET /ready` - Readiness probe
+
+**admin_service endpoints** (Port 5000):
+- `GET /feedback` - List feedback entries
+- `GET /user_statistics` - User statistics dashboard
+- Proxied through chater_ui at `/eater_admin/...`
+
+#### Complete Photo Analysis Flow
+1. **User Upload** → HTTP POST to `/eater_receive_photo` (chater_ui)
+2. **Photo Storage** → chater_ui stores photo in MinIO object storage
+3. **Kafka Publish** → chater_ui publishes to `eater-send-photo` topic with photo data and multilingual prompt
+4. **Vision Processing** (Two options run in parallel):
+   - **Option A (Cloud)**: chater-vision consumes, calls Google Gemini API, returns analysis
+   - **Option B (Local)**: models_processor consumes, calls local Ollama, returns analysis
+5. **Response Publication** → Both publish results to `photo-analysis-response` topic
+6. **Eater Consumption** → eater service consumes from `photo-analysis-response`
+7. **Data Validation** → eater parses JSON, validates food data, removes markdown fences
+8. **Database Storage**:
+   - INSERT into `dishes_day` (individual meal record)
+   - UPSERT into `total_for_day` (daily summary)
+   - If alcohol detected: INSERT into `alcohol_consumption`, UPSERT into `alcohol_for_day`
+9. **Response Generation** → eater publishes today's data to `send_today_data` topic
+10. **UI Reception** → Background Kafka consumer in chater_ui receives response
+11. **Redis Caching** → Response cached in Redis with message_id as key
+12. **Frontend Display** → Frontend polls Redis, retrieves data, displays to user
+
+#### Food Sharing Flow (Social Feature)
+1. **Share Request** → HTTP POST to `/autocomplete/sharefood` (eater_user service)
+2. **Authentication** → JWT token validated, user email extracted
+3. **Friendship Check** → Verify requester and recipient are friends (Neo4j)
+4. **Record Retrieval** → SELECT from `dishes_day` WHERE time = original_food_time
+5. **Portion Calculation**:
+   - Split nutritional data by percentage (e.g., 30% to friend, 70% remains)
+   - Scale all numeric values in `contains` JSON field
+   - Calculate new calorie and weight values
+6. **Friend Portion** → Publish to `photo-analysis-response` with friend's email
+7. **Original Modification** → Publish to `modify_food_record` with remaining percentage
+8. **Dual Processing** → eater service processes both messages
+9. **Database Updates**:
+   - INSERT new record for friend with scaled portions
+   - UPDATE original record with remaining portions
+10. **Confirmation** → Protobuf response sent back to user
+
+#### Data Query Flow (Request-Response Pattern)
+1. **Query Request** → UI publishes to query topic (e.g., `get_today_data`)
+2. **Message ID** → Unique UUID generated for tracking
+3. **Kafka Routing** → Message delivered to eater service
+4. **Database Query** → eater executes SQL SELECT on appropriate tables
+5. **Response Formatting** → Data formatted as Protobuf or JSON
+6. **Kafka Publish** → Response published to response topic
+7. **Background Consumer** → UI's background thread receives response
+8. **Redis Storage** → Response stored in Redis with message_id:user_email key
+9. **Frontend Polling** → Frontend polls Redis using `get_user_message_response()`
+10. **Timeout Handling** → 30-second timeout, returns null if no response
+
+#### Language Preference Flow
+1. **Language Request** → HTTP POST to `/set_language` (Protobuf request)
+2. **Direct Database Access** → chater_ui directly executes SQL UPDATE on `user` table
+   - `UPDATE "user" SET language = :language, last_activity = :now WHERE email = :email`
+3. **Redis Caching** → Language preference cached in Redis for 7 days
+4. **No Kafka Involvement** → This is a synchronous database operation
+5. **Protobuf Response** → Success/failure returned to user
 
 #### Social Features Flow
-1. **Autocomplete**: WebSocket connection for real-time email search
-2. **Friend Management**: Add/list friends via Neo4j graph database
-3. **Food Sharing**: Share food records between friends with portion calculation
-4. **Privacy**: JWT-protected endpoints ensure authenticated access
+**Autocomplete Search**:
+1. WebSocket connection established at `/autocomplete`
+2. JWT token sent via WebSocket for authentication
+3. Real-time queries: `SELECT email FROM "user" WHERE email LIKE %query% LIMIT 10`
+4. Results streamed back via WebSocket
+5. Uses pg_trgm GIN index for fast fuzzy search
 
-#### Data Queries
-- **Today's Data**: Real-time nutritional summaries
-- **Historical Data**: Query by specific date
-- **Alcohol Tracking**: Latest consumption and date ranges
-- **Weight History**: Track weight entries over time
-- **Recommendations**: AI-powered meal suggestions
+**Friend Management**:
+1. Add friend: `POST /autocomplete/addfriend` (Protobuf)
+2. Neo4j Cypher: `CREATE (u1:User)-[:FRIEND]->(u2:User)`
+3. Bidirectional relationship created
+4. List friends: `MATCH (u:User {email: user_email})-[:FRIEND]->(f) RETURN f.email`
+
+#### Database Indexes for Performance
+- `idx_users_email_gin` - Trigram GIN index for email autocomplete
+- `idx_dishes_day_user_date` - Composite index for user's daily food queries
+- `idx_dishes_day_user_time` - Index for time-based lookups
+- `idx_total_for_day_user_today` - Fast daily summary queries
+- `idx_alcohol_consumption_user_time` - Alcohol event lookups
+- `idx_weight_user_time` - Weight history queries
+
+#### Init Container Flow
+1. **Startup** → eater_init runs as Kubernetes init container before main eater pod
+2. **Schema Creation** → Creates all tables if they don't exist
+3. **Extension Setup** → Installs pg_trgm extension for fuzzy search
+4. **Index Creation** → Creates all performance indexes
+5. **Verification** → Verifies indexes were created successfully
+6. **Statistics Update** → Runs ANALYZE on all tables
+7. **Completion** → Main eater container starts only after successful init
+
+#### Error Handling & Resilience
+- **Kafka Retry Logic**: Auto-retry on broker unavailable, max 5 attempts
+- **Redis Fallback**: If Redis unavailable, operations continue without cache
+- **Database Transactions**: All multi-table operations wrapped in transactions
+- **Vision Fallback**: If cloud vision fails, local models_processor can process
+- **Timeout Protection**: All Kafka requests have 30-second timeout
+- **Error Topics**: Failed operations published to `error_response` topic
 
 ## 🙏 Acknowledgments
 
