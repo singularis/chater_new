@@ -45,6 +45,7 @@ The system is composed of multiple specialized microservices, each handling spec
 - **chater_gemini**: Google Gemini AI integration service
 - **chater-vision**: Image processing and computer vision service
 - **chater_dlp**: Data Loss Prevention service for sensitive data handling
+- **models_processor**: Local LLM integration using Ollama for self-hosted AI processing
 
 ### Infrastructure Services
 - **chater-operators**: Kubernetes operators for service management
@@ -258,6 +259,20 @@ The system is composed of multiple specialized microservices, each handling spec
 - Privacy compliance
 - Data governance
 
+### 🖥️ models_processor
+**Local LLM Integration**
+- Self-hosted AI model processing using Ollama
+- Privacy-focused local inference
+- Cost-effective AI alternative
+- Offline AI capabilities
+
+**Key Features:**
+- Vision-capable local models (LLaVA, BakLLaVA)
+- Text generation with open-source LLMs
+- Food recognition and analysis locally
+- No external API dependencies
+- Unlimited processing without API costs
+
 ## 🔧 Configuration
 
 ### Service Configuration
@@ -381,6 +396,7 @@ graph TB
         GeminiService[chater_gemini<br/>Gemini Integration]
         Vision[chater-vision<br/>Computer Vision]
         DLP[chater_dlp<br/>Data Loss Prevention]
+        ModelsProcessor[models_processor<br/>Local LLM/Ollama]
     end
     
     subgraph "Management Layer"
@@ -425,15 +441,20 @@ graph TB
     DLP --> Kafka
     DLP --> GCP
     
+    ModelsProcessor --> Kafka
+    ModelsProcessor --> |Ollama| ModelsProcessor
+    
     %% Kafka message flow
     Kafka --> GPTService
     Kafka --> GeminiService
     Kafka --> Vision
     Kafka --> DLP
+    Kafka --> ModelsProcessor
     Kafka --> UI
     Kafka --> Admin
     Kafka --> Auth
     Kafka --> Eater
+    Kafka --> EaterUser
     
     %% Infrastructure management
     Operators --> K8s
@@ -446,11 +467,13 @@ graph TB
     K8s --> GeminiService
     K8s --> Vision
     K8s --> DLP
+    K8s --> ModelsProcessor
     
     %% Data flow
     Redis --> UI
     PostgreSQL --> Admin
     PostgreSQL --> Eater
+    PostgreSQL --> EaterUser
     PostgreSQL --> |alcohol data| UI
     Neo4j --> EaterUser
     
@@ -470,7 +493,7 @@ graph TB
     
     class User userClass
     class UI,Admin,Auth,Eater,EaterUser coreClass
-    class GPTService,GeminiService,Vision,DLP aiClass
+    class GPTService,GeminiService,Vision,DLP,ModelsProcessor aiClass
     class K8s,Kafka,Redis,PostgreSQL,Neo4j infraClass
     class OpenAI,Gemini,GCP,OAuth externalClass
     class Operators mgmtClass
@@ -518,14 +541,25 @@ sequenceDiagram
     
     Note over User,GeminiAPI: Food Tracking Flow
     User->>UI: Upload food photo
-    UI->>Kafka: Publish to chater-vision
-    Kafka->>Vision: Consume message
-    Vision->>GeminiAPI: Analyze image
-    GeminiAPI-->>Vision: Return analysis
-    Vision->>Kafka: Publish analysis result
-    Kafka->>UI: Consume analysis
-    UI->>Eater: Process food data
-    Eater->>DB: Store food record
+    UI->>Kafka: Publish to eater-send-photo
+    
+    alt Cloud Vision Processing
+        Kafka->>Vision: Consume message
+        Vision->>GeminiAPI: Analyze image
+        GeminiAPI-->>Vision: Return analysis
+        Vision->>Kafka: Publish to photo-analysis-response
+    else Local Model Processing
+        Kafka->>ModelsProcessor: Consume message
+        ModelsProcessor->>ModelsProcessor: Ollama vision analysis
+        ModelsProcessor->>Kafka: Publish to photo-analysis-response
+    end
+    
+    Kafka->>Eater: Consume photo-analysis-response
+    Eater->>Eater: Process food data
+    Eater->>DB: Store food record in dishes_day
+    Eater->>DB: Update total_for_day
+    Eater->>Kafka: Publish to send_today_data
+    Kafka->>UI: Consume today's data
     UI-->>User: Display nutritional info
     
     Note over User,GeminiAPI: Authentication Flow
@@ -562,6 +596,175 @@ sequenceDiagram
     Eater-->>UI: 200 OK
     UI-->>User: Language updated
 ```
+
+### Eater Ecosystem Architecture
+Complete food tracking system with all services and data flows:
+
+```mermaid
+graph TB
+    subgraph "User Interface Layer"
+        User[User]
+        WebUI[chater_ui<br/>Web Interface]
+    end
+    
+    subgraph "Message Broker"
+        Kafka[Apache Kafka<br/>Message Bus]
+    end
+    
+    subgraph "Vision Processing Services"
+        Vision[chater-vision<br/>Google Vision API]
+        ModelsProc[models_processor<br/>Ollama Local Models]
+    end
+    
+    subgraph "Core Food Services"
+        Eater[eater<br/>Food Processing Service]
+        EaterUser[eater_user<br/>Social & Sharing Service]
+    end
+    
+    subgraph "Data Storage"
+        PostgreSQL[(PostgreSQL<br/>Food & User Data)]
+        Neo4j[(Neo4j<br/>Friend Graph)]
+    end
+    
+    subgraph "External AI Services"
+        GeminiAPI[Google Gemini API<br/>Vision Analysis]
+        OllamaLocal[Ollama<br/>Local LLM Runtime]
+    end
+    
+    %% User interaction flow
+    User -->|1. Upload photo| WebUI
+    User -->|Share food| WebUI
+    User -->|Search friends| WebUI
+    User -->|Modify record| WebUI
+    
+    %% Photo upload flow
+    WebUI -->|2. Publish photo<br/>eater-send-photo| Kafka
+    
+    %% Vision processing alternatives
+    Kafka -->|3a. Cloud option| Vision
+    Kafka -->|3b. Local option| ModelsProc
+    
+    Vision -->|4a. Analyze image| GeminiAPI
+    GeminiAPI -->|5a. Return analysis| Vision
+    Vision -->|6a. Publish result<br/>photo-analysis-response| Kafka
+    
+    ModelsProc -->|4b. Analyze with Ollama| OllamaLocal
+    OllamaLocal -->|5b. Return analysis| ModelsProc
+    ModelsProc -->|6b. Publish result<br/>photo-analysis-response| Kafka
+    
+    %% Food processing flow
+    Kafka -->|7. Consume analysis| Eater
+    Eater -->|8. Process & validate| Eater
+    Eater -->|9. Store dishes_day| PostgreSQL
+    Eater -->|10. Update total_for_day| PostgreSQL
+    Eater -->|11. Store alcohol data| PostgreSQL
+    Eater -->|12. Publish result<br/>send_today_data| Kafka
+    
+    %% Return to UI
+    Kafka -->|13. Deliver to UI| WebUI
+    WebUI -->|14. Display nutrition| User
+    
+    %% Query flows
+    WebUI -->|Get today's data| Kafka
+    Kafka -->|Query request| Eater
+    Eater -->|Read data| PostgreSQL
+    PostgreSQL -->|Return records| Eater
+    Eater -->|Publish response| Kafka
+    Kafka -->|Deliver data| WebUI
+    
+    %% Modification flow
+    WebUI -->|Modify/Delete<br/>modify_food_record| Kafka
+    Kafka -->|Consume request| Eater
+    Eater -->|Update/Delete| PostgreSQL
+    Eater -->|Confirm change| Kafka
+    Kafka -->|Confirmation| WebUI
+    
+    %% Social features flow
+    WebUI -->|Autocomplete search<br/>WebSocket| EaterUser
+    EaterUser -->|Query users| PostgreSQL
+    PostgreSQL -->|Return matches| EaterUser
+    EaterUser -->|Send results<br/>WebSocket| WebUI
+    
+    WebUI -->|Add friend| EaterUser
+    EaterUser -->|Create relationship| Neo4j
+    Neo4j -->|Confirm| EaterUser
+    EaterUser -->|Success| WebUI
+    
+    WebUI -->|Share food| EaterUser
+    EaterUser -->|Get food record| PostgreSQL
+    EaterUser -->|Calculate portions| EaterUser
+    EaterUser -->|Share to friend<br/>photo-analysis-response| Kafka
+    EaterUser -->|Modify original<br/>modify_food_record| Kafka
+    Kafka -->|Process shared food| Eater
+    Eater -->|Store friend's portion| PostgreSQL
+    
+    %% Weight tracking
+    WebUI -->|Manual weight entry| Kafka
+    Kafka -->|Weight data| Eater
+    Eater -->|Store weight| PostgreSQL
+    
+    %% Alcohol tracking
+    Eater -->|Detect alcohol| Eater
+    Eater -->|Store alcohol_consumption| PostgreSQL
+    Eater -->|Update alcohol_for_day| PostgreSQL
+    WebUI -->|Query alcohol data| Eater
+    Eater -->|Return summary| WebUI
+    
+    %% Language preferences
+    WebUI -->|Set language| Eater
+    Eater -->|Update user table| PostgreSQL
+    
+    %% Styling
+    classDef userLayer fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef serviceLayer fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef visionLayer fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef dataLayer fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef externalLayer fill:#ffebee,stroke:#c62828,stroke-width:2px
+    classDef messageLayer fill:#f1f8e9,stroke:#558b2f,stroke-width:2px
+    
+    class User,WebUI userLayer
+    class Eater,EaterUser serviceLayer
+    class Vision,ModelsProc visionLayer
+    class PostgreSQL,Neo4j dataLayer
+    class GeminiAPI,OllamaLocal externalLayer
+    class Kafka messageLayer
+```
+
+### Eater Data Flow Summary
+
+#### Photo Analysis Flow
+1. **Upload**: User uploads photo via UI
+2. **Routing**: UI publishes to `eater-send-photo` topic
+3. **Vision Processing**: Either cloud (chater-vision + Gemini) or local (models_processor + Ollama)
+4. **Analysis**: Vision service analyzes and extracts food information
+5. **Response**: Published to `photo-analysis-response` topic
+6. **Processing**: Eater service consumes and validates
+7. **Storage**: Stores in `dishes_day` and updates `total_for_day`
+8. **Notification**: Publishes result to `send_today_data` topic
+9. **Display**: UI consumes and shows nutritional information
+
+#### Food Sharing Flow
+1. **Initiate**: User selects food record to share via UI
+2. **Request**: UI calls eater_user service with share details
+3. **Fetch**: eater_user retrieves original food record from PostgreSQL
+4. **Calculate**: Splits food by percentage (e.g., 30% to friend, 70% remains)
+5. **Share**: Publishes friend's portion to `photo-analysis-response`
+6. **Modify**: Publishes modification to `modify_food_record` topic
+7. **Process**: Eater processes both the shared and modified records
+8. **Store**: Updates database with adjusted portions
+
+#### Social Features Flow
+1. **Autocomplete**: WebSocket connection for real-time email search
+2. **Friend Management**: Add/list friends via Neo4j graph database
+3. **Food Sharing**: Share food records between friends with portion calculation
+4. **Privacy**: JWT-protected endpoints ensure authenticated access
+
+#### Data Queries
+- **Today's Data**: Real-time nutritional summaries
+- **Historical Data**: Query by specific date
+- **Alcohol Tracking**: Latest consumption and date ranges
+- **Weight History**: Track weight entries over time
+- **Recommendations**: AI-powered meal suggestions
 
 ## 🙏 Acknowledgments
 
