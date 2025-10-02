@@ -619,7 +619,12 @@ graph TB
     
     subgraph "Vision Processing Layer"
         Vision[👁️ chater-vision<br/>Java Service<br/>Google Vision API]
-        ModelsProc[🤖 models_processor<br/>Python Service<br/>Ollama Integration]
+        ModelsProc[🤖 models_processor<br/>Python Service<br/>Ollama Local LLMs]
+    end
+    
+    subgraph "Chat AI Services Layer"
+        GPTService[💬 chater_gpt<br/>Python Service<br/>OpenAI GPT]
+        GeminiService[✨ chater_gemini<br/>Java Service<br/>Google Gemini]
     end
     
     subgraph "Core Food Services Layer"
@@ -634,8 +639,9 @@ graph TB
     end
     
     subgraph "External Services Layer"
-        GeminiAPI[☁️ Google Gemini API<br/>Vision Analysis]
-        OllamaLocal[🏠 Ollama<br/>Local LLM Runtime<br/>Port: 11434]
+        GeminiAPI[☁️ Google Gemini API<br/>Vision & Chat]
+        OpenAI[☁️ OpenAI API<br/>GPT Models]
+        OllamaLocal[🏠 Ollama<br/>Local LLM Runtime<br/>Port: 11434<br/>Vision & Text]
     end
     
     %% ============ USER INTERACTIONS ============
@@ -666,13 +672,36 @@ graph TB
     Kafka -->|Consume<br/>eater-send-photo| Vision
     Kafka -->|Consume<br/>eater-send-photo| ModelsProc
     
-    Vision -->|API Call<br/>Analyze image| GeminiAPI
-    GeminiAPI -->|Return<br/>Food analysis JSON| Vision
+    Vision -->|Vision API<br/>Analyze image| GeminiAPI
+    GeminiAPI -->|Food analysis JSON| Vision
     Vision -->|Publish<br/>photo-analysis-response| Kafka
     
-    ModelsProc -->|HTTP POST<br/>vision analysis| OllamaLocal
-    OllamaLocal -->|Return<br/>Food analysis| ModelsProc
+    ModelsProc -->|HTTP POST<br/>vision model| OllamaLocal
+    OllamaLocal -->|Food analysis JSON| ModelsProc
     ModelsProc -->|Publish<br/>photo-analysis-response| Kafka
+    
+    %% ============ CHAT FLOWS ============
+    WebUI -->|Publish<br/>gpt-send| Kafka
+    WebUI -->|Publish<br/>gemini-send| Kafka
+    
+    Kafka -->|Consume<br/>gpt-send| GPTService
+    Kafka -->|Consume<br/>gemini-send| GeminiService
+    Kafka -->|Consume<br/>gemini-send| ModelsProc
+    
+    GPTService -->|API Call<br/>Chat completion| OpenAI
+    OpenAI -->|AI response| GPTService
+    GPTService -->|Publish<br/>gpt-response| Kafka
+    
+    GeminiService -->|API Call<br/>Chat completion| GeminiAPI
+    GeminiAPI -->|AI response| GeminiService
+    GeminiService -->|Publish<br/>gemini-response| Kafka
+    
+    ModelsProc -->|HTTP POST<br/>text generation| OllamaLocal
+    OllamaLocal -->|AI response| ModelsProc
+    ModelsProc -->|Publish<br/>gemini-response| Kafka
+    
+    Kafka -->|Consume responses| WebUI
+    WebUI -->|Cache in Redis| Redis
     
     %% ============ FOOD PROCESSING FLOW ============
     Kafka -->|Consume<br/>photo-analysis-response| Eater
@@ -753,6 +782,7 @@ graph TB
     classDef uiClass fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     classDef serviceClass fill:#fff9c4,stroke:#f57f17,stroke-width:2px
     classDef visionClass fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef chatClass fill:#ede7f6,stroke:#5e35b1,stroke-width:2px
     classDef dataClass fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     classDef externalClass fill:#ffebee,stroke:#c62828,stroke-width:2px
     classDef kafkaClass fill:#f1f8e9,stroke:#558b2f,stroke-width:3px
@@ -761,31 +791,41 @@ graph TB
     class WebUI,AdminUI,Redis,MinIO uiClass
     class Eater,EaterUser,EaterInit serviceClass
     class Vision,ModelsProc visionClass
+    class GPTService,GeminiService chatClass
     class PostgreSQL,Neo4j dataClass
-    class GeminiAPI,OllamaLocal externalClass
+    class GeminiAPI,OpenAI,OllamaLocal externalClass
     class Kafka kafkaClass
 ```
 
 ### Eater Data Flow Summary
 
 #### Complete Service Inventory
-**Services**: 8 services + 3 storage systems + 2 external APIs
+**Services**: 10 services + 3 storage systems + 3 external APIs
 - **chater_ui** (Flask, Port 5000) - Main web interface
 - **eater** (Python Kafka Consumer) - Food processing engine
 - **eater_user** (FastAPI, Port 8000) - Social features & sharing
 - **eater_init** (Init Container) - Database schema initialization
 - **chater-vision** (Java) - Cloud vision processing
-- **models_processor** (Python) - Local vision processing
+- **chater_gpt** (Python) - OpenAI GPT integration for chat
+- **chater_gemini** (Java) - Google Gemini integration for chat
+- **models_processor** (Python) - Local LLM (Ollama) for vision & text
 - **admin_service** (Flask, Port 5000) - Admin backend
 - **Kafka** (Port 9092) - Message broker
 - **PostgreSQL** (Port 5432) - Primary database
 - **Neo4j** (Port 7687) - Friend graph database
 - **Redis** (Port 6379) - Session & cache storage
 - **MinIO** - Object storage for photos
-- **Google Gemini API** - Cloud vision analysis
-- **Ollama** (Port 11434) - Local LLM runtime
+- **Google Gemini API** - Cloud vision & chat
+- **OpenAI API** - GPT models for chat
+- **Ollama** (Port 11434) - Local LLM runtime (vision & text)
 
-#### Kafka Topics Used in Eater Ecosystem
+#### Kafka Topics Used in Complete Ecosystem
+**Chat Processing**:
+- `gpt-send` - UI → Kafka → GPT/ModelsProcessor
+- `gpt-response` - GPT/ModelsProcessor → Kafka → UI
+- `gemini-send` - UI → Kafka → Gemini/ModelsProcessor
+- `gemini-response` - Gemini/ModelsProcessor → Kafka → UI
+
 **Photo Processing**:
 - `eater-send-photo` - UI → Kafka → Vision services
 - `photo-analysis-response` - Vision services → Kafka → Eater
