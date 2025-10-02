@@ -658,21 +658,21 @@ graph TB
     WebUI -->|Session mgmt| Redis
     WebUI -->|Cache responses| Redis
     WebUI -->|Store photos| MinIO
-    WebUI -->|Direct SQL<br/>set_user_language()| PostgreSQL
+    WebUI -->|Direct SQL UPDATE<br/>user.language| PostgreSQL
     
     %% ============ PHOTO UPLOAD FLOW ============
-    WebUI -->|Publish<br/>Topic: eater-send-photo<br/>Payload: {photo, prompt}| Kafka
+    WebUI -->|Publish<br/>eater-send-photo| Kafka
     
     Kafka -->|Consume<br/>eater-send-photo| Vision
     Kafka -->|Consume<br/>eater-send-photo| ModelsProc
     
     Vision -->|API Call<br/>Analyze image| GeminiAPI
     GeminiAPI -->|Return<br/>Food analysis JSON| Vision
-    Vision -->|Publish<br/>Topic: photo-analysis-response<br/>Payload: {analysis, user_email}| Kafka
+    Vision -->|Publish<br/>photo-analysis-response| Kafka
     
-    ModelsProc -->|HTTP POST<br/>analyze with vision model| OllamaLocal
-    OllamaLocal -->|Return<br/>Food analysis JSON| ModelsProc
-    ModelsProc -->|Publish<br/>Topic: photo-analysis-response<br/>Payload: {analysis, user_email}| Kafka
+    ModelsProc -->|HTTP POST<br/>vision analysis| OllamaLocal
+    OllamaLocal -->|Return<br/>Food analysis| ModelsProc
+    ModelsProc -->|Publish<br/>photo-analysis-response| Kafka
     
     %% ============ FOOD PROCESSING FLOW ============
     Kafka -->|Consume<br/>photo-analysis-response| Eater
@@ -681,72 +681,72 @@ graph TB
     Eater -->|UPSERT<br/>total_for_day table| PostgreSQL
     Eater -->|INSERT<br/>alcohol_consumption<br/>if detected| PostgreSQL
     Eater -->|UPSERT<br/>alcohol_for_day<br/>if detected| PostgreSQL
-    Eater -->|Publish<br/>Topic: send_today_data<br/>Payload: today's summary| Kafka
+    Eater -->|Publish<br/>send_today_data| Kafka
     
     %% ============ DATA QUERY FLOWS ============
-    WebUI -->|Publish<br/>Topic: get_today_data<br/>Payload: {user_email}| Kafka
-    WebUI -->|Publish<br/>Topic: get_today_data_custom<br/>Payload: {user_email, date}| Kafka
-    WebUI -->|Publish<br/>Topic: get_alcohol_latest<br/>Payload: {user_email}| Kafka
-    WebUI -->|Publish<br/>Topic: get_alcohol_range<br/>Payload: {user_email, start, end}| Kafka
+    WebUI -->|Publish<br/>get_today_data| Kafka
+    WebUI -->|Publish<br/>get_today_data_custom| Kafka
+    WebUI -->|Publish<br/>get_alcohol_latest| Kafka
+    WebUI -->|Publish<br/>get_alcohol_range| Kafka
     
     Kafka -->|Consume<br/>get_today_data| Eater
     Kafka -->|Consume<br/>get_today_data_custom| Eater
     Kafka -->|Consume<br/>get_alcohol_latest| Eater
     Kafka -->|Consume<br/>get_alcohol_range| Eater
     
-    Eater -->|SELECT<br/>FROM dishes_day<br/>WHERE user_email & date| PostgreSQL
-    Eater -->|SELECT<br/>FROM total_for_day<br/>WHERE user_email & date| PostgreSQL
-    Eater -->|SELECT<br/>FROM alcohol_for_day<br/>WHERE user_email & date| PostgreSQL
-    Eater -->|SELECT<br/>FROM alcohol_consumption<br/>WHERE user_email & date range| PostgreSQL
+    Eater -->|SELECT dishes_day<br/>by user and date| PostgreSQL
+    Eater -->|SELECT total_for_day<br/>by user and date| PostgreSQL
+    Eater -->|SELECT alcohol_for_day<br/>by user and date| PostgreSQL
+    Eater -->|SELECT alcohol_consumption<br/>by date range| PostgreSQL
     
     PostgreSQL -->|Return rows| Eater
-    Eater -->|Publish<br/>Topic: send_today_data<br/>Payload: food records| Kafka
-    Eater -->|Publish<br/>Topic: send_alcohol_latest<br/>Payload: alcohol summary| Kafka
-    Eater -->|Publish<br/>Topic: send_alcohol_range<br/>Payload: alcohol events| Kafka
+    Eater -->|Publish<br/>send_today_data| Kafka
+    Eater -->|Publish<br/>send_alcohol_latest| Kafka
+    Eater -->|Publish<br/>send_alcohol_range| Kafka
     
-    Kafka -->|Consume via<br/>background service| WebUI
-    WebUI -->|Cache in Redis<br/>key: message_id| Redis
-    WebUI -->|Poll Redis<br/>get_user_message_response()| Redis
+    Kafka -->|Background service| WebUI
+    WebUI -->|Cache by message_id| Redis
+    WebUI -->|Poll for response| Redis
     
     %% ============ MODIFICATION FLOWS ============
-    WebUI -->|Publish<br/>Topic: modify_food_record<br/>Payload: {time, percentage}| Kafka
-    WebUI -->|Publish<br/>Topic: delete_food<br/>Payload: {time}| Kafka
-    WebUI -->|Publish<br/>Topic: manual_weight<br/>Payload: {weight}| Kafka
-    WebUI -->|Publish<br/>Topic: get_recommendation<br/>Payload: {days}| Kafka
+    WebUI -->|Publish<br/>modify_food_record| Kafka
+    WebUI -->|Publish<br/>delete_food| Kafka
+    WebUI -->|Publish<br/>manual_weight| Kafka
+    WebUI -->|Publish<br/>get_recommendation| Kafka
     
     Kafka -->|Consume<br/>modify_food_record| Eater
     Kafka -->|Consume<br/>delete_food| Eater
     Kafka -->|Consume<br/>manual_weight| Eater
     Kafka -->|Consume<br/>get_recommendation| Eater
     
-    Eater -->|UPDATE dishes_day<br/>SET calories, weight<br/>by percentage| PostgreSQL
-    Eater -->|DELETE FROM dishes_day<br/>WHERE time| PostgreSQL
-    Eater -->|INSERT INTO weight<br/>VALUES| PostgreSQL
-    Eater -->|SELECT last N days<br/>for recommendation| PostgreSQL
+    Eater -->|UPDATE dishes_day<br/>scale by percentage| PostgreSQL
+    Eater -->|DELETE FROM dishes_day| PostgreSQL
+    Eater -->|INSERT INTO weight| PostgreSQL
+    Eater -->|SELECT last N days| PostgreSQL
     
     %% ============ SOCIAL FEATURES FLOW ============
-    EaterUser -->|Real-time<br/>SELECT email<br/>FROM user<br/>WHERE email LIKE %query%| PostgreSQL
-    EaterUser -->|CREATE relationship<br/>Neo4j Cypher| Neo4j
-    EaterUser -->|GET friends<br/>MATCH (u)-[:FRIEND]->(f)| Neo4j
+    EaterUser -->|SELECT email<br/>LIKE query| PostgreSQL
+    EaterUser -->|CREATE FRIEND<br/>relationship| Neo4j
+    EaterUser -->|MATCH friends<br/>via graph| Neo4j
     
-    EaterUser -->|Sharing:<br/>SELECT FROM dishes_day<br/>WHERE time| PostgreSQL
-    EaterUser -->|Calculate portions<br/>Split by percentage| EaterUser
-    EaterUser -->|Friend portion<br/>Publish to photo-analysis-response| Kafka
-    EaterUser -->|Original modification<br/>Publish to modify_food_record| Kafka
+    EaterUser -->|SELECT dishes_day<br/>by time| PostgreSQL
+    EaterUser -->|Calculate portions<br/>split by percentage| EaterUser
+    EaterUser -->|Publish friend portion<br/>photo-analysis-response| Kafka
+    EaterUser -->|Publish modification<br/>modify_food_record| Kafka
     
     %% ============ INIT FLOW ============
     EaterInit -->|Run once on startup<br/>CREATE TABLES<br/>CREATE INDEXES<br/>pg_trgm extension| PostgreSQL
     
     %% ============ ADMIN FLOW ============
-    AdminUI -->|Consume<br/>Topic: feedback| Kafka
-    AdminUI -->|INSERT feedback<br/>admin_data table| PostgreSQL
-    WebUI -->|Publish<br/>Topic: feedback<br/>Payload: user feedback| Kafka
+    AdminUI -->|Consume<br/>feedback topic| Kafka
+    AdminUI -->|INSERT INTO<br/>admin_data| PostgreSQL
+    WebUI -->|Publish<br/>feedback topic| Kafka
     
     %% ============ RETURN FLOWS ============
-    Kafka -->|Responses consumed<br/>by background thread| WebUI
+    Kafka -->|Background thread<br/>consumes responses| WebUI
     WebUI -->|Display to user| User
-    EaterUser -->|WebSocket<br/>Real-time results| User
-    EaterUser -->|HTTP Response<br/>Protobuf| User
+    EaterUser -->|WebSocket results| User
+    EaterUser -->|HTTP Protobuf| User
     
     %% ============ STYLING ============
     classDef userClass fill:#e1f5fe,stroke:#0277bd,stroke-width:3px
