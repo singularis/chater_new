@@ -1,16 +1,26 @@
 import logging
 import threading
 
-from app.trnd_processor import (_generate_and_cache_recommendation_background,
-                                cache_recommendation,
-                                get_cached_recommendation)
+from app.trnd_processor import (
+    _generate_and_cache_recommendation_background,
+    cache_recommendation,
+    get_cached_recommendation,
+)
 from local_models_helper import LocalModelService
 
-from .food_operations import (delete_food, get_alcohol_latest,
-                              get_alcohol_range, manual_weight,
-                              modify_food_record)
-from .getter_eater import (eater_auth_token, eater_get_custom_date,
-                           eater_get_today, get_recommendation)
+from .food_operations import (
+    delete_food,
+    get_alcohol_latest,
+    get_alcohol_range,
+    manual_weight,
+    modify_food_record,
+)
+from .getter_eater import (
+    eater_auth_token,
+    eater_get_custom_date,
+    eater_get_today,
+    get_recommendation,
+)
 from .language import set_language_handler
 from .process_photo import eater_get_photo
 

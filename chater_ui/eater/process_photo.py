@@ -5,8 +5,9 @@ import threading
 import uuid
 from datetime import datetime
 
-from common import get_prompt, get_respond_in_language, resize_image
 from flask import current_app, jsonify, request
+
+from common import get_prompt, get_respond_in_language, resize_image
 from kafka_consumer_service import get_user_message_response
 from kafka_producer import KafkaDispatchError, send_kafka_message
 from minio_utils import put_bytes

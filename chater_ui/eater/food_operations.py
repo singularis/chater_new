@@ -2,11 +2,16 @@ import logging
 import uuid
 
 from flask import jsonify
+
 from kafka_consumer_service import get_user_message_response
 from kafka_producer import KafkaDispatchError, send_kafka_message
 
-from .proto import (alcohol_pb2, delete_food_pb2, manual_weight_pb2,
-                    modify_food_record_pb2)
+from .proto import (
+    alcohol_pb2,
+    delete_food_pb2,
+    manual_weight_pb2,
+    modify_food_record_pb2,
+)
 
 logger = logging.getLogger(__name__)
 

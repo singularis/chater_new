@@ -1,8 +1,9 @@
 import os
 from datetime import datetime
 
-from postgres import Session, engine, ensure_table_exists
 from sqlalchemy import text
+
+from postgres import Session, engine, ensure_table_exists
 
 USER_TABLE_SQL = """
     CREATE TABLE IF NOT EXISTS "user" (

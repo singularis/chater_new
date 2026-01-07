@@ -2,8 +2,7 @@ import logging
 from datetime import datetime
 
 from common import create_multilingual_prompt, json_to_plain_text
-from kafka_consumer_service import (get_message_response,
-                                    get_user_message_response)
+from kafka_consumer_service import get_message_response, get_user_message_response
 from kafka_producer import KafkaDispatchError, send_kafka_message
 
 from .proto import custom_date_food_pb2, get_recomendation_pb2, today_food_pb2

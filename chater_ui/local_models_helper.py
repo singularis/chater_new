@@ -2,6 +2,7 @@ import logging
 import os
 
 import requests
+
 from common import create_multilingual_prompt
 from user import get_user_model_tier
 
@@ -54,7 +55,9 @@ class LocalModelService:
                 prompt = prompt + "_local"
             else:
                 prompt = prompt
-            return create_multilingual_prompt(prompt, user_email, is_add_lang_instruction=False)
+            return create_multilingual_prompt(
+                prompt, user_email, is_add_lang_instruction=False
+            )
         except Exception as e:
             logger.error("Error getting user prompt: %s", e)
             return prompt

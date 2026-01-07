@@ -14,6 +14,7 @@ import redis
 import yaml
 from flask import flash, jsonify, redirect, request, url_for
 from PIL import Image
+
 from user import get_user_language, update_user_activity
 
 logger = logging.getLogger(__name__)
@@ -236,7 +237,9 @@ def get_respond_in_language(user_email: str) -> str:
         return "en"
 
 
-def create_multilingual_prompt(base_prompt_key: str, user_email: str, is_add_lang_instruction: bool = True) -> str:
+def create_multilingual_prompt(
+    base_prompt_key: str, user_email: str, is_add_lang_instruction: bool = True
+) -> str:
     """
     Create a multilingual prompt by combining a base prompt with language instructions.
 

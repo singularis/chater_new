@@ -3,8 +3,9 @@ import logging
 import re
 import uuid
 
-from common import sanitize_question
 from flask import flash, redirect, render_template, request, url_for
+
+from common import sanitize_question
 from kafka_consumer_service import get_message_response
 from kafka_producer import KafkaDispatchError, send_kafka_message
 

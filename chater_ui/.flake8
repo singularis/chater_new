@@ -1,0 +1,16 @@
+[flake8]
+max-line-length = 88
+exclude = 
+    .git,
+    __pycache__,
+    build,
+    dist,
+    .venv,
+    venv,
+    .eggs,
+    *.egg,
+    .pytest_cache,
+    .mypy_cache,
+    node_modules,
+    eater/proto/*_pb2.py,
+    *_pb2.py
