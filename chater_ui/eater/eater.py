@@ -1,5 +1,9 @@
 import logging
+import threading
 
+from app.trnd_processor import (_generate_and_cache_recommendation_background,
+                                cache_recommendation,
+                                get_cached_recommendation)
 from local_models_helper import LocalModelService
 
 from .food_operations import (delete_food, get_alcohol_latest,
@@ -21,6 +25,18 @@ def eater_photo(user_email):
             user_email=user_email, local_model_service=local_model_service
         )
         logger.debug("Photo confirmation payload: %s", photo_confirmation)
+
+        if photo_confirmation == "Success":
+            logger.info(
+                "Photo processed successfully, triggering background recommendation for user: %s",
+                user_email,
+            )
+            threading.Thread(
+                target=_generate_and_cache_recommendation_background,
+                args=(user_email,),
+                daemon=True,
+            ).start()
+
         return photo_confirmation
     except Exception as exc:
         logger.exception("Photo processing failed for user %s", user_email)
@@ -65,14 +81,31 @@ def modify_food_record_data(request, user_email):
         return "Failed"
 
 
-def get_recommendations(request, user_email):
+def get_recommendations(request, user_email, skip_cache: bool = False):
     logger.info("Generating recommendations", extra={"user_email": user_email})
     try:
-        return get_recommendation(
+        # Check cache first (unless explicitly skipped)
+        if not skip_cache:
+            cached = get_cached_recommendation(user_email)
+            if cached:
+                logger.info("Returning cached recommendation for user: %s", user_email)
+                return cached, 200, {"Content-Type": "application/protobuf"}
+
+        # Cache miss or skip_cache - generate fresh recommendation
+        logger.debug("Generating fresh recommendation for user: %s", user_email)
+        result = get_recommendation(
             request=request,
             user_email=user_email,
             local_model_service=local_model_service,
         )
+
+        # Cache the result if successful
+        if result and isinstance(result, tuple) and len(result) >= 2:
+            data, status_code = result[0], result[1]
+            if status_code == 200 and data:
+                cache_recommendation(user_email, data)
+
+        return result
     except Exception:
         logger.exception("Failed to generate recommendations for user %s", user_email)
         return "Failed"
