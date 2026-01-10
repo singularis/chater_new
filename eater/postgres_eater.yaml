@@ -55,8 +55,7 @@
                     topologyKey: kubernetes.io/hostname
             tolerations:
               - key: gpu-only
-                operator: Equal
-                value: "true"
+                operator: Exists
                 effect: NoSchedule
       register: result
     - name: Create local directory for eater-postgres
