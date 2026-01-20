@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+message FoodHealthLevelRequest {
+  int64 time = 1;
+  string food_name = 2;
+}
+
+message FoodHealthLevelResponse {
+  string title = 1;
+  string description = 2;
+  string health_summary = 3;
+}

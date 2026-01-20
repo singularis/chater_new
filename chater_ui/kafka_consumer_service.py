@@ -37,6 +37,7 @@ class KafkaConsumerService:
             "add_auth_token": {"name": "add_auth_token"},
             "send_alcohol_latest": {"name": "send_alcohol_latest"},
             "send_alcohol_range": {"name": "send_alcohol_range"},
+            "send_food_health_level": {"name": "send_food_health_level"},
         }
 
     def create_consumer(self, topics):

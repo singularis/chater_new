@@ -22,7 +22,10 @@ DATABASE_URL = f"postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}"
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
-    pool_recycle=1800,
+    pool_recycle=300,
+    pool_size=5,
+    max_overflow=10,
+    pool_timeout=30,
 )
 
 Base = declarative_base()
@@ -42,6 +45,8 @@ class DishesDay(Base):
     estimated_avg_calories = Column(Integer)
     ingredients = Column(ARRAY(String))
     total_avg_weight = Column(Integer)
+    health_rating = Column(Integer)
+    food_health_level = Column(String)
     contains = Column(JSON)
     user_email = Column(String, nullable=False)
 
@@ -120,6 +125,12 @@ def write_to_dish_day(
                 estimated_avg_calories = message.get("estimated_avg_calories")
                 ingredients = message.get("ingredients")
                 total_avg_weight = message.get("total_avg_weight")
+                health_rating = message.get("health_rating", 0)
+                food_health_level_data = message.get("food_health_level")
+                food_health_level_str = None
+                if food_health_level_data:
+                    import json
+                    food_health_level_str = json.dumps(food_health_level_data)
                 contains = message.get("contains")
 
                 # Insert the new dish entry
@@ -130,6 +141,8 @@ def write_to_dish_day(
                     estimated_avg_calories=estimated_avg_calories,
                     ingredients=ingredients,
                     total_avg_weight=total_avg_weight,
+                    health_rating=health_rating,
+                    food_health_level=food_health_level_str,
                     contains=contains,
                     user_email=user_email,
                 )
@@ -345,6 +358,7 @@ def get_today_dishes(user_email: str = None):
                     "dish_name": dish.dish_name,
                     "estimated_avg_calories": dish.estimated_avg_calories,
                     "total_avg_weight": dish.total_avg_weight,
+                    "health_rating": dish.health_rating if dish.health_rating is not None else -1,
                     "ingredients": dish.ingredients,
                 }
                 for dish in dishes_today
@@ -414,16 +428,36 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
                 .filter(TotalForDay.user_email == user_email)
                 .first()
             )
+            dishes_today = (
+                session.query(DishesDay)
+                .filter(DishesDay.date == formatted_date)
+                .filter(DishesDay.user_email == user_email)
+                .all()
+            )
+            dishes_list = [
+                {
+                    "time": dish.time,
+                    "dish_name": dish.dish_name,
+                    "estimated_avg_calories": dish.estimated_avg_calories,
+                    "total_avg_weight": dish.total_avg_weight,
+                    "health_rating": dish.health_rating if dish.health_rating is not None else -1,
+                    "ingredients": dish.ingredients,
+                    "food_health_level": dish.food_health_level,
+                }
+                for dish in dishes_today
+            ]
+
             if not total_data:
                 logger.debug(f"No data found in total_for_day for {formatted_date}")
+                # Calculate summary from dishes if total_for_day is missing
+                cal_sum = sum(d.estimated_avg_calories for d in dishes_today)
+                weight_sum = sum(d.total_avg_weight for d in dishes_today)
+                
                 total_for_day_data = {
-                    "total_calories": 0,
-                    "total_avg_weight": (
-                        closest_weight_entry.weight if closest_weight_entry else 0
-                    ),
+                    "total_calories": cal_sum,
+                    "total_avg_weight": weight_sum,
                     "contains": {},
                 }
-                dishes_list = []
                 result = {
                     "total_for_day": total_for_day_data,
                     "dishes_today": dishes_list,
@@ -440,22 +474,7 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
                 "total_avg_weight": total_data.total_avg_weight,
                 "contains": total_data.contains,
             }
-            dishes_today = (
-                session.query(DishesDay)
-                .filter(DishesDay.date == formatted_date)
-                .filter(DishesDay.user_email == user_email)
-                .all()
-            )
-            dishes_list = [
-                {
-                    "time": dish.time,
-                    "dish_name": dish.dish_name,
-                    "estimated_avg_calories": dish.estimated_avg_calories,
-                    "total_avg_weight": dish.total_avg_weight,
-                    "ingredients": dish.ingredients,
-                }
-                for dish in dishes_today
-            ]
+            # dishes_today and dishes_list already fetched above
             result = {
                 "total_for_day": total_for_day_data,
                 "dishes_today": dishes_list,
@@ -618,6 +637,7 @@ def get_dishes(days, user_email: str = None):
                     "dish_name": dish.dish_name,
                     "estimated_avg_calories": dish.estimated_avg_calories,
                     "total_avg_weight": dish.total_avg_weight,
+                    "health_rating": dish.health_rating if dish.health_rating is not None else -1,
                     "ingredients": dish.ingredients,
                     "contains": dish.contains,
                 }
@@ -685,3 +705,25 @@ def get_alcohol_events_in_range(start_date: str, end_date: str, user_email: str 
     except Exception as e:
         logger.error(f"Error retrieving alcohol events: {e}")
         return []
+
+
+def get_food_health_level(time_value: int, user_email: str = None):
+    """
+    Get the food_health_level for a specific dish by time.
+    Returns None if not found or no health level stored.
+    """
+    try:
+        with get_db_session() as session:
+            dish = (
+                session.query(DishesDay)
+                .filter(DishesDay.time == time_value)
+                .filter(DishesDay.user_email == user_email)
+                .first()
+            )
+            if dish and dish.food_health_level:
+                import json
+                return json.loads(dish.food_health_level)
+            return None
+    except Exception as e:
+        logger.error(f"Error retrieving food_health_level: {e}")
+        return None

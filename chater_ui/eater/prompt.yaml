@@ -13,6 +13,19 @@ default_prompt: |
   "estimated_avg_calories": <integer>,
   "ingredients": ["<ingredient1>", "..."],
   "total_avg_weight": <integer>,
+  "health_rating": <integer>,
+  "food_health_level": {
+    "title": "<short category title, e.g. High Protein, Balanced Meal, Unhealthy>",
+    "description": "<1-2 sentence description of the health aspects>",
+    "health_summary": [
+      {
+        "ingredients": "<ingredient name>",
+        "description": "<detailed description>",
+        "risk": "<specific risk (if harmful)>",
+        "benefit": "<specific benefit (if healthy)>"
+      }
+    ]
+  },
   "contains": {
   "proteins": <integer>,
   "fats": <integer>,
@@ -26,6 +39,21 @@ default_prompt: |
   Calorie and macro values must reflect a realistic scenario: full-fat ingredients, all oils absorbed, and sauces fully consumed. Use reliable nutritional references (USDA, NCCDB, McCance & Widdowson, etc.).
   Keys must appear precisely in the order shown. Do not include special characters like @, #, $, %, ^, &, *, (, ), [, ], {, }, |, \, ' in the response, food names, ingredients, etc
   Nutritional Logic:
+  Health Rating Logic:
+  Assign a health_rating integer from 0 (Unhealthy) to 10 (Healthy) based on:
+   - 0-3: High processed sugar, trans fats, deep-fried, empty calories (e.g., candy, soda, deep-fried fast food).
+   - 4-6: Moderate nutritional value, mixed healthy/unhealthy elements (e.g., sandwich with white bread, pasta with cream sauce).
+   - 7-10: Nutrient-dense, whole foods, balanced macros, fiber-rich (e.g., salad with lean protein, grilled fish with vegetables, fresh fruit).
+  Food Health Level Logic:
+  Generate 'food_health_level' object with:
+   - title: Short category with Emoji (Max 4 words). e.g., "High Sugar 🍭", "Protein Power 💪".
+   - description: Engaging, friendly summary (Max 20 words). Use simple, vivid language.
+   - health_summary: List of key elements. Focus on visual readability.
+     - ingredients: Name with Emoji (e.g., "Added Sugar 🍬").
+     - description: Max 10 words. Simple, relatable impact (e.g., "Fast energy but crash later").
+     - risk: (Optional) Max 5 words. Gentle concern (e.g., "Blood Sugar Spike 📉").
+     - benefit: (Optional) Max 5 words. Clear win (e.g., "Good for Digestion 🧘").
+     - CONSTRAINT: Each item must have EITHER 'risk' OR 'benefit'. Use Emojis to make it visual and not boring.
   Base all estimates on reliable nutritional references (e.g., USDA FoodData Central, NCCDB).
   Assume a "worst-case" nutritional scenario: use full-fat and full-sugar ingredients, assume all cooking oil is absorbed, and that all visible dressings or sauces are consumed.
   Portion Size Estimation Hierarchy:

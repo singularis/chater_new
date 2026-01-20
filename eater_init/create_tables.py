@@ -50,6 +50,8 @@ class DishesDay(Base):
     estimated_avg_calories = Column(Integer, nullable=False)
     ingredients = Column(ARRAY(String), nullable=False)
     total_avg_weight = Column(Integer, nullable=False)
+    health_rating = Column(Integer, nullable=True)
+    food_health_level = Column(String, nullable=True)
     contains = Column(JSON, nullable=False)
     user_email = Column(String, nullable=False)
 
@@ -428,6 +430,12 @@ def create_tables():
                         IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'dishes_day') THEN
                             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'dishes_day' AND column_name = 'user_email') THEN
                                 ALTER TABLE public.dishes_day ADD COLUMN user_email VARCHAR NOT NULL;
+                            END IF;
+                            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'dishes_day' AND column_name = 'health_rating') THEN
+                                ALTER TABLE public.dishes_day ADD COLUMN health_rating INTEGER;
+                            END IF;
+                            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'dishes_day' AND column_name = 'food_health_level') THEN
+                                ALTER TABLE public.dishes_day ADD COLUMN food_health_level VARCHAR;
                             END IF;
                         END IF;
 

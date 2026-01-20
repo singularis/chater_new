@@ -39,7 +39,9 @@ from eater.eater import (
     get_recommendations,
     manual_weight_record,
     modify_food_record_data,
+    modify_food_record_data,
     set_language,
+    food_health_level,
 )
 from eater.feedback import submit_feedback_request
 from eater_admin import eater_admin_proxy, eater_admin_request
@@ -334,6 +336,13 @@ def eater_admin_proxy_route(resource_path):
 @token_required
 def set_language_route(user_email):
     return set_language(request=request, user_email=user_email)
+
+
+@app.route("/food_health_level", methods=["POST"])
+@track_eater_operation("food_health_level")
+@token_required
+def get_food_health_level(user_email):
+    return food_health_level(request=request, user_email=user_email)
 
 
 @app.route("/metrics")

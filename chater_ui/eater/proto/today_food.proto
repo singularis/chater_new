@@ -13,6 +13,7 @@ message Dish {
   int32 estimated_avg_calories = 3;
   repeated string ingredients = 4;
   int32 total_avg_weight = 5;
+  int32 health_rating = 6;
 }
 
 message TotalForDay {

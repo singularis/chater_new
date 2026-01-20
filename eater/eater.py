@@ -8,7 +8,7 @@ from kafka_producer import produce_message
 from logging_config import setup_logging
 from postgres import (AlcoholConsumption, AlcoholForDay, delete_food,
                       get_alcohol_events_in_range, get_custom_date_dishes,
-                      get_today_dishes, modify_food)
+                      get_today_dishes, modify_food, get_food_health_level)
 from process_gpt import get_recommendation, process_food, process_weight
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,7 @@ def process_messages():
         "manual_weight",
         "get_alcohol_latest",
         "get_alcohol_range",
+        "get_food_health_level",
     ]
     logger.info(f"Starting message processing with topics: {topics}")
     while True:
@@ -207,6 +208,26 @@ def process_messages():
                         logger.warning(
                             f"Unknown message type '{message_type}' in manual_weight for user {user_email}"
                         )
+                elif message.topic() == "get_food_health_level":
+                    request_data = value_dict.get("value", {})
+                    time_value = request_data.get("time")
+                    food_name = request_data.get("food_name")
+                    logger.debug(
+                        f"Received food health level request for user {user_email}: time={time_value}, food_name={food_name}"
+                    )
+                    food_health_level = get_food_health_level(
+                        time_value=time_value, user_email=user_email
+                    )
+                    produce_message(
+                        topic="send_food_health_level",
+                        message={
+                            "key": message_key,
+                            "value": {
+                                "food_health_level": food_health_level or {},
+                                "user_email": user_email,
+                            },
+                        },
+                    )
             except Exception as e:
                 logger.error(
                     f"Failed to process message for user {user_email}: {e}, message {value_dict}"

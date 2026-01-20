@@ -19,7 +19,9 @@ from .getter_eater import (
     eater_auth_token,
     eater_get_custom_date,
     eater_get_today,
+    eater_get_today,
     get_recommendation,
+    eater_get_food_health_level,
 )
 from .language import set_language_handler
 from .process_photo import eater_get_photo
@@ -166,3 +168,13 @@ def set_language(request, user_email):
     except Exception:
         logger.exception("Failed to set language for user %s", user_email)
         return "Failed"
+
+
+def food_health_level(request, user_email):
+    logger.info("Fetching food health level", extra={"user_email": user_email})
+    try:
+        return eater_get_food_health_level(request=request, user_email=user_email)
+    except Exception:
+        logger.exception("Failed to fetch food health level for user %s", user_email)
+        return "Failed"
+
