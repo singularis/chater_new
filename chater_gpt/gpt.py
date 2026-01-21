@@ -118,6 +118,7 @@ def process_messages():
                     prompt = actual_value.get("prompt")
                     photo_base64 = actual_value.get("photo")
                     user_email = actual_value.get("user_email")
+                    image_id = actual_value.get("image_id")
                     if prompt and photo_base64:
                         photo_analysis_result = analyze_photo(prompt, photo_base64)
                         kafka_message = {
@@ -125,6 +126,7 @@ def process_messages():
                             "value": {
                                 "analysis": photo_analysis_result,
                                 "user_email": user_email,
+                                "image_id": image_id,
                             },
                         }
                         produce_message("photo-analysis-response", kafka_message)

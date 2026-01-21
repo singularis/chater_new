@@ -2,7 +2,6 @@ import logging
 import uuid
 
 from flask import jsonify, request
-
 from kafka_producer import KafkaDispatchError, send_kafka_message
 
 from .proto import feedback_pb2

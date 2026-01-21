@@ -8,7 +8,7 @@ from kafka_producer import produce_message
 from logging_config import setup_logging
 from postgres import (AlcoholConsumption, AlcoholForDay, delete_food,
                       get_alcohol_events_in_range, get_custom_date_dishes,
-                      get_today_dishes, modify_food, get_food_health_level)
+                      get_food_health_level, get_today_dishes, modify_food)
 from process_gpt import get_recommendation, process_food, process_weight
 
 logger = logging.getLogger(__name__)
@@ -65,6 +65,9 @@ def process_messages():
                     else:
                         json_response = gpt_response
 
+                    # Preserve image_id from original message before parsing nested analysis
+                    original_image_id = json_response.get("image_id")
+
                     # Parse nested analysis if present
                     if "analysis" in json_response:
                         json_response = json.loads(json_response.get("analysis"))
@@ -91,6 +94,11 @@ def process_messages():
                             logger.debug(
                                 f"Received food_process for user {user_email}: {json_response}"
                             )
+                            # Ensure image_id is passed to process_food
+                            # Use preserved original_image_id, or message_key as last fallback
+                            if "image_id" not in json_response:
+                                json_response["image_id"] = original_image_id or message_key
+
                             process_food(json_response, user_email)
                         elif type_of_processing == "weight_processing":
                             process_weight(json_response, user_email)

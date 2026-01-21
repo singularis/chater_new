@@ -5,9 +5,8 @@ import threading
 import uuid
 from datetime import datetime
 
-from flask import current_app, jsonify, request
-
 from common import get_prompt, get_respond_in_language, resize_image
+from flask import current_app, jsonify, request
 from kafka_consumer_service import get_user_message_response
 from kafka_producer import KafkaDispatchError, send_kafka_message
 from minio_utils import put_bytes
@@ -73,6 +72,7 @@ def eater_get_photo(user_email, local_model_service):
                 user_email,
                 message_id,
                 local_model_service,
+                image_path=object_name,
             )
         except KafkaDispatchError as kafka_error:
             logger.error(
@@ -155,6 +155,7 @@ def _dispatch_photo_message(
     message_id,
     local_model_service,
     topic="eater-send-photo",
+    image_path=None,
 ):
     photo_uuid = message_id or str(uuid.uuid4())
     clear_prompt = get_prompt(type_of_processing)
@@ -164,10 +165,15 @@ def _dispatch_photo_message(
         prompt = f"{clear_prompt}\n {lang_instruction}\n Target language: {user_lang} "
     except Exception:
         pass
+
+    # Use image_path (MinIO object name) as image_id if valid, else use uuid
+    image_id_to_send = image_path if image_path else photo_uuid
+
     payload = {
         "prompt": prompt,
         "photo": photo_base64,
         "user_email": user_email,
+        "image_id": image_id_to_send,
     }
     logger.debug("Food image %s queued for user %s", photo_uuid, user_email)
     destination_topic = topic

@@ -54,6 +54,7 @@ class DishesDay(Base):
     food_health_level = Column(String, nullable=True)
     contains = Column(JSON, nullable=False)
     user_email = Column(String, nullable=False)
+    image_id = Column(String, nullable=True)
 
 
 class TotalForDay(Base):
@@ -119,17 +120,13 @@ def verify_indexes(connection):
             "alcohol_consumption",
             "alcohol_for_day",
         ]:
-            result = connection.execute(
-                text(
-                    f"""
+            result = connection.execute(text(f"""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
                     WHERE table_schema = 'public' 
                     AND table_name = '{table_name}'
                 )
-            """
-                )
-            )
+            """))
             if result.fetchone()[0]:
                 existing_tables.append(table_name)
 
@@ -145,15 +142,11 @@ def verify_indexes(connection):
             ]
             logger.info("Verifying user table indexes...")
             for index_name in user_indexes:
-                result = connection.execute(
-                    text(
-                        f"""
+                result = connection.execute(text(f"""
                     SELECT indexname 
                     FROM pg_indexes 
                     WHERE indexname = '{index_name}'
-                """
-                    )
-                )
+                """))
                 if result.fetchone():
                     logger.info(f"✓ Index {index_name} verified")
                 else:
@@ -170,15 +163,11 @@ def verify_indexes(connection):
             ]
             logger.info("Verifying dishes_day table indexes...")
             for index_name in dishes_day_indexes:
-                result = connection.execute(
-                    text(
-                        f"""
+                result = connection.execute(text(f"""
                     SELECT indexname 
                     FROM pg_indexes 
                     WHERE indexname = '{index_name}'
-                """
-                    )
-                )
+                """))
                 if result.fetchone():
                     logger.info(f"✓ Index {index_name} verified")
                 else:
@@ -193,15 +182,11 @@ def verify_indexes(connection):
             ]
             logger.info("Verifying total_for_day table indexes...")
             for index_name in total_for_day_indexes:
-                result = connection.execute(
-                    text(
-                        f"""
+                result = connection.execute(text(f"""
                     SELECT indexname 
                     FROM pg_indexes 
                     WHERE indexname = '{index_name}'
-                """
-                    )
-                )
+                """))
                 if result.fetchone():
                     logger.info(f"✓ Index {index_name} verified")
                 else:
@@ -217,15 +202,11 @@ def verify_indexes(connection):
             ]
             logger.info("Verifying weight table indexes...")
             for index_name in weight_indexes:
-                result = connection.execute(
-                    text(
-                        f"""
+                result = connection.execute(text(f"""
                     SELECT indexname 
                     FROM pg_indexes 
                     WHERE indexname = '{index_name}'
-                """
-                    )
-                )
+                """))
                 if result.fetchone():
                     logger.info(f"✓ Index {index_name} verified")
                 else:
@@ -241,15 +222,11 @@ def verify_indexes(connection):
             ]
             logger.info("Verifying alcohol_consumption table indexes...")
             for index_name in alcohol_consumption_indexes:
-                result = connection.execute(
-                    text(
-                        f"""
+                result = connection.execute(text(f"""
                     SELECT indexname 
                     FROM pg_indexes 
                     WHERE indexname = '{index_name}'
-                """
-                    )
-                )
+                """))
                 if result.fetchone():
                     logger.info(f"✓ Index {index_name} verified")
                 else:
@@ -263,15 +240,11 @@ def verify_indexes(connection):
             ]
             logger.info("Verifying alcohol_for_day table indexes...")
             for index_name in alcohol_for_day_indexes:
-                result = connection.execute(
-                    text(
-                        f"""
+                result = connection.execute(text(f"""
                     SELECT indexname 
                     FROM pg_indexes 
                     WHERE indexname = '{index_name}'
-                """
-                    )
-                )
+                """))
                 if result.fetchone():
                     logger.info(f"✓ Index {index_name} verified")
                 else:
@@ -282,15 +255,11 @@ def verify_indexes(connection):
             dishes_indexes = ["idx_dishes_user_email", "idx_dishes_name"]
             logger.info("Verifying dishes table indexes...")
             for index_name in dishes_indexes:
-                result = connection.execute(
-                    text(
-                        f"""
+                result = connection.execute(text(f"""
                     SELECT indexname 
                     FROM pg_indexes 
                     WHERE indexname = '{index_name}'
-                """
-                    )
-                )
+                """))
                 if result.fetchone():
                     logger.info(f"✓ Index {index_name} verified")
                 else:
@@ -301,15 +270,11 @@ def verify_indexes(connection):
             admin_data_indexes = ["idx_admin_data_user_email"]
             logger.info("Verifying admin_data table indexes...")
             for index_name in admin_data_indexes:
-                result = connection.execute(
-                    text(
-                        f"""
+                result = connection.execute(text(f"""
                     SELECT indexname 
                     FROM pg_indexes 
                     WHERE indexname = '{index_name}'
-                """
-                    )
-                )
+                """))
                 if result.fetchone():
                     logger.info(f"✓ Index {index_name} verified")
                 else:
@@ -320,15 +285,11 @@ def verify_indexes(connection):
             feedbacks_indexes = ["idx_feedbacks_user_email"]
             logger.info("Verifying feedbacks table indexes...")
             for index_name in feedbacks_indexes:
-                result = connection.execute(
-                    text(
-                        f"""
+                result = connection.execute(text(f"""
                     SELECT indexname 
                     FROM pg_indexes 
                     WHERE indexname = '{index_name}'
-                """
-                    )
-                )
+                """))
                 if result.fetchone():
                     logger.info(f"✓ Index {index_name} verified")
                 else:
@@ -406,9 +367,7 @@ def create_tables():
             # Ensure all required columns exist in each table
             logger.info("Checking and adding required columns...")
             try:
-                connection.execute(
-                    text(
-                        """
+                connection.execute(text("""
                     DO $$
                     BEGIN
                         -- Check and add columns to user table
@@ -437,6 +396,9 @@ def create_tables():
                             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'dishes_day' AND column_name = 'food_health_level') THEN
                                 ALTER TABLE public.dishes_day ADD COLUMN food_health_level VARCHAR;
                             END IF;
+                            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'dishes_day' AND column_name = 'image_id') THEN
+                                ALTER TABLE public.dishes_day ADD COLUMN image_id VARCHAR;
+                            END IF;
                         END IF;
 
                         -- Check and add columns to total_for_day table
@@ -453,9 +415,7 @@ def create_tables():
                             END IF;
                         END IF;
                     END $$;
-                """
-                    )
-                )
+                """))
                 logger.info("Column checks completed successfully")
             except Exception as e:
                 logger.error(f"Error during column checks: {str(e)}")
@@ -482,17 +442,13 @@ def create_tables():
                     "alcohol_consumption",
                     "alcohol_for_day",
                 ]:
-                    result = connection.execute(
-                        text(
-                            f"""
+                    result = connection.execute(text(f"""
                         SELECT EXISTS (
                             SELECT FROM information_schema.tables 
                             WHERE table_schema = 'public' 
                             AND table_name = '{table_name}'
                         )
-                    """
-                        )
-                    )
+                    """))
                     if result.fetchone()[0]:
                         existing_tables.append(table_name)
                         logger.info(f"✓ Table {table_name} exists")
@@ -786,17 +742,13 @@ def test_query_performance(connection):
             "alcohol_consumption",
             "alcohol_for_day",
         ]:
-            result = connection.execute(
-                text(
-                    f"""
+            result = connection.execute(text(f"""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
                     WHERE table_schema = 'public' 
                     AND table_name = '{table_name}'
                 )
-            """
-                )
-            )
+            """))
             if result.fetchone()[0]:
                 existing_tables.append(table_name)
 
@@ -804,16 +756,12 @@ def test_query_performance(connection):
         if "user" in existing_tables:
             logger.info("Testing email search query...")
             try:
-                result = connection.execute(
-                    text(
-                        """
+                result = connection.execute(text("""
                     EXPLAIN (ANALYZE, BUFFERS) 
                     SELECT email, register_date, last_activity 
                     FROM public."user" 
                     WHERE email LIKE '%test%'
-                """
-                    )
-                )
+                """))
 
                 explain_plan = result.fetchall()
                 logger.info("Email search query plan:")
@@ -826,16 +774,12 @@ def test_query_performance(connection):
         if "dishes_day" in existing_tables:
             logger.info("Testing user dishes query...")
             try:
-                result = connection.execute(
-                    text(
-                        """
+                result = connection.execute(text("""
                     EXPLAIN (ANALYZE, BUFFERS) 
                     SELECT * FROM public.dishes_day 
                     WHERE user_email = 'test@example.com' 
                     AND date = CURRENT_DATE
-                """
-                    )
-                )
+                """))
 
                 explain_plan = result.fetchall()
                 logger.info("User dishes query plan:")

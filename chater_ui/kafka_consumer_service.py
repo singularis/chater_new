@@ -6,7 +6,6 @@ import time
 
 import redis
 from confluent_kafka import Consumer, KafkaError, KafkaException
-
 from logging_config import setup_logging
 
 setup_logging("kafka_consumer_service.log")

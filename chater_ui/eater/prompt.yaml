@@ -1,175 +1,55 @@
 default_prompt: |
-  Analyse a single photo and respond exclusively with a valid JSON object—no extra text, comments, or code fences. 
-  Keys must appear precisely in the order shown below, and all numeric outputs must be whole integers without units.
-  If the main subject **is** food or drink (including packaged items such as a Coca‑Cola can, wrapped candy bar, or bottled drinks)
-  First, decide if the main subject is edible. If it is not food or drink, return:
-  {
-  "error": "NOT A FOOD"
-  }
-  If it is food or drink, return:
-  {
-  "type": "food_processing",
-  "dish_name": "<probable dish name>",
-  "estimated_avg_calories": <integer>,
-  "ingredients": ["<ingredient1>", "..."],
-  "total_avg_weight": <integer>,
-  "health_rating": <integer>,
-  "food_health_level": {
-    "title": "<short category title, e.g. High Protein, Balanced Meal, Unhealthy>",
-    "description": "<1-2 sentence description of the health aspects>",
-    "health_summary": [
-      {
-        "ingredients": "<ingredient name>",
-        "description": "<detailed description>",
-        "risk": "<specific risk (if harmful)>",
-        "benefit": "<specific benefit (if healthy)>"
-      }
-    ]
-  },
-  "contains": {
-  "proteins": <integer>,
-  "fats": <integer>,
-  "carbohydrates": <integer>,
-  "sugar": <integer>,
-  "is_alcohol": <boolean>
-  }
-  }
-  Additional rules:
-  Base calorie and macronutrient estimates on typical serving sizes from reliable nutritional references, assuming worst-case values (full-fat ingredients, all cooking oil absorbed, and all dressings or sauces fully consumed).
-  Calorie and macro values must reflect a realistic scenario: full-fat ingredients, all oils absorbed, and sauces fully consumed. Use reliable nutritional references (USDA, NCCDB, McCance & Widdowson, etc.).
-  Keys must appear precisely in the order shown. Do not include special characters like @, #, $, %, ^, &, *, (, ), [, ], {, }, |, \, ' in the response, food names, ingredients, etc
-  Nutritional Logic:
-  Health Rating Logic:
-  Assign a health_rating integer from 0 (Unhealthy) to 10 (Healthy) based on:
-   - 0-3: High processed sugar, trans fats, deep-fried, empty calories (e.g., candy, soda, deep-fried fast food).
-   - 4-6: Moderate nutritional value, mixed healthy/unhealthy elements (e.g., sandwich with white bread, pasta with cream sauce).
-   - 7-10: Nutrient-dense, whole foods, balanced macros, fiber-rich (e.g., salad with lean protein, grilled fish with vegetables, fresh fruit).
-  Food Health Level Logic:
-  Generate 'food_health_level' object with:
-   - title: Short category with Emoji (Max 4 words). e.g., "High Sugar 🍭", "Protein Power 💪".
-   - description: Engaging, friendly summary (Max 20 words). Use simple, vivid language.
-   - health_summary: List of key elements. Focus on visual readability.
-     - ingredients: Name with Emoji (e.g., "Added Sugar 🍬").
-     - description: Max 10 words. Simple, relatable impact (e.g., "Fast energy but crash later").
-     - risk: (Optional) Max 5 words. Gentle concern (e.g., "Blood Sugar Spike 📉").
-     - benefit: (Optional) Max 5 words. Clear win (e.g., "Good for Digestion 🧘").
-     - CONSTRAINT: Each item must have EITHER 'risk' OR 'benefit'. Use Emojis to make it visual and not boring.
-  Base all estimates on reliable nutritional references (e.g., USDA FoodData Central, NCCDB).
-  Assume a "worst-case" nutritional scenario: use full-fat and full-sugar ingredients, assume all cooking oil is absorbed, and that all visible dressings or sauces are consumed.
-  Portion Size Estimation Hierarchy:
-  Estimate weight and portion size using the following methods in order of priority:
-  Known Volume/Weight: If the item is a packaged product with a visible label (e.g., "330ml can," "50g chocolate bar"), use that as the primary source for its weight.
-  Visible Reference Objects: If visible, compare the food's size to everyday objects. Use the following standard dimensions: dinner plate (≈approximately 28 cm), dinner fork (≈approximately 19 cm), human hand (width ≈approximately 9 cm), and credit card (≈approximately 8.5 cm).
-  Implied Culinary Standards: If no reference object is visible, estimate based on typical culinary standards for the identified dish (e.g., a standard single-serving pizza is ~250-350g, a restaurant steak serving is ~225g, a can of soda is 330g).
-  Formatting and Character Rules:
-  Numeric Values: Round every numeric value to the nearest whole number. Return as a plain integer without any units (e.g., "g" or "kcal"). The keys `total_avg_weight_g` and `contains_g` are named to clarify the unit without including it in the value.
-  String Content: All strings (`dish_name` and `ingredients`) must only contain lowercase alphanumeric characters (a-z, 0-9) and spaces. Capitalize first letter of first word of dish_name and ingredients. Remove all other characters, such as punctuation, hyphens, or symbols.
-  Spelling: Ensure all food and ingredient names are spelt correctly before applying formatting rules.
-  Round every numeric value to the nearest whole number, return as plain integers with no “g” or “kcal” suffixes.
-  If the item is an alcoholic drink (beer, wine, spirits, cocktails, hard seltzer, etc.), set is_alcohol to true; otherwise set to false.
+  Analyze photo. Return ONLY valid JSON, no text/comments/fences. Keys in exact order shown. Numbers as integers without units.
+  
+  If NOT food/drink: {"error": "NOT A FOOD"}
+  
+  If food/drink (including packaged items):
+  {"type":"food_processing","dish_name":"<name>","estimated_avg_calories":<int>,"ingredients":["<item>"],"total_avg_weight":<int>,"health_rating":<int>,"food_health_level":{"title":"<4 words max + emoji>","description":"<20 words max>","health_summary":[{"ingredients":"<name + emoji>","description":"<10 words max>","risk":"<5 words, if harmful>","benefit":"<5 words, if healthy>"}]},"contains":{"proteins":<int>,"fats":<int>,"carbohydrates":<int>,"sugar":<int>,"is_alcohol":<bool>}}
+  
+  Rules:
+  - Worst-case nutrition: full-fat, all oil absorbed, all sauces consumed. Use USDA/NCCDB references.
+  - health_rating: 0-3 (junk food), 4-6 (mixed), 7-10 (whole foods).
+  - health_summary: each item has EITHER risk OR benefit, not both. Use emojis.
+  - Weight estimation priority: 1) visible labels, 2) reference objects (plate≈28cm, fork≈19cm, hand≈9cm), 3) culinary standards.
+  - Strings: capitalize first letter, alphanumeric + spaces only.
+  - is_alcohol: true for alcoholic drinks.
+
 weight_prompt: |
-  You receive the raw text returned by Google Cloud Vision for a photo of a weight scale. Extract a valid weight value in kilograms and reply only with JSON with no additional text.
-  rules:
-    The OCR may omit commas or decimal dots for example 753 could mean 75.3 Normalize any separator to a dot. If none is present treat the last digit as the decimal
-    Acceptable weights are from 30 to 150 kilograms and you responce should in this range
-    if weight is not in this range, respond with invalid_weight json structure
-    Output exactly one of these JSON structures
-  json_examples:
-    valid_weight:
-      type: weight_processing
-      weight: numeric_value
-    invalid_weight:
-      error: INVALID_WEIGHT
+  Extract weight from scale OCR text. JSON only, no extra text.
+  - Normalize separators to dot. If missing, last digit is decimal.
+  - Valid range: 30-150 kg.
+  - Output: {"type":"weight_processing","weight":<number>} or {"error":"INVALID_WEIGHT"}
+
 get_recommendation: |
-  You are a deterministic JSON generator. Do not explain.
-  - Identify which foods are generally healthier and should be consumed more.
-  - Identify which foods should be reduced or avoided for better health.
-  - Respond only by JSON. No additional text.
-  - For JSON response, send only keys and values.
-  - Response should include 4 main fields in following order. Do not change order of fields in response:
-  - 1) foods_to_reduce_or_avoid(dish_name, reason) provide 3 most harmful options
-  - 2) healthier_foods(dish_name, reason) provide 3 most healthier options
-  - 3) general_recommendations(key:value) 3 most important recommendation (6 words to 20 words)
-  - 4) translation_keys: Provide a mapping of English keys to target language translations
-  
-  CRITICAL TRANSLATION REQUIREMENT
-  - You MUST translate ALL values to the target language specified in "respond_in_language"
-  - DO NOT leave any values in English or other languages
-  - EVERY dish_name, reason, and recommendation value must be in the target language
-  - If you cannot translate to the target language, use a similar language you know well
-  - The translation_keys section is MANDATORY and must contain proper translations
-  
-  EXAMPLE OUTPUT STRUCTURE (for Ukrainian target language):
+  JSON only. Analyze food history. Return exactly this structure:
   {
-    "foods_to_reduce_or_avoid": [
-      {"dish_name": "Піца", "reason": "Високий вміст калорій та жирів"},
-      {"dish_name": "Гамбургер", "reason": "Багато насичених жирів"}
-    ],
-    "healthier_foods": [
-      {"dish_name": "Салат", "reason": "Багато вітамінів та мінералів"}
-    ],
-    "general_recommendations": {
-      "protein": "Споживайте більше білків",
-      "fiber": "Додайте більше клітковини"
-    },
-    "translation_keys": {
-      "foods_to_reduce_or_avoid": "Продукти для зменшення або уникнення",
-      "healthier_foods": "Більш здорові продукти",
-      "general_recommendations": "Загальні рекомендації"
-    }
+    "foods_to_reduce_or_avoid": [{"dish_name": "<translated>", "reason": "<translated>"}],
+    "healthier_foods": [{"dish_name": "<translated>", "reason": "<translated>"}],
+    "general_recommendations": {"<key>": "<translated value>"},
+    "translation_keys": {"foods_to_reduce_or_avoid": "<translated>", "healthier_foods": "<translated>", "general_recommendations": "<translated>"}
   }
   
-  - IMPORTANT: Use the exact JSON keys provided above, but translate all values to the target language.
-  - The translation_keys section should map English keys to their natural translations in the target language.
+  CRITICAL: Keys "foods_to_reduce_or_avoid", "healthier_foods", "general_recommendations", "translation_keys", "dish_name", "reason" MUST stay in English. NEVER translate keys.
+  Translate ONLY the values to respond_in_language.
+  - 3 items each for foods_to_reduce_or_avoid and healthier_foods
+  - 3 key:value pairs for general_recommendations (6-20 words each)
+
 respond_in_language: |
-  When generating any textual output fields, respond in the specified target language code provided as "respond_in_language" (ISO 639-1, e.g., en, fr). If not provided or unsupported, default to English (en). 
-  
-  CRITICAL LOCALIZATION RULES - FOLLOW EXACTLY
-  1. Keep JSON keys in English (e.g., "foods_to_reduce_or_avoid", "healthier_foods", "general_recommendations")
-  2. TRANSLATE ALL VALUES TO THE TARGET LANGUAGE - NO EXCEPTIONS:
-     - dish_name values → MUST be in target language
-     - reason values → MUST be in target language  
-     - general_recommendations values → MUST be in target language
-     - ALL other text values → MUST be in target language
-  3. Maintain the exact JSON structure with English keys
-  4. Ensure all translated text is properly formatted and natural in the target language
-  5. Add a "translation_keys" section that maps English keys to target language translations
-  6. NEVER leave any content in English or other languages - ONLY the target language
-  7. If unsure about translation, use the most appropriate equivalent in the target language
-   COMMON MISTAKES TO AVOID:
-  - DO NOT leave dish names in English (e.g., "Pizza" instead of "Піца")
-  - DO NOT leave reasons in English (e.g., "High in calories" instead of "Високий вміст калорій")
-  - DO NOT leave recommendations in English (e.g., "Eat more protein" instead of "Споживайте більше білків")
-  - DO NOT mix languages in the same response
-  - DO NOT skip the translation_keys section
-  CORRECT APPROACH:
-  - Translate EVERY text value to the target language
-  - Use proper grammar and natural phrasing in the target language
-  - Ensure cultural appropriateness for the target language
-  - Provide complete translation_keys mapping
+  Target language from "respond_in_language" (ISO 639-1). Default: en.
+  - JSON keys: English
+  - ALL values: target language only (dish names, reasons, recommendations)
+  - Include translation_keys mapping
+
 get_recommendation_local: |
-  JSON ONLY. Deterministic. Start with "{" and end with "}". Output EXACTLY one top-level JSON object.
-  Ignore all metadata in this message (e.g., key, value, user_email, question, Food Table, respond_in_language). NEVER copy them. Do not wrap under any key.
-  TARGET LANGUAGE = ISO 639-1 in respond_in_language (e.g., "uk", "de"). If missing → use "en".
-  TRANSLATE ALL KEYS AND VALUES to the TARGET LANGUAGE.
-  Return EXACTLY THREE top-level keys IN THIS ORDER:
-  1) <foods_to_reduce_or_avoid in TARGET LANGUAGE>
-  2) <healthier_foods in TARGET LANGUAGE>
-  3) <general_recommendations in TARGET LANGUAGE>
-  Item formats:
-  - For the first two keys, return arrays with EXACTLY 3 STRINGS each.
-  - Each string MUST be formatted as:  "DISH_NAME: reason".
-  - DISH_NAME MUST come from the provided Food Table (translate dish names to the target language; no generic words like “Food”, “Їжа”, “Essen”, “Dish”).
-  - Reasons must be brief, specific, and in the target language.
-  - The three items in each list must be DISTINCT dishes.
-  - The recommendations array must contain EXACTLY 3 short strings (6–12 words each), all in the target language.
-  Hard constraints:
-  - Do NOT add any other top-level keys (no "key", "value", "user_email", "translation_keys", etc.).
-  - Do NOT use objects inside arrays; use strings only ("DISH_NAME: reason").
-  - No markdown, no comments, no trailing text.
-  SKELETON (structure only; do NOT copy these labels/values):
-  {
-    "<reduce_key_TL>": ["Dish A: reason", "Dish B: reason", "Dish C: reason"],
-    "<healthier_key_TL>": ["Dish X: reason", "Dish Y: reason", "Dish Z: reason"],
-    "<recs_key_TL>": ["short recommendation", "short recommendation", "short recommendation"] (6-20 words each)
-  }
+  JSON only. One top-level object starting with "{".
+  TARGET LANGUAGE from respond_in_language (ISO 639-1). Default: en.
+  TRANSLATE keys AND values.
+  
+  Exactly 3 keys in order:
+  1) <reduce_key_translated>: ["Dish: reason", "Dish: reason", "Dish: reason"]
+  2) <healthier_key_translated>: ["Dish: reason", "Dish: reason", "Dish: reason"]
+  3) <recs_key_translated>: ["recommendation", "recommendation", "recommendation"] (6-12 words)
+  
+  - Dish names from Food Table only, translated. No generic words.
+  - Arrays contain strings only, not objects.
+  - No extra keys, no markdown, no trailing text.

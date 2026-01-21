@@ -5,9 +5,9 @@ from uuid import uuid4
 
 from locust import HttpUser, between, tag, task
 from proto import (alcohol_pb2, custom_date_food_pb2, delete_food_pb2,
-                   eater_photo_pb2, feedback_pb2, get_recomendation_pb2,
-                   manual_weight_pb2, modify_food_record_pb2, set_language_pb2,
-                   today_food_pb2, food_health_level_pb2)
+                   eater_photo_pb2, feedback_pb2, food_health_level_pb2,
+                   get_recomendation_pb2, manual_weight_pb2,
+                   modify_food_record_pb2, set_language_pb2, today_food_pb2)
 
 
 def bearer_headers() -> dict:
@@ -252,9 +252,9 @@ class ChaterUser(HttpUser):
             tf.ParseFromString(resp.content)
             if not tf.dishes_today:
                 return
-            
+
             latest_dish = max(tf.dishes_today, key=lambda d: d.time)
-            
+
             req = food_health_level_pb2.FoodHealthLevelRequest()
             req.time = latest_dish.time
             req.food_name = latest_dish.dish_name

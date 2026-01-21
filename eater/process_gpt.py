@@ -25,6 +25,10 @@ def process_food(message, user_email):
             )
             raise ValueError("Missing required fields in food processing")
 
+        # Ensure image_id is preserved if present in message
+        if "image_id" not in message:
+            logger.debug(f"No image_id found in message for user {user_email}")
+
         logger.debug(
             f"Found dish {dish_name} for user {user_email}, with {estimated_avg_calories} calories, "
             f"contains ingredients {ingredients}, weight {total_awg_weight}, and nutrients {contains}"

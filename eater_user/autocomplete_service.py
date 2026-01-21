@@ -260,6 +260,21 @@ async def share_food_endpoint(request: Request, user_email: str):
             "health_rating": food_record.get("health_rating"),
             "food_health_level": parsed_health_level,
         }
+
+        # Handle photo duplication if image_id exists
+        original_image_id = food_record.get("image_id")
+        if original_image_id:
+            try:
+                from minio_ops import duplicate_photo
+
+                new_image_id = await duplicate_photo(
+                    original_image_id, from_email, to_email
+                )
+                if new_image_id:
+                    friend_message["image_id"] = new_image_id
+            except Exception as e:
+                logger.error(f"Failed to duplicate photo for shared food: {e}")
+
         friend_payload = {
             "key": str(uuid.uuid4()),
             "value": {

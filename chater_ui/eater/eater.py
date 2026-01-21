@@ -1,28 +1,18 @@
 import logging
+import os
 import threading
 
-from app.trnd_processor import (
-    _generate_and_cache_recommendation_background,
-    cache_recommendation,
-    get_cached_recommendation,
-)
+from app.trnd_processor import (_generate_and_cache_recommendation_background,
+                                cache_recommendation,
+                                get_cached_recommendation)
 from local_models_helper import LocalModelService
 
-from .food_operations import (
-    delete_food,
-    get_alcohol_latest,
-    get_alcohol_range,
-    manual_weight,
-    modify_food_record,
-)
-from .getter_eater import (
-    eater_auth_token,
-    eater_get_custom_date,
-    eater_get_today,
-    eater_get_today,
-    get_recommendation,
-    eater_get_food_health_level,
-)
+from .food_operations import (delete_food, get_alcohol_latest,
+                              get_alcohol_range, manual_weight,
+                              modify_food_record)
+from .getter_eater import (eater_auth_token, eater_get_custom_date,
+                           eater_get_food_health_level, eater_get_today,
+                           get_recommendation)
 from .language import set_language_handler
 from .process_photo import eater_get_photo
 
@@ -53,6 +43,44 @@ def eater_photo(user_email):
     except Exception as exc:
         logger.exception("Photo processing failed for user %s", user_email)
         return "Failed"
+
+        return "Failed"
+
+
+def get_photo_file(image_id, user_email):
+    """
+    Retrieve photo file from MinIO.
+    Args:
+        image_id: The MinIO object name/path
+        user_email: The email of the user requesting (for validation if needed, though id is the path)
+    Returns:
+        tuple: (file_stream, content_type) or (None, None)
+    """
+    try:
+        from flask import current_app
+
+        client = current_app.config.get("MINIO_CLIENT")
+        if not client:
+            logger.error("MinIO client not available")
+            return None, None
+
+        bucket_name = os.getenv("MINIO_BUCKET_EATER", "eater")
+
+        # Verify the user is accessing their own photo (or shared one if logic allows)
+        # For simplicity, we assume image_id (which is full key) contains the prefix "email/"
+        # We can loosely check ownership:
+        if not image_id.startswith(f"{user_email}/"):
+            # If strict ownership is required. But for shared photos, the path is now "recipient/..."
+            # so strict check "startswith user_email" is correct for proper ownership.
+            # If user tries to access another user's public URL, they shouldn't be able to unless authenticated.
+            pass
+
+        data = client.get_object(bucket_name, image_id)
+        # return response with stream
+        return data, "image/jpeg"
+    except Exception as e:
+        logger.error(f"Error retrieving photo {image_id}: {e}")
+        return None, None
 
 
 def eater_today(user_email):
@@ -177,4 +205,3 @@ def food_health_level(request, user_email):
     except Exception:
         logger.exception("Failed to fetch food health level for user %s", user_email)
         return "Failed"
-

@@ -49,6 +49,7 @@ class DishesDay(Base):
     food_health_level = Column(String)
     contains = Column(JSON)
     user_email = Column(String, nullable=False)
+    image_id = Column(String)
 
 
 class TotalForDay(Base):
@@ -130,8 +131,10 @@ def write_to_dish_day(
                 food_health_level_str = None
                 if food_health_level_data:
                     import json
+
                     food_health_level_str = json.dumps(food_health_level_data)
                 contains = message.get("contains")
+                image_id = message.get("image_id")
 
                 # Insert the new dish entry
                 dish_day = DishesDay(
@@ -145,6 +148,7 @@ def write_to_dish_day(
                     food_health_level=food_health_level_str,
                     contains=contains,
                     user_email=user_email,
+                    image_id=image_id,
                 )
 
                 session.add(dish_day)
@@ -358,8 +362,11 @@ def get_today_dishes(user_email: str = None):
                     "dish_name": dish.dish_name,
                     "estimated_avg_calories": dish.estimated_avg_calories,
                     "total_avg_weight": dish.total_avg_weight,
-                    "health_rating": dish.health_rating if dish.health_rating is not None else -1,
+                    "health_rating": (
+                        dish.health_rating if dish.health_rating is not None else -1
+                    ),
                     "ingredients": dish.ingredients,
+                    "image_id": dish.image_id,
                 }
                 for dish in dishes_today
             ]
@@ -440,9 +447,12 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
                     "dish_name": dish.dish_name,
                     "estimated_avg_calories": dish.estimated_avg_calories,
                     "total_avg_weight": dish.total_avg_weight,
-                    "health_rating": dish.health_rating if dish.health_rating is not None else -1,
+                    "health_rating": (
+                        dish.health_rating if dish.health_rating is not None else -1
+                    ),
                     "ingredients": dish.ingredients,
                     "food_health_level": dish.food_health_level,
+                    "image_id": dish.image_id,
                 }
                 for dish in dishes_today
             ]
@@ -452,7 +462,7 @@ def get_custom_date_dishes(custom_date: str, user_email: str = None):
                 # Calculate summary from dishes if total_for_day is missing
                 cal_sum = sum(d.estimated_avg_calories for d in dishes_today)
                 weight_sum = sum(d.total_avg_weight for d in dishes_today)
-                
+
                 total_for_day_data = {
                     "total_calories": cal_sum,
                     "total_avg_weight": weight_sum,
@@ -637,7 +647,9 @@ def get_dishes(days, user_email: str = None):
                     "dish_name": dish.dish_name,
                     "estimated_avg_calories": dish.estimated_avg_calories,
                     "total_avg_weight": dish.total_avg_weight,
-                    "health_rating": dish.health_rating if dish.health_rating is not None else -1,
+                    "health_rating": (
+                        dish.health_rating if dish.health_rating is not None else -1
+                    ),
                     "ingredients": dish.ingredients,
                     "contains": dish.contains,
                 }
@@ -722,6 +734,7 @@ def get_food_health_level(time_value: int, user_email: str = None):
             )
             if dish and dish.food_health_level:
                 import json
+
                 return json.loads(dish.food_health_level)
             return None
     except Exception as e:

@@ -4,11 +4,11 @@ from datetime import datetime, timezone
 from io import BytesIO
 
 import redis
+from local_models_helper import LocalModelService
 from werkzeug.wrappers import Request
 
 from eater.getter_eater import get_recommendation
 from eater.proto import get_recomendation_pb2
-from local_models_helper import LocalModelService
 
 logger = logging.getLogger(__name__)
 redis_client = redis.StrictRedis(host=os.getenv("REDIS_ENDPOINT"), port=6379, db=0)

@@ -2,10 +2,12 @@ import logging
 from datetime import datetime
 
 from common import create_multilingual_prompt, json_to_plain_text
-from kafka_consumer_service import get_message_response, get_user_message_response
+from kafka_consumer_service import (get_message_response,
+                                    get_user_message_response)
 from kafka_producer import KafkaDispatchError, send_kafka_message
 
-from .proto import custom_date_food_pb2, get_recomendation_pb2, today_food_pb2, food_health_level_pb2
+from .proto import (custom_date_food_pb2, food_health_level_pb2,
+                    get_recomendation_pb2, today_food_pb2)
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +154,7 @@ def eater_get_today(user_email):
             dish_proto.total_avg_weight = int(dish.get("total_avg_weight", 0))
             hr = dish.get("health_rating")
             dish_proto.health_rating = int(hr) if hr is not None else -1
+            dish_proto.image_id = dish.get("image_id") or ""
 
             ingredients = dish.get("ingredients", [])
             logger.debug(
@@ -278,6 +281,7 @@ def eater_get_custom_date(request, user_email):
             dish_proto.total_avg_weight = int(dish.get("total_avg_weight", 0))
             hr = dish.get("health_rating")
             dish_proto.health_rating = int(hr) if hr is not None else -1
+            dish_proto.image_id = dish.get("image_id") or ""
 
             ingredients = dish.get("ingredients", [])
             logger.debug(
@@ -592,6 +596,7 @@ def eater_get_food_health_level(request, user_email):
             summary = health_level.get("health_summary", "")
             if isinstance(summary, (list, dict)):
                 import json
+
                 proto_response.health_summary = json.dumps(summary)
             else:
                 proto_response.health_summary = str(summary)
@@ -611,9 +616,7 @@ def eater_get_food_health_level(request, user_email):
             {"Content-Type": "application/protobuf"},
         )
     except Exception as exc:
-        logger.exception(
-            "Food health level request failed for user %s", user_email
-        )
+        logger.exception("Food health level request failed for user %s", user_email)
         proto_response = food_health_level_pb2.FoodHealthLevelResponse()
         return (
             proto_response.SerializeToString(),

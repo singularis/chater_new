@@ -227,50 +227,42 @@ def get_user_statistics():
             # Fallback if table does not exist in some environments
             registered_users = 0
 
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT COUNT(DISTINCT user_email) 
             FROM public.total_for_day 
             WHERE today::date >= CURRENT_DATE - INTERVAL '7 days';
-        """
-        )
+        """)
         active_users_7_days = cursor.fetchone()[0] or 0
 
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT COUNT(DISTINCT user_email) 
             FROM public.total_for_day 
             WHERE today::date >= CURRENT_DATE - INTERVAL '30 days';
-        """
-        )
+        """)
         active_users_30_days = cursor.fetchone()[0] or 0
 
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT user_email
             FROM public.total_for_day 
             WHERE today::date >= CURRENT_DATE - 7
             GROUP BY user_email
             HAVING COUNT(DISTINCT today::date) >= 7
             ORDER BY user_email;
-        """
-        )
+        """)
         constantly_active_7_days_emails = cursor.fetchall()
         constantly_active_7_days = len(constantly_active_7_days_emails)
         constantly_active_7_days_list = [
             row[0] for row in constantly_active_7_days_emails
         ]
 
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT user_email
             FROM public.total_for_day 
             WHERE today::date >= CURRENT_DATE - 30
             GROUP BY user_email
             HAVING COUNT(DISTINCT today::date) >= 30
             ORDER BY user_email;
-        """
-        )
+        """)
         constantly_active_30_days_emails = cursor.fetchall()
         constantly_active_30_days = len(constantly_active_30_days_emails)
         constantly_active_30_days_list = [
@@ -282,16 +274,14 @@ def get_user_statistics():
         )
         total_feedback_records = cursor.fetchone()[0] or 0
 
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT ROUND(AVG(dish_count), 2) 
             FROM (
                 SELECT COUNT(*) as dish_count 
                 FROM public.dishes_day 
                 GROUP BY user_email
             ) as user_dish_counts;
-        """
-        )
+        """)
         avg_dishes_per_user = cursor.fetchone()[0] or 0
 
         statistics = {
