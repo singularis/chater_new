@@ -80,7 +80,7 @@ async def autocomplete_query(query: str, limit: int, user_email: str):
 async def get_food_record_by_time(time: int, user_email: str):
     try:
         query = """
-            SELECT dish_name, estimated_avg_calories, ingredients, total_avg_weight, contains
+            SELECT dish_name, estimated_avg_calories, ingredients, total_avg_weight, contains, health_rating, food_health_level
             FROM public.dishes_day
             WHERE time = :time AND user_email = :user_email
             LIMIT 1
@@ -96,6 +96,8 @@ async def get_food_record_by_time(time: int, user_email: str):
             "ingredients": row["ingredients"],
             "total_avg_weight": row["total_avg_weight"],
             "contains": row["contains"],
+            "health_rating": row["health_rating"],
+            "food_health_level": row["food_health_level"],
         }
     except Exception:
         return None

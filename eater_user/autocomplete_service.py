@@ -236,6 +236,18 @@ async def share_food_endpoint(request: Request, user_email: str):
             else:
                 scaled_contains[key] = value
 
+        # Parse food_health_level if present
+        raw_health_level = food_record.get("food_health_level")
+        parsed_health_level = None
+        if raw_health_level:
+            try:
+                parsed_health_level = json.loads(raw_health_level)
+            except Exception:
+                logger.warning(
+                    "/autocomplete/sharefood: failed to json-parse 'food_health_level' string"
+                )
+                parsed_health_level = None
+
         friend_message = {
             "type": "food_processing",
             "dish_name": food_record["dish_name"],
@@ -245,6 +257,8 @@ async def share_food_endpoint(request: Request, user_email: str):
             "ingredients": food_record["ingredients"],
             "total_avg_weight": int(food_record["total_avg_weight"] * friend_factor),
             "contains": scaled_contains,
+            "health_rating": food_record.get("health_rating"),
+            "food_health_level": parsed_health_level,
         }
         friend_payload = {
             "key": str(uuid.uuid4()),
