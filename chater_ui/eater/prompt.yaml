@@ -26,13 +26,17 @@ get_recommendation: |
     "foods_to_reduce_or_avoid": [{"dish_name": "<translated>", "reason": "<translated>"}],
     "healthier_foods": [{"dish_name": "<translated>", "reason": "<translated>"}],
     "general_recommendations": {"<key>": "<translated value>"},
-    "translation_keys": {"foods_to_reduce_or_avoid": "<translated>", "healthier_foods": "<translated>", "general_recommendations": "<translated>"}
+    "favorite_dish": {"dish_name": "<translated>", "description": "<translated, ~10 words about why user likes it>"},
+    "cuisine_twist": "<translated, ~10 words suggesting variety: Italian, French, Asian, Mediterranean, etc.>",
+    "translation_keys": {"foods_to_reduce_or_avoid": "<translated>", "healthier_foods": "<translated>", "general_recommendations": "<translated>", "favorite_dish": "<translated>", "cuisine_twist": "<translated>"}
   }
   
-  CRITICAL: Keys "foods_to_reduce_or_avoid", "healthier_foods", "general_recommendations", "translation_keys", "dish_name", "reason" MUST stay in English. NEVER translate keys.
+  CRITICAL: Keys "foods_to_reduce_or_avoid", "healthier_foods", "general_recommendations", "translation_keys", "dish_name", "reason", "description", "favorite_dish", "cuisine_twist" MUST stay in English. NEVER translate keys.
   Translate ONLY the values to respond_in_language.
   - 3 items each for foods_to_reduce_or_avoid and healthier_foods
   - 3 key:value pairs for general_recommendations (6-20 words each)
+  - favorite_dish: pick user's most eaten healthy dish from history, add short description
+  - cuisine_twist: suggest trying different cuisines (Italian pasta, French macarons, Asian stir-fry, etc.)
 
 respond_in_language: |
   Target language from "respond_in_language" (ISO 639-1). Default: en.
