@@ -12,7 +12,7 @@ from fastapi.responses import Response
 from kafka_producer import produce_message
 from logging_config import setup_logging
 from neo4j_connection import neo4j_connection
-from postgres import autocomplete_query, database, get_food_record_by_time
+from postgres import autocomplete_query, database, get_food_record_by_time, ensure_nickname_column, update_nickname, get_nickname
 from proto import add_friend_pb2, get_friends_pb2, share_food_pb2
 from starlette.websockets import WebSocketState
 
@@ -50,10 +50,13 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-
 @app.on_event("startup")
 async def startup():
     await database.connect()
+    try:
+        await ensure_nickname_column()
+    except:
+        logger.warning("Could not ensure nickname column")
     neo4j_connection.connect()
 
 
@@ -132,6 +135,28 @@ async def add_friend_endpoint(request: Request, user_email: str):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@app.post("/autocomplete/update_nickname")
+@token_required
+async def update_nickname_endpoint(request: Request, user_email: str):
+    try:
+        body = await request.json()
+        nickname = body.get("nickname")
+        if not nickname:
+            raise HTTPException(status_code=400, detail="Nickname required")
+            
+        nickname = nickname.strip()
+        if len(nickname) < 1 or len(nickname) > 50:
+             raise HTTPException(status_code=400, detail="Nickname length invalid")
+
+        await update_nickname(user_email, nickname)
+        return {"success": True}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating nickname: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 @app.get(
     "/autocomplete/getfriend",
     responses={200: {"content": {"application/x-protobuf": {}}}},
@@ -140,6 +165,7 @@ async def add_friend_endpoint(request: Request, user_email: str):
 async def get_friends_endpoint(request: Request, user_email: str):
     try:
         friends_list = neo4j_connection.get_user_friends(user_email)
+        logger.debug(f"/autocomplete/getfriend: Found {len(friends_list)} friends for {user_email}")
 
         response = get_friends_pb2.GetFriendsResponse()
         response.count = len(friends_list)
@@ -147,6 +173,16 @@ async def get_friends_endpoint(request: Request, user_email: str):
         for friend_email in friends_list:
             friend = response.friends.add()
             friend.email = friend_email
+            # Fetch nickname for each friend
+            try:
+                nickname = await get_nickname(friend_email)
+                if nickname:
+                    friend.nickname = nickname
+                    logger.debug(f"/autocomplete/getfriend: Friend {friend_email} has nickname '{nickname}'")
+                else:
+                    logger.debug(f"/autocomplete/getfriend: Friend {friend_email} has no nickname")
+            except Exception as e:
+                logger.error(f"/autocomplete/getfriend: Error fetching nickname for {friend_email}: {e}")
 
         return Response(
             content=response.SerializeToString(), media_type="application/x-protobuf"
@@ -262,18 +298,10 @@ async def share_food_endpoint(request: Request, user_email: str):
         }
 
         # Handle photo duplication if image_id exists
+        # Pass original image_id directly without duplication
         original_image_id = food_record.get("image_id")
         if original_image_id:
-            try:
-                from minio_ops import duplicate_photo
-
-                new_image_id = await duplicate_photo(
-                    original_image_id, from_email, to_email
-                )
-                if new_image_id:
-                    friend_message["image_id"] = new_image_id
-            except Exception as e:
-                logger.error(f"Failed to duplicate photo for shared food: {e}")
+            friend_message["image_id"] = original_image_id
 
         friend_payload = {
             "key": str(uuid.uuid4()),
@@ -301,7 +329,21 @@ async def share_food_endpoint(request: Request, user_email: str):
 
         response = share_food_pb2.ShareFoodResponse()
         response.success = True
-        logger.debug("/autocomplete/sharefood: success")
+        
+        # Return nickname or fallback to email
+        try:
+            target_nickname = await get_nickname(to_email)
+            if target_nickname:
+                 logger.debug(f"Found nickname '{target_nickname}' for {to_email}")
+                 response.nickname_used = target_nickname
+            else:
+                 logger.warning(f"No nickname found for {to_email}, falling back to email")
+                 response.nickname_used = to_email
+        except Exception as e:
+            logger.error(f"Error fetching nickname for {to_email}: {e}")
+            response.nickname_used = to_email
+
+        logger.debug(f"/autocomplete/sharefood: success, shared with {response.nickname_used}")
         return Response(
             content=response.SerializeToString(), media_type="application/x-protobuf"
         )

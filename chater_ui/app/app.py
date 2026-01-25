@@ -4,12 +4,13 @@ import os
 import time
 
 import context
+import jwt
 import redis
 from common import (before_request, chater_clear, generate_session_secret,
-                    rate_limit_required, token_required)
+                    get_jwt_secret_key, rate_limit_required, token_required)
 from eater_admin import eater_admin_proxy, eater_admin_request
-from flask import (Flask, flash, g, jsonify, redirect, render_template,
-                   request, session, url_for)
+from flask import (Flask, Response, flash, g, jsonify, redirect, render_template,
+                   request, send_file, session, url_for)
 from flask_cors import CORS
 from flask_session import Session
 from google_ops import create_google_blueprint, g_login
@@ -24,10 +25,11 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from chater import chater as chater_ui
 from eater.eater import (alcohol_latest, alcohol_range, delete_food_record,
                          eater_auth_request, eater_custom_date, eater_photo,
-                         eater_today, food_health_level, get_recommendations,
-                         manual_weight_record, modify_food_record_data,
-                         set_language)
+                         eater_today, food_health_level, get_photo_file,
+                         get_recommendations, manual_weight_record,
+                         modify_food_record_data, set_language)
 from eater.feedback import submit_feedback_request
+from eater.user_mgmt import update_user_nickname
 
 from .metrics import (metrics_endpoint, record_http_metrics,
                       track_eater_operation, track_operation)
@@ -212,19 +214,30 @@ def eater(user_email):
 
 @app.route("/get_photo", methods=["GET"])
 @track_eater_operation("get_photo")
-@token_required
-def get_photo_route(user_email):
+def get_photo_route():
     """
     Get photo from MinIO.
     Params: image_id (query param)
     """
-    from flask import Response, send_file
-
-    from eater.eater import get_photo_file
 
     image_id = request.args.get("image_id")
     if not image_id:
         return jsonify({"error": "Missing image_id"}), 400
+
+    # Optional Auth: Try to extract user_email from token if present
+    # This enables the backend to fix missing prefixes (e.g. "uuid.jpg" -> "email/uuid.jpg")
+    # for authenticated users, while still allowing public access to full paths.
+    user_email = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        try:
+            token = auth_header.split(" ")[1]
+            jwt_secret = get_jwt_secret_key()
+            decoded_token = jwt.decode(token, jwt_secret, algorithms=["HS256"])
+            user_email = decoded_token.get("sub")
+        except Exception:
+            # Ignore token errors (expired, invalid) and proceed as public/anonymous
+            pass
 
     data, content_type = get_photo_file(image_id, user_email)
     if not data:
@@ -329,6 +342,13 @@ def eater_admin_proxy_route(resource_path):
 @token_required
 def set_language_route(user_email):
     return set_language(request=request, user_email=user_email)
+
+
+@app.route("/nickname_update", methods=["POST"])
+@track_eater_operation("nickname_update")
+@token_required
+def nickname_update(user_email):
+    return update_user_nickname(request=request, user_email=user_email)
 
 
 @app.route("/food_health_level", methods=["POST"])

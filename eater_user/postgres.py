@@ -23,22 +23,64 @@ async def test_database_connection():
         return False
 
 
+
+async def ensure_nickname_column():
+    try:
+        query = """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='user' AND column_name='nickname') THEN
+                ALTER TABLE "user" ADD COLUMN nickname TEXT;
+            END IF;
+        END
+        $$;
+        """
+        # Note: 'database.execute' might handle the DO block or we might need simple ALTER with exception catch
+        # simpler approach:
+        try:
+             await database.execute('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS nickname TEXT')
+        except Exception:
+             pass # Ignore if exists or other error (persist anyway)
+    except Exception:
+        pass
+
+
+async def update_nickname(user_email: str, nickname: str):
+    query = 'UPDATE "user" SET nickname = :nickname WHERE email = :user_email'
+    await database.execute(query, values={"nickname": nickname, "user_email": user_email})
+
+
+async def get_nickname(user_email: str):
+    try:
+        # Case insensitive match for email
+        query = 'SELECT nickname FROM "user" WHERE lower(email) = lower(:user_email)'
+        row = await database.fetch_one(query, values={"user_email": user_email})
+        if row and row["nickname"]:
+            return row["nickname"]
+        return None
+    except Exception:
+        return None
+
+
 async def autocomplete_query(query: str, limit: int, user_email: str):
     try:
         query = query.strip()[:100]
         if len(query) < 2:
             return []
 
+        # Update search to include nickname
         search_query = """
-            SELECT email, register_date, last_activity
+            SELECT email, nickname, register_date, last_activity
             FROM "user" 
-            WHERE email ILIKE :like_query
+            WHERE (email ILIKE :like_query OR nickname ILIKE :like_query)
             AND email != :user_email
             ORDER BY 
                 CASE 
+                    WHEN nickname ILIKE :starts_with THEN 0
                     WHEN email ILIKE :starts_with THEN 1
-                    WHEN email ILIKE :domain_query THEN 2
-                    ELSE 3
+                    WHEN nickname ILIKE :domain_query THEN 2
+                    WHEN email ILIKE :domain_query THEN 3
+                    ELSE 4
                 END,
                 length(email),
                 email
@@ -64,6 +106,7 @@ async def autocomplete_query(query: str, limit: int, user_email: str):
         for row in results:
             user = {
                 "email": row["email"],
+                "nickname": row["nickname"], # Add nickname to result
                 "register_date": (
                     row["register_date"].isoformat() if row["register_date"] else None
                 ),

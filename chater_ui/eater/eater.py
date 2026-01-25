@@ -28,7 +28,14 @@ def eater_photo(user_email):
         )
         logger.debug("Photo confirmation payload: %s", photo_confirmation)
 
-        if photo_confirmation == "Success":
+        # Handle both string "Success" and Flask Response object
+        is_success = False
+        if isinstance(photo_confirmation, str) and photo_confirmation == "Success":
+            is_success = True
+        elif hasattr(photo_confirmation, 'status_code') and photo_confirmation.status_code == 200:
+            is_success = True
+
+        if is_success:
             logger.info(
                 "Photo processed successfully, triggering background recommendation for user: %s",
                 user_email,
@@ -47,12 +54,12 @@ def eater_photo(user_email):
         return "Failed"
 
 
-def get_photo_file(image_id, user_email):
+def get_photo_file(image_id, user_email=None):
     """
     Retrieve photo file from MinIO.
     Args:
         image_id: The MinIO object name/path
-        user_email: The email of the user requesting (for validation if needed, though id is the path)
+        user_email: The email of the user requesting (optional, for path construction/validation)
     Returns:
         tuple: (file_stream, content_type) or (None, None)
     """
@@ -66,20 +73,38 @@ def get_photo_file(image_id, user_email):
 
         bucket_name = os.getenv("MINIO_BUCKET_EATER", "eater")
 
-        # Verify the user is accessing their own photo (or shared one if logic allows)
-        # For simplicity, we assume image_id (which is full key) contains the prefix "email/"
-        # We can loosely check ownership:
-        if not image_id.startswith(f"{user_email}/"):
-            # If strict ownership is required. But for shared photos, the path is now "recipient/..."
-            # so strict check "startswith user_email" is correct for proper ownership.
-            # If user tries to access another user's public URL, they shouldn't be able to unless authenticated.
-            pass
+        # Robustness: Handle case where image_id is just the filename
+        target_image_id = image_id
+        if "/" not in image_id:
+            if user_email:
+                logger.debug(
+                    "Image ID '%s' lacks prefix; attempting with user email prefix for user %s",
+                    image_id,
+                    user_email,
+                )
+                target_image_id = f"{user_email}/{image_id}"
+            else:
+                logger.warning(
+                    "Image ID '%s' lacks prefix and no user_email provided. Attempting access as-is.",
+                    image_id
+                )
 
-        data = client.get_object(bucket_name, image_id)
+        # Skip strict ownership check to allow sharing
+        # If user_email is provided, we could optionally check, but the requirement
+        # is to allow public access via image_id (security via obscurity/UUID).
+        
+        logger.debug(
+            "Fetching photo '%s' (original: '%s') for user %s",
+            target_image_id,
+            image_id,
+            user_email or "Public",
+        )
+
+        data = client.get_object(bucket_name, target_image_id)
         # return response with stream
         return data, "image/jpeg"
     except Exception as e:
-        logger.error(f"Error retrieving photo {image_id}: {e}")
+        logger.error(f"Error retrieving photo {image_id} for user {user_email}: {e}")
         return None, None
 
 

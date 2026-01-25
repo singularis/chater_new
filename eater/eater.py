@@ -98,6 +98,22 @@ def process_messages():
                             # Use preserved original_image_id, or message_key as last fallback
                             if "image_id" not in json_response:
                                 json_response["image_id"] = original_image_id or message_key
+                            
+                            # Inject timestamp and date if present in the message
+                            timestamp = value_dict.get("value", {}).get("timestamp")
+                            date_val = value_dict.get("value", {}).get("date")
+                            image_id_val = value_dict.get("value", {}).get("image_id")
+                            
+                            if timestamp:
+                                json_response["timestamp"] = timestamp
+                            if date_val:
+                                json_response["date"] = date_val
+                            
+                            # Prioritize image_id from message value (should be MinIO path), then analysis, then fallback
+                            if image_id_val:
+                                json_response["image_id"] = image_id_val
+                            elif "image_id" not in json_response:
+                                json_response["image_id"] = original_image_id or message_key
 
                             process_food(json_response, user_email)
                         elif type_of_processing == "weight_processing":

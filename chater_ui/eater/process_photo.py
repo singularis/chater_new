@@ -3,7 +3,7 @@ import logging
 import os
 import threading
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from common import get_prompt, get_respond_in_language, resize_image
 from flask import current_app, jsonify, request
@@ -44,7 +44,58 @@ def eater_get_photo(user_email, local_model_service):
         photo_message = eater_photo_pb2.PhotoMessage()
         photo_message.ParseFromString(request.data)
 
-        time = photo_message.time
+        # 1. Receive Past Timestamps
+        timestamp_str = photo_message.time
+        timestamp = None
+        
+        # Default to current UTC time if not provided
+        current_dt = datetime.now(timezone.utc)
+        
+        logger.info("=== PHOTO UPLOAD DEBUG for user %s ===", user_email)
+        logger.info("Received timestamp string: %s", timestamp_str)
+        
+        if timestamp_str:
+            try:
+                 if 'T' in timestamp_str or '-' in timestamp_str:
+                     clean_ts = timestamp_str.replace('Z', '+00:00')
+                     provided_dt = datetime.fromisoformat(clean_ts)
+                     if provided_dt.tzinfo is None:
+                         provided_dt = provided_dt.replace(tzinfo=timezone.utc)
+                     
+                     provided_dt = provided_dt.astimezone(timezone.utc)
+                     logger.info("Parsed ISO8601 timestamp to datetime: %s", provided_dt)
+                     ts_float_sec = provided_dt.timestamp()
+                 else:
+                    ts_float = float(timestamp_str)
+                    if ts_float > 100000000000:
+                       ts_float_sec = ts_float / 1000.0
+                    else:
+                       ts_float_sec = ts_float
+                    
+                    provided_dt = datetime.fromtimestamp(ts_float_sec, tz=timezone.utc)
+                    logger.info("Parsed UTC timestamp from millis: %s", provided_dt)
+
+                 logger.info("Parsed UTC date (YYYY-MM-DD): %s", provided_dt.strftime('%Y-%m-%d'))
+                 logger.info("Current UTC server time: %s", current_dt)
+                 logger.info("Date difference: %s days", (current_dt.date() - provided_dt.date()).days)
+                 if provided_dt > current_dt + timedelta(hours=24):
+                     logger.warning("Rejected future timestamp %s for user %s", timestamp_str, user_email)
+                     return jsonify({"error": "Time cannot be in the future"}), 400
+                 
+                 timestamp = str(int(provided_dt.timestamp() * 1000))
+                 logger.info("Storing food for date: %s with timestamp: %s", provided_dt.strftime('%d-%m-%Y'), timestamp)
+            except ValueError as e:
+                logger.warning("Invalid timestamp format %s for user %s, using current time. Error: %s", timestamp_str, user_email, e)
+                current_dt = datetime.now(timezone.utc)
+                timestamp = str(int(current_dt.timestamp() * 1000))
+                provided_dt = current_dt
+
+        if not timestamp:
+            logger.info("No timestamp provided, using current time")
+            current_dt = datetime.now(timezone.utc)
+            timestamp = str(int(current_dt.timestamp() * 1000))
+            provided_dt = current_dt
+
         photo_data = photo_message.photo_data
         type_of_processing = photo_message.photoType
         logger.debug("Received photo metadata for user %s", user_email)
@@ -57,13 +108,11 @@ def eater_get_photo(user_email, local_model_service):
             "Resized photo payload size for user %s: %s bytes",
             user_email,
             len(resized_photo_data),
-        )
-        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-        object_name = f"{user_email}/{current_time}.jpg"
+        )    
+        upload_time_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        object_name = f"{user_email}/{upload_time_str}.jpg"
 
-        # Generate a unique message ID for tracking
         message_id = str(uuid.uuid4())
-        # Encode photo directly from memory to avoid filesystem dependency
         photo_base64 = base64.b64encode(resized_photo_data).decode("utf-8")
         try:
             _dispatch_photo_message(
@@ -73,6 +122,8 @@ def eater_get_photo(user_email, local_model_service):
                 message_id,
                 local_model_service,
                 image_path=object_name,
+                timestamp=timestamp,
+                date=provided_dt.strftime('%d-%m-%Y')
             )
         except KafkaDispatchError as kafka_error:
             logger.error(
@@ -126,7 +177,8 @@ def eater_get_photo(user_email, local_model_service):
                             ),
                             daemon=True,
                         ).start()
-                    return response.get("status", "Success")
+                    
+                    return jsonify(response)
             else:
                 logger.warning(
                     "Timeout waiting for photo analysis response for user %s (message_id=%s)",
@@ -156,6 +208,8 @@ def _dispatch_photo_message(
     local_model_service,
     topic="eater-send-photo",
     image_path=None,
+    timestamp=None,
+    date=None
 ):
     photo_uuid = message_id or str(uuid.uuid4())
     clear_prompt = get_prompt(type_of_processing)
@@ -174,8 +228,10 @@ def _dispatch_photo_message(
         "photo": photo_base64,
         "user_email": user_email,
         "image_id": image_id_to_send,
+        "timestamp": timestamp,
+        "date": date
     }
-    logger.debug("Food image %s queued for user %s", photo_uuid, user_email)
+    logger.debug("Food image %s queued for user %s with timestamp %s and date %s", photo_uuid, user_email, timestamp, date)
     destination_topic = topic
     if type_of_processing == "weight_prompt":
         destination_topic = "chater-vision"
@@ -183,6 +239,8 @@ def _dispatch_photo_message(
             "prompt": clear_prompt,
             "photo": photo_base64,
             "user_email": user_email,
+            "timestamp": timestamp,
+            "date": date
         }
         logger.debug(
             "Routing weight prompt for user %s to topic %s",

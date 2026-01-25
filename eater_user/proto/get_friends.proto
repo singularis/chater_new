@@ -8,6 +8,7 @@ message GetFriendsRequest {
 
 message Friend {
   string email = 1;
+  string nickname = 2;
 }
 
 message GetFriendsResponse {

@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import (ARRAY, JSON, Column, Date, Float, Integer,
+from sqlalchemy import (ARRAY, JSON, BigInteger, Column, Date, Float, Integer,
                         PrimaryKeyConstraint, String, cast, create_engine,
                         func)
 from sqlalchemy.ext.declarative import declarative_base
@@ -39,7 +39,7 @@ class DishesDay(Base):
     __tablename__ = "dishes_day"
     __table_args__ = {"schema": "public"}
 
-    time = Column(Integer, primary_key=True)
+    time = Column(BigInteger, primary_key=True)
     date = Column(String)
     dish_name = Column(String)
     estimated_avg_calories = Column(Integer)
@@ -69,7 +69,7 @@ class Weight(Base):
     __tablename__ = "weight"
     __table_args__ = {"schema": "public"}
 
-    time = Column(Integer, primary_key=True)
+    time = Column(BigInteger, primary_key=True)
     date = Column(String)
     weight = Column(Float)
     user_email = Column(String, nullable=False)
@@ -79,7 +79,7 @@ class AlcoholConsumption(Base):
     __tablename__ = "alcohol_consumption"
     __table_args__ = {"schema": "public"}
 
-    time = Column(Integer, primary_key=True)
+    time = Column(BigInteger, primary_key=True)
     date = Column(Date)
     drink_name = Column(String)
     calories = Column(Integer)
@@ -135,11 +135,34 @@ def write_to_dish_day(
                     food_health_level_str = json.dumps(food_health_level_data)
                 contains = message.get("contains")
                 image_id = message.get("image_id")
+                
+                # Get date from message if present (e.g., from backdated photo upload)
+                # Ensure it's in YYYY-MM-DD format for storage
+                date_val = message.get("date")
+                if date_val:
+                    # Input expected: DD-MM-YYYY (from process_photo dispatch)
+                    # Output wanted: YYYY-MM-DD (for Postgres date column standard)
+                    try:
+                        day, month, year = date_val.split("-")
+                        storage_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                    except ValueError:
+                        # Fallback if format is unexpected
+                        storage_date = current_date()
+                else:
+                    storage_date = current_date()
+
+                # Get correct timestamp for time column
+                # If message has timestamp, use it. Otherwise use now.
+                timestamp_val = message.get("timestamp")
+                if timestamp_val:
+                    time_to_store = int(timestamp_val)
+                else:
+                    time_to_store = int(datetime.now().timestamp())
 
                 # Insert the new dish entry
                 dish_day = DishesDay(
-                    time=int(datetime.now().timestamp()),
-                    date=current_date(),
+                    time=time_to_store,
+                    date=storage_date,
                     dish_name=dish_name,
                     estimated_avg_calories=estimated_avg_calories,
                     ingredients=ingredients,
@@ -177,11 +200,30 @@ def write_to_dish_day(
                         f"Recorded alcohol consumption for user {user_email}: {drink_name}, cal {calories}, qty {quantity}"
                     )
                 session.commit()
-
+                
                 logger.debug(f"Successfully wrote dish data to database: {dish_name}")
 
-            # Query aggregated data for the current date
-            logger.debug(f"Calculating total food data for {current_date()}")
+            # Determine which date to recalculate totals for
+            # logic: if we just wrote, use storage_date. If generic recalc, try to infer or fallback.
+            # But wait, storage_date is local to the block above. We need scope.
+            # Best approach: if recalculating without message (generic), use current_date().
+            # If message provided (even if recalculate=True logic path entered), try to extract date.
+            
+            recalc_date = current_date() # Default
+            if message:
+                 date_val = message.get("date")
+                 if date_val:
+                    try:
+                        day, month, year = date_val.split("-")
+                        recalc_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                    except ValueError:
+                         pass
+            
+            # Note: storage_date above was YYYY-MM-DD. current_date() returns user's notion of today YYYY-MM-DD.
+            # We need to make sure we query consistently.
+            
+            # Query aggregated data for the *target* date
+            logger.debug(f"Calculating total food data for {recalc_date}")
 
             # Get total_calories, total_weight, all_dishes, all_contains
             total_data = (
@@ -191,14 +233,14 @@ def write_to_dish_day(
                     func.array_agg(DishesDay.dish_name).label("all_dishes"),
                     func.json_agg(DishesDay.contains).label("all_contains"),
                 )
-                .filter(DishesDay.date == current_date())
+                .filter(DishesDay.date == recalc_date)
                 .filter(DishesDay.user_email == user_email)
                 .one()
             )
 
             ingredients_subq = (
                 session.query(func.unnest(DishesDay.ingredients).label("ingredient"))
-                .filter(DishesDay.date == current_date())
+                .filter(DishesDay.date == recalc_date)
                 .filter(DishesDay.user_email == user_email)
                 .subquery()
             )
@@ -230,7 +272,7 @@ def write_to_dish_day(
 
             # Prepare data for total_for_day table
             total_for_day = TotalForDay(
-                today=current_date(),
+                today=recalc_date,
                 total_calories=total_calories,
                 ingredients=all_ingredients,
                 dishes_of_day=all_dishes,
@@ -242,7 +284,7 @@ def write_to_dish_day(
             # Check if there's an existing entry for today
             existing_entry = (
                 session.query(TotalForDay)
-                .filter(TotalForDay.today == current_date())
+                .filter(TotalForDay.today == recalc_date)
                 .filter(TotalForDay.user_email == user_email)
                 .first()
             )
@@ -260,7 +302,7 @@ def write_to_dish_day(
             session.commit()
 
             logger.debug(
-                f"Successfully wrote aggregated data to total_for_day for {current_date()}"
+                f"Successfully wrote aggregated data to total_for_day for {recalc_date}"
             )
 
             # Aggregate alcohol for the day
@@ -271,7 +313,7 @@ def write_to_dish_day(
                         func.count(AlcoholConsumption.time).label("total_drinks"),
                         func.array_agg(AlcoholConsumption.drink_name).label("drinks"),
                     )
-                    .filter(AlcoholConsumption.date == current_date())
+                    .filter(AlcoholConsumption.date == recalc_date)
                     .filter(AlcoholConsumption.user_email == user_email)
                     .one()
                 )
@@ -282,7 +324,7 @@ def write_to_dish_day(
 
                 existing_alcohol = (
                     session.query(AlcoholForDay)
-                    .filter(AlcoholForDay.date == current_date())
+                    .filter(AlcoholForDay.date == recalc_date)
                     .filter(AlcoholForDay.user_email == user_email)
                     .first()
                 )
@@ -292,7 +334,7 @@ def write_to_dish_day(
                     existing_alcohol.drinks_of_day = drinks_list
                 else:
                     alcohol_for_day = AlcoholForDay(
-                        date=current_date(),
+                        date=recalc_date,
                         user_email=user_email,
                         total_calories=total_alcohol_cal,
                         total_drinks=total_drinks,
@@ -301,7 +343,7 @@ def write_to_dish_day(
                     session.add(alcohol_for_day)
                 session.commit()
                 logger.debug(
-                    f"Updated alcohol_for_day for {current_date()} user {user_email}"
+                    f"Updated alcohol_for_day for {recalc_date} user {user_email}"
                 )
             except Exception as e:
                 logger.warning(f"Failed to aggregate alcohol_for_day: {e}")

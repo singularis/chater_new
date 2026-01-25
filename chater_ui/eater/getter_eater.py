@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from common import create_multilingual_prompt, json_to_plain_text
 from kafka_consumer_service import (get_message_response,
@@ -73,7 +73,7 @@ def eater_kafka_request(topic_send, topic_receive, payload, user_email, timeout_
 
 def eater_get_today_kafka(user_email):
     payload = {
-        "date": datetime.now().strftime("%d-%m-%Y"),
+        "date": datetime.now(timezone.utc).strftime("%d-%m-%Y"),
     }
     return eater_kafka_request(
         "get_today_data", "send_today_data", payload, user_email, timeout_sec=20

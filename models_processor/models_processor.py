@@ -154,6 +154,9 @@ class ModelsProcessor:
             prompt = value_dict.get("prompt")
             photo_base64 = value_dict.get("photo")
             user_email = value_dict.get("user_email")
+            timestamp = value_dict.get("timestamp")
+            date = value_dict.get("date")
+            image_id = value_dict.get("image_id")
 
             has_photo = bool(photo_base64)
             target_topic = "photo-analysis-response"
@@ -197,6 +200,13 @@ class ModelsProcessor:
                         message_value["analysis"] = analysis_result
             else:
                 message_value["analysis"] = analysis_result
+            
+            if timestamp:
+                message_value["timestamp"] = timestamp
+            if date:
+                message_value["date"] = date
+            if image_id:
+                message_value["image_id"] = image_id
 
             kafka_message = {
                 "key": key,
