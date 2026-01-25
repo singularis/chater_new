@@ -120,14 +120,24 @@ def process_messages():
                     user_email = actual_value.get("user_email")
                     image_id = actual_value.get("image_id")
                     if prompt and photo_base64:
+                        timestamp = actual_value.get("timestamp")
+                        date_val = actual_value.get("date")
+                        
                         photo_analysis_result = analyze_photo(prompt, photo_base64)
+                        
+                        response_value = {
+                            "analysis": photo_analysis_result,
+                            "user_email": user_email,
+                            "image_id": image_id,
+                        }
+                        if timestamp:
+                            response_value["timestamp"] = timestamp
+                        if date_val:
+                            response_value["date"] = date_val
+
                         kafka_message = {
                             "key": key,
-                            "value": {
-                                "analysis": photo_analysis_result,
-                                "user_email": user_email,
-                                "image_id": image_id,
-                            },
+                            "value": response_value,
                         }
                         produce_message("photo-analysis-response", kafka_message)
                         logger.debug(

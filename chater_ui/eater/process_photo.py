@@ -51,9 +51,6 @@ def eater_get_photo(user_email, local_model_service):
         # Default to current UTC time if not provided
         current_dt = datetime.now(timezone.utc)
         
-        logger.info("=== PHOTO UPLOAD DEBUG for user %s ===", user_email)
-        logger.info("Received timestamp string: %s", timestamp_str)
-        
         if timestamp_str:
             try:
                  if 'T' in timestamp_str or '-' in timestamp_str:
